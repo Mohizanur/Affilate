@@ -1,0 +1,369 @@
+console.log("Entering services/referralService.js");
+const databaseService = require("../config/database");
+const { v4: uuidv4 } = require("uuid");
+const logger = require("../../utils/logger");
+const { getNotificationServiceInstance } = require('./notificationService');
+
+class ReferralService {
+  // Helper: Get user doc and data, throw if not found
+  async _getUserOrThrow(telegramId) {
+      const userDoc = await databaseService.users().doc(telegramId.toString()).get();
+      if (!userDoc.exists) throw new Error('User not found');
+    return { userDoc, userData: userDoc.data() };
+  }
+  // Helper: Get company doc and data, throw if not found
+  async _getCompanyOrThrow(companyId) {
+    const companyDoc = await databaseService.companies().doc(companyId).get();
+    if (!companyDoc.exists) throw new Error('Company not found');
+    return { companyDoc, company: companyDoc.data() };
+  }
+
+  // Generate a unique referral code for a user and company (single-use per company)
+  async generateReferralCode(companyId, telegramId) {
+    try {
+      const { userDoc, userData } = await this._getUserOrThrow(telegramId);
+      const { companyDoc, company } = await this._getCompanyOrThrow(companyId);
+      // Generate new code (single-use)
+      const codePrefix = company.codePrefix || 'XX';
+      const code = `${codePrefix}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+      // Save code to referralCodes collection
+      const refCodeDoc = await databaseService.referralCodes().add({
+        code,
+        userId: telegramId,
+        companyId,
+        createdAt: new Date(),
+        active: true,
+      });
+      await getNotificationServiceInstance().sendNotification(telegramId, `🔗 Your new referral code for ${company.name}: ${code}`, { type: 'referral', action: 'generate', companyId, code });
+      logger.info(`Referral code generated: ${code} for user ${telegramId} and company ${companyId}`);
+      return code;
+    } catch (error) {
+      logger.error('Error generating referral code (Firestore):', error);
+      throw error;
+    }
+  }
+
+  generateUniqueCode() {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+    let code = "";
+    for (let i = 0; i < 8; i++) {
+      code += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return code;
+  }
+
+  async getReferralCodeByCode(code) {
+    try {
+      const snap = await databaseService.referralCodes().where("code", "==", code).get();
+      if (snap.empty) throw new Error("Referral code not found");
+      const refCode = snap.docs[0].data();
+      // Attach product, company, user info
+      const [productDoc, companyDoc, userDoc] = await Promise.all([
+        databaseService.getDb().collection('products').doc(refCode.productId).get(),
+        databaseService.companies().doc(refCode.companyId).get(),
+        databaseService.users().doc(refCode.userId.toString()).get(),
+      ]);
+      return {
+        ...refCode,
+        product_title: productDoc.exists ? productDoc.data().title : null,
+        price: productDoc.exists ? productDoc.data().price : null,
+        company_name: companyDoc.exists ? companyDoc.data().name : null,
+        commission_rate: companyDoc.exists ? companyDoc.data().commission_rate : null,
+        first_name: userDoc.exists ? userDoc.data().first_name : null,
+        last_name: userDoc.exists ? userDoc.data().last_name : null,
+      };
+    } catch (error) {
+      logger.error("Error getting referral code by code (Firestore):", error);
+      throw error;
+    }
+  }
+
+  async getUserReferralCodes(userId) {
+    try {
+      const snap = await databaseService.referralCodes().where("userId", "==", userId).get();
+      const codes = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Attach product, company info
+      for (const code of codes) {
+        let productDoc = { exists: false }, companyDoc = { exists: false };
+        if (code.productId) {
+          productDoc = await databaseService.getDb().collection('products').doc(code.productId).get();
+        }
+        if (code.companyId) {
+          companyDoc = await databaseService.companies().doc(code.companyId).get();
+        }
+        code.product_title = productDoc.exists ? productDoc.data().title : null;
+        code.price = productDoc.exists ? productDoc.data().price : null;
+        code.company_name = companyDoc.exists ? companyDoc.data().name : null;
+        code.commission_rate = companyDoc.exists ? companyDoc.data().commission_rate : null;
+      }
+      return codes;
+    } catch (error) {
+      logger.error("Error getting user referral codes (Firestore):", error);
+      throw error;
+    }
+  }
+
+  async createReferral(referralData) {
+    try {
+      // Remove any undefined fields from referralData
+      const cleanData = {};
+      for (const key in referralData) {
+        if (referralData[key] !== undefined) {
+          cleanData[key] = referralData[key];
+        }
+      }
+      const { userId } = cleanData;
+      const referralId = cleanData.id || uuidv4();
+      cleanData.id = referralId;
+      await databaseService.referrals().doc(referralId).set(cleanData);
+      await getNotificationServiceInstance().sendNotification(userId, `🎉 You have successfully referred a user!`, { type: 'referral', action: 'success', referralId });
+      logger.info(`Referral created: ${referralId} by user ${userId}`);
+      return cleanData;
+    } catch (error) {
+      logger.error('Error creating referral (Firestore):', error);
+      throw error;
+    }
+  }
+
+  async getReferralsByUser(userId) {
+    try {
+      const snap = await databaseService.referrals().where("userId", "==", userId).orderBy("createdAt", "desc").get();
+      const referrals = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Attach referral code, product, company, order info
+      for (const ref of referrals) {
+        const [refCodeDoc, orderDoc] = await Promise.all([
+          databaseService.referralCodes().doc(ref.referralCodeId).get(),
+          databaseService.orders().doc(ref.orderId).get(),
+        ]);
+        ref.referral_code = refCodeDoc.exists ? refCodeDoc.data().code : null;
+        ref.order_status = orderDoc.exists ? orderDoc.data().status : null;
+        ref.order_amount = orderDoc.exists ? orderDoc.data().amount : null;
+        ref.order_date = orderDoc.exists ? orderDoc.data().createdAt : null;
+      }
+      return referrals;
+    } catch (error) {
+      logger.error("Error getting referrals by user (Firestore):", error);
+      throw error;
+    }
+  }
+
+  async getReferralStats(userId) {
+    try {
+      // Aggregate stats from referrals and orders
+      const referralsSnap = await databaseService.referrals().where("userId", "==", userId).get();
+      const referrals = referralsSnap.docs.map(doc => doc.data());
+      let totalEarnings = 0;
+      let pendingEarnings = 0;
+      let thisMonthEarnings = 0;
+      let totalReferrals = referrals.length;
+      const now = new Date();
+      for (const ref of referrals) {
+        const orderDoc = await databaseService.orders().doc(ref.orderId).get();
+        if (orderDoc.exists) {
+          const order = orderDoc.data();
+          const companyDoc = await databaseService.companies().doc(order.companyId).get();
+          const commissionRate = companyDoc.exists ? (companyDoc.data().commission_rate || 0) : 0;
+          const earning = (order.amount || 0) * (commissionRate / 100);
+          if (order.status === 'approved') {
+            totalEarnings += earning;
+            // This month
+            const orderDate = order.createdAt instanceof Date ? order.createdAt : new Date(order.createdAt);
+            if (orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear()) {
+              thisMonthEarnings += earning;
+            }
+          } else if (order.status === 'pending') {
+            pendingEarnings += earning;
+          }
+        }
+      }
+      return {
+        totalReferrals,
+        totalEarnings,
+        pendingEarnings,
+        thisMonthEarnings,
+      };
+    } catch (error) {
+      logger.error("Error getting referral stats (Firestore):", error);
+      throw error;
+    }
+  }
+
+  async getTopReferrers(limit = 10) {
+    try {
+      // Fetch all users
+      const usersSnap = await databaseService.users().get();
+      const users = usersSnap.docs.map(doc => ({ telegramId: doc.id, ...doc.data() }));
+      // Fetch all referrals
+      const referralsSnap = await databaseService.referrals().get();
+      const referrals = referralsSnap.docs.map(doc => doc.data());
+      // Fetch all orders
+      const ordersSnap = await databaseService.orders().get();
+      const orders = ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      // Map: telegramId -> total earnings
+      const earningsMap = {};
+      referrals.forEach(ref => {
+        const order = orders.find(o => o.id === ref.orderId && o.status === 'approved');
+        if (order) {
+          const userId = ref.userId || ref.telegramId;
+          if (!earningsMap[userId]) earningsMap[userId] = 0;
+          // Assume commissionRate is stored on order or fallback to 10%
+          const commissionRate = order.commissionRate || 10;
+          earningsMap[userId] += (order.amount || 0) * (commissionRate / 100);
+        }
+      });
+      // Build leaderboard array
+      const leaderboard = users.map(u => ({
+        telegramId: u.telegramId,
+        firstName: u.firstName || '',
+        totalEarnings: earningsMap[u.telegramId] || 0,
+      }));
+      leaderboard.sort((a, b) => b.totalEarnings - a.totalEarnings);
+      return leaderboard.slice(0, limit);
+    } catch (error) {
+      logger.error('Error getting top referrers (Firestore):', error);
+      throw error;
+    }
+  }
+
+  // Validate a referral code for a purchase (single-use, deactivate after use)
+  async validateReferralCode({ code, companyId, buyerTelegramId }) {
+    try {
+      // Find code in referralCodes collection
+      const snap = await databaseService.referralCodes().where('code', '==', code).where('companyId', '==', companyId).where('active', '==', true).get();
+      if (snap.empty) return { valid: false, message: 'Referral code not found or already used.' };
+      const refCode = snap.docs[0].data();
+      // Prevent self-referral
+      if (refCode.userId === buyerTelegramId) return { valid: false, message: 'You cannot refer yourself.' };
+      // Deactivate code after use
+      await databaseService.referralCodes().doc(snap.docs[0].id).update({ active: false, usedBy: buyerTelegramId, usedAt: new Date() });
+      // Notify referrer
+      await getNotificationServiceInstance().sendNotification(refCode.userId, `🎉 Your referral code was used by a new buyer! You earned a 2% reward (manual payout or discount).`, { type: 'referral', action: 'used', code });
+      logger.info(`Referral code ${code} used by ${buyerTelegramId} for company ${companyId}`);
+      return { valid: true, referrerId: refCode.userId, code: refCode.code };
+    } catch (error) {
+      logger.error('Error validating referral code:', error);
+      throw error;
+    }
+  }
+
+  async deleteReferralCode(codeId, userId) {
+    try {
+      const result = await databaseService.query(
+        "DELETE FROM referral_codes WHERE id = $1 AND user_id = $2 RETURNING *",
+        [codeId, userId]
+      );
+
+      if (result.rows.length === 0) {
+        throw new Error("Referral code not found or unauthorized");
+      }
+
+      await getNotificationServiceInstance().sendNotification(userId, `❌ Referral code deleted.`, { type: 'referral', action: 'delete', codeId });
+      logger.info(`Referral code deleted: ${codeId} by user ${userId}`);
+      return result.rows[0];
+    } catch (error) {
+      logger.error("Error deleting referral code:", error);
+      throw error;
+    }
+  }
+
+  async getReferralCodeStats(codeId) {
+    try {
+      const [clicks, orders, earnings] = await Promise.all([
+        databaseService.query("SELECT COUNT(*) FROM referrals WHERE referral_code_id = $1", [
+          codeId,
+        ]),
+        databaseService.query(
+          `SELECT COUNT(*) FROM referrals r
+           JOIN orders o ON r.order_id = o.id
+           WHERE r.referral_code_id = $1 AND o.status = 'approved'`,
+          [codeId]
+        ),
+        databaseService.query(
+          `SELECT COALESCE(SUM(o.amount * (c.commission_rate / 100)), 0) as total
+           FROM referrals r
+           JOIN orders o ON r.order_id = o.id
+           JOIN referral_codes rc ON r.referral_code_id = rc.id
+           JOIN products p ON rc.product_id = p.id
+           JOIN companies c ON p.company_id = c.id
+           WHERE r.referral_code_id = $1 AND o.status = 'approved'`,
+          [codeId]
+        ),
+      ]);
+
+      return {
+        totalClicks: parseInt(clicks.rows[0].count),
+        totalOrders: parseInt(orders.rows[0].count),
+        totalEarnings: parseFloat(earnings.rows[0].total),
+        conversionRate:
+          clicks.rows[0].count > 0
+            ? (
+                (parseInt(orders.rows[0].count) /
+                  parseInt(clicks.rows[0].count)) *
+                100
+              ).toFixed(2)
+            : 0,
+      };
+    } catch (error) {
+      logger.error("Error getting referral code stats:", error);
+      throw error;
+    }
+  }
+
+  async getUserReferralStats(userId) {
+    try {
+      // Get user's referral stats
+      const stats = await this.getReferralStats(userId);
+      
+      // Get user's referral codes
+      const userDoc = await databaseService.users().doc(userId.toString()).get();
+      if (!userDoc.exists) throw new Error('User not found');
+      const userData = userDoc.data();
+      
+      // Get companies the user has joined
+      const joinedCompanies = userData.joinedCompanies || [];
+      const referralCodes = userData.referralCodes || {};
+      
+      const companyStats = {};
+      
+      for (const companyId of joinedCompanies) {
+        const companyDoc = await databaseService.companies().doc(companyId).get();
+        if (companyDoc.exists) {
+          const company = companyDoc.data();
+          const code = referralCodes[company.codePrefix];
+          
+          // Get referrals for this company
+          const referralsSnap = await databaseService.referrals().where('referrerTelegramId', '==', userId).where('companyId', '==', companyId).get();
+          const referrals = referralsSnap.docs.map(doc => doc.data());
+          
+          let earnings = 0;
+          for (const ref of referrals) {
+            const orderDoc = await databaseService.orders().doc(ref.orderId).get();
+            if (orderDoc.exists) {
+              const order = orderDoc.data();
+              if (order.status === 'approved') {
+                earnings += (order.amount || 0) * 0.025; // 2.5% commission
+              }
+            }
+          }
+          
+          companyStats[companyId] = {
+            count: referrals.length,
+            earnings: earnings,
+            code: code
+          };
+        }
+      }
+      
+      return {
+        ...stats,
+        companyStats
+      };
+    } catch (error) {
+      logger.error("Error getting user referral stats:", error);
+      throw error;
+    }
+  }
+}
+
+console.log("Exiting services/referralService.js");
+module.exports = new ReferralService();

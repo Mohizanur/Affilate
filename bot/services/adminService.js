@@ -1,0 +1,878 @@
+console.log("Entering services/adminService.js");
+const databaseService = require("../config/database");
+console.log("Loaded config/database in adminService");
+const logger = require("../../utils/logger");
+console.log("Loaded utils/logger in adminService");
+const userService = require("./userService");
+console.log("Loaded userService in adminService");
+const companyService = require("./companyService");
+console.log("Loaded companyService in adminService");
+const orderService = require("./orderService");
+console.log("Loaded orderService in adminService");
+const referralService = require("./referralService");
+console.log("Loaded referralService in adminService");
+const notificationService = require('./notificationService');
+const Validators = require("../../utils/validators");
+
+// Helper: Get user doc and data, throw if not found
+async function _getUserOrThrow(telegramId) {
+  const userDoc = await databaseService.users().doc(telegramId.toString()).get();
+  if (!userDoc.exists) throw new Error('User not found');
+  return { userDoc, user: userDoc.data() };
+}
+// Helper: Get company doc and data, throw if not found
+async function _getCompanyOrThrow(companyId) {
+  const companyDoc = await databaseService.companies().doc(companyId).get();
+  if (!companyDoc.exists) throw new Error('Company not found');
+  return { companyDoc, company: companyDoc.data() };
+}
+// Helper: Get order doc and data, throw if not found
+async function _getOrderOrThrow(orderId) {
+  const orderDoc = await databaseService.orders().doc(orderId).get();
+  if (!orderDoc.exists) throw new Error('Order not found');
+  return { orderDoc, order: orderDoc.data() };
+}
+
+class AdminService {
+  async getAnalytics() {
+    try {
+      const [
+        userStats,
+        companyStats,
+        orderStats,
+        payoutStats,
+        revenueStats,
+        growthStats,
+      ] = await Promise.all([
+        this.getUserAnalytics(),
+        this.getCompanyAnalytics(),
+        this.getOrderAnalytics(),
+        this.getPayoutAnalytics(),
+        this.getRevenueAnalytics(),
+        this.getGrowthAnalytics(),
+      ]);
+
+      return {
+        users: userStats,
+        companies: companyStats,
+        orders: orderStats,
+        payouts: payoutStats,
+        revenue: revenueStats,
+        growth: growthStats,
+        financial: await this.getFinancialMetrics(),
+        conversion: await this.getConversionMetrics(),
+        topPerformers: await this.getTopPerformers(),
+        health: await this.getSystemHealth(),
+      };
+    } catch (error) {
+      logger.error("Error getting analytics:", error);
+      throw error;
+    }
+  }
+
+  async getUserAnalytics() {
+    try {
+      // Firestore: get all users, phone verified, active in 7d, and referrers
+      const usersSnap = await databaseService.users().get();
+      const total = usersSnap.size;
+      let verified = 0, active = 0, referrers = 0;
+      const now = Date.now();
+      usersSnap.forEach(doc => {
+        const u = doc.data();
+        if (u.phone_verified) verified++;
+        if (u.last_active && (now - new Date(u.last_active).getTime()) < 7 * 24 * 60 * 60 * 1000) active++;
+      });
+      // Count users with at least one referral code
+      const refCodesSnap = await databaseService.getDb().collection('referral_codes').get();
+      const refUserIds = new Set();
+      refCodesSnap.forEach(doc => {
+        const rc = doc.data();
+        if (rc.user_id) refUserIds.add(rc.user_id);
+      });
+      referrers = refUserIds.size;
+      return { total, verified, active, referrers };
+    } catch (error) {
+      logger.error("Error getting user analytics:", error);
+      throw error;
+    }
+  }
+
+  async getCompanyAnalytics() {
+    try {
+      // Firestore: get all companies, count by status
+      const companiesSnap = await databaseService.companies().get();
+      let total = 0, approved = 0, pending = 0, rejected = 0;
+      companiesSnap.forEach(doc => {
+        const c = doc.data();
+        total++;
+        if (c.status === 'approved') approved++;
+        else if (c.status === 'pending') pending++;
+        else if (c.status === 'rejected') rejected++;
+      });
+      return { total, approved, pending, rejected };
+    } catch (error) {
+      logger.error("Error getting company analytics:", error);
+      throw error;
+    }
+  }
+
+  async getOrderAnalytics() {
+    try {
+      // Firestore: aggregate order stats
+      const [ordersSnap, pendingSnap, approvedSnap, rejectedSnap] = await Promise.all([
+        databaseService.orders().get(),
+        databaseService.orders().where("status", "==", "pending").get(),
+        databaseService.orders().where("status", "==", "approved").get(),
+        databaseService.orders().where("status", "==", "rejected").get(),
+      ]);
+      const total = ordersSnap.size;
+      const pending = pendingSnap.size;
+      const approved = approvedSnap.size;
+      const rejected = rejectedSnap.size;
+      const totalValue = ordersSnap.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
+      return { total, pending, approved, rejected, totalValue };
+    } catch (error) {
+      logger.error("Error getting order analytics (Firestore):", error);
+      throw error;
+    }
+  }
+
+  async getPayoutAnalytics() {
+    try {
+      // Firestore: aggregate payout stats
+      const [payoutsSnap, pendingSnap, approvedSnap, rejectedSnap] = await Promise.all([
+        databaseService.getDb().collection('payouts').get(),
+        databaseService.getDb().collection('payouts').where("status", "==", "pending").get(),
+        databaseService.getDb().collection('payouts').where("status", "==", "approved").get(),
+        databaseService.getDb().collection('payouts').where("status", "==", "rejected").get(),
+      ]);
+      const total = payoutsSnap.size;
+      const pending = pendingSnap.size;
+      const approved = approvedSnap.size;
+      const rejected = rejectedSnap.size;
+      const totalAmount = payoutsSnap.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
+      return { total, pending, approved, rejected, totalAmount };
+    } catch (error) {
+      logger.error("Error getting payout analytics (Firestore):", error);
+      throw error;
+    }
+  }
+
+  async getRevenueAnalytics() {
+    try {
+      // Firestore: aggregate revenue and commissions
+      const ordersSnap = await databaseService.orders().where("status", "==", "approved").get();
+      let totalRevenue = 0;
+      let totalCommissions = 0;
+      let platformRevenue = 0;
+      for (const doc of ordersSnap.docs) {
+        const order = doc.data();
+        totalRevenue += order.amount || 0;
+        // Get company commission rate
+        const companyDoc = await databaseService.companies().doc(order.companyId).get();
+        const commissionRate = companyDoc.exists ? (companyDoc.data().commission_rate || 0) : 0;
+        totalCommissions += (order.amount || 0) * (commissionRate / 100);
+        platformRevenue += (order.amount || 0) * (1 - commissionRate / 100);
+      }
+      return { totalRevenue, totalCommissions, platformRevenue };
+    } catch (error) {
+      logger.error("Error getting revenue analytics (Firestore):", error);
+      throw error;
+    }
+  }
+
+  async getGrowthAnalytics() {
+    try {
+      const [userGrowth, companyGrowth, revenueGrowth] = await Promise.all([
+        this.calculateGrowthRate("users", "created_at"),
+        this.calculateGrowthRate("companies", "created_at"),
+        this.calculateRevenueGrowthRate(),
+      ]);
+
+      return {
+        users: userGrowth,
+        companies: companyGrowth,
+        revenue: revenueGrowth,
+      };
+    } catch (error) {
+      logger.error("Error getting growth analytics:", error);
+      throw error;
+    }
+  }
+
+  async calculateGrowthRate(collection, dateField) {
+    try {
+      // Firestore: count docs created this month and last month
+      const now = new Date();
+      const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+      const snap = await databaseService.getDb().collection(collection).get();
+      let thisMonth = 0, lastMonth = 0;
+      snap.forEach(doc => {
+        const d = doc.data();
+        const created = d[dateField] instanceof Date ? d[dateField] : new Date(d[dateField]);
+        if (created >= startOfThisMonth) thisMonth++;
+        else if (created >= startOfLastMonth && created <= endOfLastMonth) lastMonth++;
+      });
+      const growthRate = lastMonth > 0 ? (((thisMonth - lastMonth) / lastMonth) * 100).toFixed(2) : 0;
+      return { thisMonth, lastMonth, growthRate: parseFloat(growthRate) };
+    } catch (error) {
+      logger.error("Error calculating growth rate (Firestore):", error);
+      throw error;
+    }
+  }
+
+  async calculateRevenueGrowthRate() {
+    try {
+      // Firestore: sum order amounts for this month and last month
+      const now = new Date();
+      const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+      const ordersSnap = await databaseService.orders().where("status", "==", "approved").get();
+      let thisMonth = 0, lastMonth = 0;
+      ordersSnap.forEach(doc => {
+        const d = doc.data();
+        const created = d.createdAt instanceof Date ? d.createdAt : new Date(d.createdAt);
+        if (created >= startOfThisMonth) thisMonth += d.amount || 0;
+        else if (created >= startOfLastMonth && created <= endOfLastMonth) lastMonth += d.amount || 0;
+      });
+      const growthRate = lastMonth > 0 ? (((thisMonth - lastMonth) / lastMonth) * 100).toFixed(2) : 0;
+      return { thisMonth, lastMonth, growthRate: parseFloat(growthRate) };
+    } catch (error) {
+      logger.error("Error calculating revenue growth rate (Firestore):", error);
+      throw error;
+    }
+  }
+
+  async getFinancialMetrics() {
+    try {
+      // Firestore: aggregate order and payout metrics
+      const ordersSnap = await databaseService.orders().get();
+      const payoutsSnap = await databaseService.getDb().collection('payouts').where("status", "==", "pending").get();
+      const totalOrders = ordersSnap.size;
+      const avgOrderValue = totalOrders > 0 ? ordersSnap.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0) / totalOrders : 0;
+      const totalProcessed = ordersSnap.docs.filter(doc => doc.data().status === 'approved').reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
+      const pendingValue = ordersSnap.docs.filter(doc => doc.data().status === 'pending').reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
+      const pendingPayouts = payoutsSnap.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
+      return { avgOrderValue, totalProcessed, pendingValue, totalOrders, pendingPayouts };
+    } catch (error) {
+      logger.error("Error getting financial metrics (Firestore):", error);
+      throw error;
+    }
+  }
+
+  async getConversionMetrics() {
+    try {
+      // Firestore: calculate conversion rate (orders/unique users)
+      const ordersSnap = await databaseService.orders().get();
+      const usersSnap = await databaseService.users().get();
+      const uniqueUsers = new Set();
+      ordersSnap.forEach(doc => uniqueUsers.add(doc.data().userId));
+      const conversionRate = usersSnap.size > 0 ? ((ordersSnap.size / usersSnap.size) * 100).toFixed(2) : 0;
+      return { conversionRate: parseFloat(conversionRate) };
+    } catch (error) {
+      logger.error("Error getting conversion metrics (Firestore):", error);
+      throw error;
+    }
+  }
+
+  async getTopPerformers() {
+    try {
+      const [topReferrers, topCompanies, topProducts] = await Promise.all([
+        this.getTopReferrers(),
+        this.getTopCompanies(),
+        this.getTopProducts(),
+      ]);
+      return { referrers: topReferrers, companies: topCompanies, products: topProducts };
+    } catch (error) {
+      logger.error("Error getting top performers (Firestore):", error);
+      throw error;
+    }
+  }
+
+  async getTopReferrers(limit = 5) {
+    try {
+      // Firestore: aggregate top referrers by earnings
+      const usersSnap = await databaseService.users().get();
+      const referralsSnap = await databaseService.referrals().get();
+      const ordersSnap = await databaseService.orders().where("status", "==", "approved").get();
+      const companiesSnap = await databaseService.companies().get();
+      const earningsMap = {};
+      referralsSnap.docs.forEach(refDoc => {
+        const ref = refDoc.data();
+        const order = ordersSnap.docs.find(o => o.id === ref.orderId);
+        if (order) {
+          const orderData = order.data();
+          const company = companiesSnap.docs.find(c => c.id === orderData.companyId);
+          const commissionRate = company ? (company.data().commission_rate || 0) : 0;
+          const earning = (orderData.amount || 0) * (commissionRate / 100);
+          if (!earningsMap[ref.userId]) earningsMap[ref.userId] = 0;
+          earningsMap[ref.userId] += earning;
+        }
+      });
+      const top = Object.entries(earningsMap)
+        .map(([userId, earnings]) => {
+          const userDoc = usersSnap.docs.find(u => u.id === userId);
+          const user = userDoc ? userDoc.data() : {};
+          return {
+            telegram_id: userId,
+            first_name: user.first_name || null,
+            last_name: user.last_name || null,
+            referral_count: referralsSnap.docs.filter(r => r.data().userId == userId).length,
+            total_earnings: earnings,
+          };
+        })
+        .sort((a, b) => b.total_earnings - a.total_earnings)
+        .slice(0, limit);
+      return top;
+    } catch (error) {
+      logger.error("Error getting top referrers (Firestore):", error);
+      throw error;
+    }
+  }
+
+  async getTopCompanies(limit = 5) {
+    try {
+      // Firestore: aggregate top companies by revenue
+      const companiesSnap = await databaseService.companies().where("status", "==", "approved").get();
+      const ordersSnap = await databaseService.orders().where("status", "==", "approved").get();
+      const revenueMap = {};
+      ordersSnap.docs.forEach(orderDoc => {
+        const order = orderDoc.data();
+        if (!revenueMap[order.companyId]) revenueMap[order.companyId] = 0;
+        revenueMap[order.companyId] += order.amount || 0;
+      });
+      const top = companiesSnap.docs.map(doc => {
+        const c = doc.data();
+        return {
+          id: doc.id,
+          name: c.name,
+          order_count: ordersSnap.docs.filter(o => o.data().companyId === doc.id).length,
+          total_revenue: revenueMap[doc.id] || 0,
+        };
+      }).sort((a, b) => b.total_revenue - a.total_revenue).slice(0, limit);
+      return top;
+    } catch (error) {
+      logger.error("Error getting top companies (Firestore):", error);
+      throw error;
+    }
+  }
+
+  async getTopProducts(limit = 5) {
+    try {
+      // Firestore: aggregate top products by revenue
+      const productsSnap = await databaseService.getDb().collection('products').get();
+      const ordersSnap = await databaseService.orders().where("status", "==", "approved").get();
+      const revenueMap = {};
+      ordersSnap.docs.forEach(orderDoc => {
+        const order = orderDoc.data();
+        if (!revenueMap[order.productId]) revenueMap[order.productId] = 0;
+        revenueMap[order.productId] += order.amount || 0;
+      });
+      const top = productsSnap.docs.map(doc => {
+        const p = doc.data();
+        return {
+          id: doc.id,
+          title: p.title,
+          company_name: p.company_name || null,
+          order_count: ordersSnap.docs.filter(o => o.data().productId === doc.id).length,
+          total_revenue: revenueMap[doc.id] || 0,
+        };
+      }).sort((a, b) => b.total_revenue - a.total_revenue).slice(0, limit);
+      return top;
+    } catch (error) {
+      logger.error("Error getting top products (Firestore):", error);
+      throw error;
+    }
+  }
+
+  async getSystemHealth() {
+    try {
+      const [dbHealth, recentActivity, errorRate] = await Promise.all([
+        this.checkDatabaseHealth(),
+        this.getRecentActivity(),
+        this.getErrorRate(),
+      ]);
+
+      return {
+        database: dbHealth,
+        activity: recentActivity,
+        errorRate,
+      };
+    } catch (error) {
+      logger.error("Error getting system health:", error);
+      throw error;
+    }
+  }
+
+  async checkDatabaseHealth() {
+    try {
+      // Firestore: check if can read users collection
+      const start = Date.now();
+      await databaseService.users().limit(1).get();
+      const responseTime = Date.now() - start;
+      return { status: "healthy", responseTime: `${responseTime}ms` };
+    } catch (error) {
+      return { status: "unhealthy", error: error.message };
+    }
+  }
+
+  async getRecentActivity() {
+    try {
+      // Firestore: count new users and orders in last hour and 24h
+      const now = new Date();
+      const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+      const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+      const usersSnap = await databaseService.users().get();
+      const ordersSnap = await databaseService.orders().get();
+      let lastHour = 0, last24h = 0;
+      usersSnap.forEach(doc => {
+        const d = doc.data();
+        const created = d.created_at instanceof Date ? d.created_at : new Date(d.created_at);
+        if (created >= oneHourAgo) lastHour++;
+        if (created >= oneDayAgo) last24h++;
+      });
+      ordersSnap.forEach(doc => {
+        const d = doc.data();
+        const created = d.createdAt instanceof Date ? d.createdAt : new Date(d.createdAt);
+        if (created >= oneHourAgo) lastHour++;
+        if (created >= oneDayAgo) last24h++;
+      });
+      return { lastHour, last24Hours: last24h };
+    } catch (error) {
+      logger.error("Error getting recent activity (Firestore):", error);
+      throw error;
+    }
+  }
+
+  async getErrorRate() {
+    try {
+      // Firestore: calculate error rate as rejected orders/payouts
+      const ordersSnap = await databaseService.orders().get();
+      const payoutsSnap = await databaseService.getDb().collection('payouts').get();
+      const total = ordersSnap.size + payoutsSnap.size;
+      const rejected = ordersSnap.docs.filter(doc => doc.data().status === 'rejected').length + payoutsSnap.docs.filter(doc => doc.data().status === 'rejected').length;
+      const errorRate = total > 0 ? ((rejected / total) * 100).toFixed(2) : 0;
+      return { errorRate: parseFloat(errorRate) };
+    } catch (error) {
+      logger.error("Error getting error rate (Firestore):", error);
+      throw error;
+    }
+  }
+
+  async getDashboardData() {
+    try {
+      const [recentOrders, pendingApprovals, recentUsers, systemAlerts] =
+        await Promise.all([
+          orderService.getRecentOrders(5),
+          this.getPendingApprovals(),
+          userService.getRecentUsers(5),
+          this.getSystemAlerts(),
+        ]);
+
+      return {
+        recentOrders,
+        pendingApprovals,
+        recentUsers,
+        systemAlerts,
+        quickStats: await this.getQuickStats(),
+      };
+    } catch (error) {
+      logger.error("Error getting dashboard data:", error);
+      throw error;
+    }
+  }
+
+  async getPendingApprovals() {
+    try {
+      const [orders, payouts] = await Promise.all([
+        orderService.getPendingOrders(),
+        userService.getPendingWithdrawals(), // Changed from payoutService.getPendingPayouts()
+      ]);
+
+      return {
+        orders: orders.slice(0, 5),
+        payouts: payouts.slice(0, 5),
+        counts: {
+          orders: orders.length,
+          payouts: payouts.length,
+        },
+      };
+    } catch (error) {
+      logger.error("Error getting pending approvals:", error);
+      throw error;
+    }
+  }
+
+  async getSystemAlerts() {
+    try {
+      const alerts = [];
+      // High pending payout amount
+      const payoutsSnap = await databaseService.getDb().collection('payouts').where("status", "==", "pending").get();
+      const pendingPayouts = payoutsSnap.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
+      if (pendingPayouts > 1000) {
+        alerts.push({
+          type: "warning",
+          message: `High pending payout amount: $${pendingPayouts}`,
+          priority: "medium",
+        });
+      }
+      // Old pending orders
+      const now = new Date();
+      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+      const ordersSnap = await databaseService.orders().where("status", "==", "pending").get();
+      const oldOrders = ordersSnap.docs.filter(doc => {
+        const d = doc.data();
+        const created = d.createdAt instanceof Date ? d.createdAt : new Date(d.createdAt);
+        return created < sevenDaysAgo;
+      });
+      if (oldOrders.length > 0) {
+        alerts.push({
+          type: "error",
+          message: `${oldOrders.length} orders pending for over 7 days`,
+          priority: "high",
+        });
+      }
+      return alerts;
+    } catch (error) {
+      logger.error("Error getting system alerts (Firestore):", error);
+      return [];
+    }
+  }
+
+  async getQuickStats() {
+    try {
+      const [usersSnap, companiesSnap, ordersSnap] = await Promise.all([
+        databaseService.users().get(),
+        databaseService.companies().where("status", "==", "approved").get(),
+        databaseService.orders().where("status", "==", "approved").get(),
+      ]);
+      const totalUsers = usersSnap.size;
+      const totalCompanies = companiesSnap.size;
+      const totalOrders = ordersSnap.size;
+      const totalRevenue = ordersSnap.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
+      return { totalUsers, totalCompanies, totalOrders, totalRevenue };
+    } catch (error) {
+      logger.error("Error getting quick stats (Firestore):", error);
+      throw error;
+    }
+  }
+
+  async getSystemStats() {
+    try {
+      const [usersSnap, companiesSnap, productsSnap, ordersSnap] = await Promise.all([
+        databaseService.users().get(),
+        databaseService.companies().get(),
+        databaseService.getDb().collection('products').get(),
+        databaseService.orders().get(),
+      ]);
+      const totalRevenue = ordersSnap.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
+      // Calculate today's stats
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      let newUsers = 0, newOrders = 0, todayRevenue = 0;
+      usersSnap.forEach(doc => {
+        const d = doc.data();
+        const created = d.created_at instanceof Date ? d.created_at : new Date(d.created_at);
+        if (created >= startOfToday) newUsers++;
+      });
+      ordersSnap.forEach(doc => {
+        const d = doc.data();
+        const created = d.createdAt instanceof Date ? d.createdAt : new Date(d.createdAt);
+        if (created >= startOfToday) {
+          newOrders++;
+          todayRevenue += d.amount || 0;
+        }
+      });
+      // Pending counts
+      const pendingOrders = ordersSnap.docs.filter(doc => doc.data().status === 'pending').length;
+      const pendingPayouts = (await databaseService.getDb().collection('payouts').where('status', '==', 'pending').get()).size;
+      return {
+        totalUsers: usersSnap.size,
+        totalCompanies: companiesSnap.size,
+        totalProducts: productsSnap.size,
+        totalOrders: ordersSnap.size,
+        totalRevenue,
+        today: { newUsers, newOrders, revenue: todayRevenue },
+        pending: { orders: pendingOrders, payouts: pendingPayouts, tickets: 0 },
+      };
+    } catch (error) {
+      logger.error('Error getting system stats (Firestore):', error);
+      throw error;
+    }
+  }
+
+  async getAllOrders() {
+    try {
+      const ordersSnap = await databaseService.orders().get();
+      return ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      logger.error('Error getting all orders (Firestore):', error);
+      throw error;
+    }
+  }
+
+  async getAllPayouts() {
+    try {
+      const payoutsSnap = await databaseService.getDb().collection('payouts').get();
+      return payoutsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      logger.error('Error getting all payouts (Firestore):', error);
+      throw error;
+    }
+  }
+
+  async getPlatformStats() {
+    try {
+      const [usersSnap, companiesSnap, ordersSnap] = await Promise.all([
+        databaseService.users().get(),
+        databaseService.companies().get(),
+        databaseService.orders().get(),
+      ]);
+      const totalRevenue = ordersSnap.docs.reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
+      return {
+        totalUsers: usersSnap.size,
+        totalCompanies: companiesSnap.size,
+        totalOrders: ordersSnap.size,
+        platformRevenue: totalRevenue,
+        today: {
+          newUsers: 0,
+          newOrders: 0,
+          withdrawals: 0,
+        },
+        alerts: [],
+      };
+    } catch (error) {
+      logger.error('Error getting platform stats (Firestore):', error);
+      throw error;
+    }
+  }
+
+  // STUB: Return placeholder platform settings
+  async getPlatformSettings() {
+    return {
+      maintenanceMode: false,
+      minPayout: 10,
+      supportContact: '',
+    };
+  }
+
+  // Real implementation: send broadcast to all users
+  async sendBroadcast(message, targetType = "all") {
+    // Validate message and targetType
+    const validation = Validators.validateBroadcastMessage(message, targetType);
+    if (!validation.isValid) {
+      throw new Error(validation.errors[0]);
+    }
+    const { getBot } = require('../index');
+    const bot = getBot();
+    const usersSnap = await require("../config/database").users().get();
+    let sent = 0, failed = 0, total = 0;
+    let failedUsers = [];
+    for (const doc of usersSnap.docs) {
+      const user = doc.data();
+      if (!user.telegramId) continue;
+      total++;
+      try {
+        await bot.telegram.sendMessage(user.telegramId, message);
+        sent++;
+      } catch (err) {
+        failed++;
+        failedUsers.push(user.telegramId);
+        console.error(`Broadcast failed for user ${user.telegramId}:`, err.message);
+      }
+      // Small delay to avoid Telegram rate limits
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    }
+    return { sent, failed, total, failedUsers };
+  }
+
+  // Get analytics for a specific company by ID
+  async getCompanyAnalyticsById(companyId) {
+    if (!companyId || typeof companyId !== 'string' || !companyId.trim()) {
+      logger.error("getCompanyAnalyticsById called with invalid companyId:", companyId);
+      return null;
+    }
+    try {
+      const doc = await databaseService.companies().doc(companyId).get();
+      if (!doc.exists) return null;
+      const c = doc.data();
+      // Count products, orders, revenue, active referrers
+      const productsSnap = await databaseService.getDb().collection('products').where('companyId', '==', companyId).get();
+      const ordersSnap = await databaseService.orders().where('companyId', '==', companyId).get();
+      let totalRevenue = 0;
+      ordersSnap.forEach(o => { const d = o.data(); if (d.amount) totalRevenue += d.amount; });
+      // Count active referrers (users with at least one referral for this company)
+      const refCodesSnap = await databaseService.getDb().collection('referral_codes').where('company_id', '==', companyId).get();
+      const refUserIds = new Set();
+      refCodesSnap.forEach(doc => { const rc = doc.data(); if (rc.user_id) refUserIds.add(rc.user_id); });
+      return {
+        id: doc.id,
+        name: c.name,
+        email: c.email,
+        totalProducts: productsSnap.size,
+        totalOrders: ordersSnap.size,
+        totalRevenue,
+        activeReferrers: refUserIds.size,
+        createdAt: c.createdAt,
+        status: c.status,
+      };
+    } catch (error) {
+      logger.error("Error in getCompanyAnalyticsById:", error);
+      throw error;
+    }
+  }
+
+  // Get billing summary for all companies
+  async getCompanyBillingSummary() {
+    try {
+      const companiesSnap = await databaseService.companies().get();
+      const summary = [];
+      companiesSnap.forEach(doc => {
+        const c = doc.data();
+        if (c.billingBalance || c.billingIssue) {
+          summary.push({
+            id: doc.id,
+            name: c.name,
+            email: c.email,
+            billingBalance: c.billingBalance || 0,
+            billingIssue: c.billingIssue || null,
+          });
+        }
+      });
+      return summary;
+    } catch (error) {
+      logger.error("Error in getCompanyBillingSummary:", error);
+      throw error;
+    }
+  }
+
+  // Get all companies (for export)
+  async getAllCompanies() {
+    try {
+      const companiesSnap = await databaseService.companies().get();
+      return companiesSnap.docs.map(doc => {
+        const c = doc.data();
+        return {
+          id: doc.id,
+          name: c.name,
+          email: c.email,
+          status: c.status,
+          totalProducts: c.totalProducts || 0,
+          totalRevenue: c.totalRevenue || 0,
+          createdAt: c.createdAt,
+        };
+      });
+    } catch (error) {
+      logger.error("Error in getAllCompanies:", error);
+      throw error;
+    }
+  }
+
+  // Get a company by ID
+  async getCompanyById(companyId) {
+    try {
+      const doc = await databaseService.companies().doc(companyId).get();
+      if (!doc.exists) return null;
+      const c = doc.data();
+      return {
+        id: doc.id,
+        name: c.name,
+        email: c.email,
+        totalProducts: c.totalProducts || 0,
+        commissionRate: c.commissionRate || 0,
+        status: c.status,
+        createdAt: c.createdAt,
+      };
+    } catch (error) {
+      logger.error("Error in getCompanyById:", error);
+      throw error;
+    }
+  }
+
+  // Proxy: Search companies by query, always include id field
+  async searchCompanies(query) {
+    try {
+      const companiesSnap = await databaseService.companies().get();
+      const companies = companiesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const q = query.toLowerCase();
+      return companies.filter(c =>
+        (c.name && c.name.toLowerCase().includes(q)) ||
+        (c.id && c.id.toLowerCase().includes(q))
+      );
+    } catch (error) {
+      logger.error('Error in searchCompanies:', error);
+      throw error;
+    }
+  }
+
+  // Get all orders by status (pending, approved, rejected)
+  async getOrdersByStatus(status) {
+    try {
+      const ordersSnap = await databaseService.orders().where('status', '==', status).orderBy('createdAt', 'desc').get();
+      return ordersSnap.docs.map(doc => {
+        const d = doc.data();
+        return {
+          id: doc.id,
+          productTitle: d.productTitle || d.product_name || '',
+          amount: d.amount || 0,
+          status: d.status || '',
+          userName: d.userName || d.user_name || '',
+          ...d,
+        };
+      });
+    } catch (error) {
+      logger.error('Error in getOrdersByStatus:', error);
+      throw error;
+    }
+  }
+
+  // Get all payouts by status (pending, approved, rejected)
+  async getPayoutsByStatus(status) {
+    try {
+      const payoutsSnap = await databaseService.withdrawals().where('status', '==', status).orderBy('createdAt', 'desc').get();
+      return payoutsSnap.docs.map(doc => {
+        const d = doc.data();
+        return {
+          id: doc.id,
+          amount: d.amount || 0,
+          status: d.status || '',
+          userName: d.userName || d.user_name || '',
+          ...d,
+        };
+      });
+    } catch (error) {
+      logger.error('Error in getPayoutsByStatus:', error);
+      throw error;
+    }
+  }
+
+  async createCompanyAsAdmin(companyData) {
+    try {
+      const docRef = await databaseService.companies().add({
+        ...companyData,
+        status: 'approved',
+        createdAt: new Date(),
+      });
+      return { id: docRef.id };
+    } catch (error) {
+      logger.error('Error creating company as admin:', error);
+      throw error;
+    }
+  }
+
+  async deleteCompany(companyId) {
+    try {
+      await databaseService.companies().doc(companyId).delete();
+      return { id: companyId };
+    } catch (error) {
+      logger.error('Error deleting company:', error);
+      throw error;
+    }
+  }
+}
+
+console.log("Exiting services/adminService.js");
+module.exports = new AdminService();

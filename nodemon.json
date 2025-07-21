@@ -1,0 +1,14 @@
+{
+  "watch": ["server.js", "bot/", "api/", "utils/", "config/"],
+  "ignore": [
+    "session_db.json",
+    "*.log",
+    "logs/",
+    "node_modules/",
+    ".git/",
+    "*.tmp",
+    "*.temp"
+  ],
+  "ext": "js,json",
+  "delay": 2000
+}
