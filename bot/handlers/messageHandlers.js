@@ -1,7 +1,6 @@
 console.log("Entering handlers/messageHandlers.js");
 const userService = require("../services/userService");
 const companyService = require("../services/companyService");
-const orderService = require("../services/orderService");
 const adminService = require("../services/adminService");
 const logger = require("../../utils/logger");
 const referralService = require("../services/referralService");
@@ -15,14 +14,6 @@ class MessageHandlers {
       return;
     }
 
-    console.log("handleTextMessage called", {
-      user: ctx.from.id,
-      session: ctx.session,
-      messageType:
-        ctx.message && ctx.message.text
-          ? "text"
-          : Object.keys(ctx.message || {}),
-    });
     try {
       const telegramId = ctx.from.id;
       const messageText = ctx.message.text;
@@ -67,11 +58,6 @@ class MessageHandlers {
         return userHandlers.handleMyReferralCodes(ctx);
       }
 
-      console.error(
-        `Invalid selection: user=${telegramId}, session=${JSON.stringify(
-          ctx.session
-        )}, text='${messageText}'`
-      );
       ctx.reply(
         "❓ I didn't understand that. Use /start to see available options."
       );
@@ -97,8 +83,6 @@ class MessageHandlers {
           return this.handleWithdrawalDetails(ctx, messageText);
         case "awaiting_withdrawal_amount":
           return this.handleWithdrawalAmount(ctx, messageText);
-        case "awaiting_order_details":
-          return this.handleOrderDetails(ctx, messageText);
         case "awaitingBroadcast":
           return adminHandlers.handleBroadcastMessage(ctx, messageText);
         case "awaiting_user_search":
@@ -284,39 +268,6 @@ Request ID: ${withdrawalId}
       }
     } catch (error) {
       logger.error("Error in handleWithdrawalAmount:", error);
-      ctx.reply(`❌ ${error.message}`);
-    }
-  }
-
-  async handleOrderDetails(ctx, orderDetails) {
-    try {
-      const lines = orderDetails.split("\\n");
-      if (lines.length < 4) {
-        return ctx.reply(
-          "❌ Please provide all required details:\\n\\nOrder Code:\\nCustomer Name:\\nCustomer Email:\\nAmount:\\nReferral Code:"
-        );
-      }
-      const orderData = {
-        orderCode: lines[0].replace("Order Code:", "").trim(),
-        customerName: lines[1].replace("Customer Name:", "").trim(),
-        customerEmail: lines[2].replace("Customer Email:", "").trim(),
-        amount: parseFloat(lines[3].replace("Amount:", "").trim()),
-        referralCode: lines[4].replace("Referral Code:", "").trim(),
-      };
-      const orderId = await orderService.submitOrder(ctx.from.id, orderData);
-      ctx.session.state = null;
-      const successMessage = `
-✅ *Order Submitted Successfully!*
-📦 Order ID: ${orderId}
-🎯 Order Code: ${orderData.orderCode}
-💰 Amount: $${orderData.amount.toFixed(2)}
-⏳ The order is now pending approval.
-💰 Commission will be credited once approved.
-Use /company_dashboard to manage orders.
-      `;
-      ctx.reply(successMessage, { parse_mode: "Markdown" });
-    } catch (error) {
-      logger.error("Error in handleOrderDetails:", error);
       ctx.reply(`❌ ${error.message}`);
     }
   }

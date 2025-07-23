@@ -23,7 +23,6 @@ console.log("Loaded ./bot (startBot)");
 const apiRoutes = require("./api/routes");
 const cron = require("node-cron");
 const notificationService = require("./bot/services/notificationService");
-const orderService = require("./bot/services/orderService");
 const userService = require("./bot/services/userService");
 const companyService = require("./bot/services/companyService");
 
@@ -110,13 +109,10 @@ cron.schedule("0 9 * * *", async () => {
   // Companies: remind to approve pending purchases
   const companies = await companyService.getAllCompanies();
   for (const company of companies) {
-    const pendingOrders = await orderService.getPendingOrdersForCompany(
-      company.id
-    );
-    if (pendingOrders.length > 0 && company.telegramId) {
+    if (company.telegramId) {
       await notificationService.sendNotification(
         company.telegramId,
-        `⏰ Reminder: You have ${pendingOrders.length} pending purchase(s) to approve in your dashboard.`
+        `⏰ Reminder: You have ${company.pendingPurchases.length} pending purchase(s) to approve in your dashboard.`
       );
     }
   }

@@ -67,10 +67,6 @@ class DatabaseService {
     return this.getDb().collection("referrals");
   }
 
-  orders() {
-    return this.getDb().collection("orders");
-  }
-
   withdrawals() {
     return this.getDb().collection("withdrawals");
   }
@@ -195,7 +191,7 @@ class DatabaseService {
       return users;
     } catch (error) {
       logger.error("Error fetching all user telegram IDs:", error);
-      throw error
+      throw error;
     }
   }
 }

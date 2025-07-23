@@ -224,7 +224,12 @@ class ReferralService {
         const earning = (ref.amount || 0) * 0.025; // 2.5% commission
         totalEarnings += earning;
         // This month
-        const createdAt = ref.createdAt instanceof Date ? ref.createdAt : (ref.createdAt && ref.createdAt.toDate ? ref.createdAt.toDate() : new Date(ref.createdAt));
+        const createdAt =
+          ref.createdAt instanceof Date
+            ? ref.createdAt
+            : ref.createdAt && ref.createdAt.toDate
+            ? ref.createdAt.toDate()
+            : new Date(ref.createdAt);
         if (
           createdAt.getMonth() === now.getMonth() &&
           createdAt.getFullYear() === now.getFullYear()
@@ -256,33 +261,20 @@ class ReferralService {
       // Fetch all referrals
       const referralsSnap = await databaseService.referrals().get();
       const referrals = referralsSnap.docs.map((doc) => doc.data());
-      // Fetch all orders
-      const ordersSnap = await databaseService.orders().get();
-      const orders = ordersSnap.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      // Map: telegramId -> total earnings
-      const earningsMap = {};
+      // Map: telegramId -> total referrals
+      const referralCountMap = {};
       referrals.forEach((ref) => {
-        const order = orders.find(
-          (o) => o.id === ref.orderId && o.status === "approved"
-        );
-        if (order) {
-          const userId = ref.userId || ref.telegramId;
-          if (!earningsMap[userId]) earningsMap[userId] = 0;
-          // Assume commissionRate is stored on order or fallback to 10%
-          const commissionRate = order.commissionRate || 10;
-          earningsMap[userId] += (order.amount || 0) * (commissionRate / 100);
-        }
+        const userId = ref.userId || ref.telegramId;
+        if (!referralCountMap[userId]) referralCountMap[userId] = 0;
+        referralCountMap[userId] += 1;
       });
       // Build leaderboard array
       const leaderboard = users.map((u) => ({
         telegramId: u.telegramId,
         firstName: u.firstName || "",
-        totalEarnings: earningsMap[u.telegramId] || 0,
+        totalReferrals: referralCountMap[u.telegramId] || 0,
       }));
-      leaderboard.sort((a, b) => b.totalEarnings - a.totalEarnings);
+      leaderboard.sort((a, b) => b.totalReferrals - a.totalReferrals);
       return leaderboard.slice(0, limit);
     } catch (error) {
       logger.error("Error getting top referrers (Firestore):", error);

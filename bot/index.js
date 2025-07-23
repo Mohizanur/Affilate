@@ -1,5 +1,8 @@
 console.log("Loaded bot/index.js");
-console.log("Loaded BOT_TOKEN:", (process.env.BOT_TOKEN || '').slice(0, 8) + '...');
+console.log(
+  "Loaded BOT_TOKEN:",
+  (process.env.BOT_TOKEN || "").slice(0, 8) + "..."
+);
 const { Telegraf } = require("telegraf");
 console.log("Loaded telegraf");
 const LocalSession = require("telegraf-session-local");
@@ -8,8 +11,8 @@ const databaseService = require("./config/database");
 console.log("Loaded config/database");
 const logger = require("../utils/logger");
 console.log("Loaded utils/logger");
-const fs = require('fs');
-const path = require('path');
+const fs = require("fs");
+const path = require("path");
 
 // Handler imports
 const userHandlers = require("./handlers/userHandlers");
@@ -28,7 +31,10 @@ const adminService = require("./services/adminService");
 console.log("Loaded services/adminService");
 const userService = require("./services/userService");
 console.log("Loaded services/userService");
-const { NotificationService, setNotificationServiceInstance } = require("./services/notificationService");
+const {
+  NotificationService,
+  setNotificationServiceInstance,
+} = require("./services/notificationService");
 console.log("Loaded services/notificationService");
 
 let bot;
@@ -39,26 +45,29 @@ function getBot() {
 
 function registerHandlers(bot) {
   // Dynamically register all slash commands from the commands directory
-  const commandsDir = path.join(__dirname, 'commands');
-  fs.readdirSync(commandsDir).forEach(file => {
-    if (file.endsWith('.js')) {
+  const commandsDir = path.join(__dirname, "commands");
+  fs.readdirSync(commandsDir).forEach((file) => {
+    if (file.endsWith(".js")) {
       const commandName = file.slice(0, -3);
       try {
         const commandHandler = require(path.join(commandsDir, file));
         bot.command(commandName, commandHandler);
         console.log(`✅ /${commandName} command handler registered`);
-  } catch (e) {
-        console.error(`❌ Error registering /${commandName} command:`, e.message);
+      } catch (e) {
+        console.error(
+          `❌ Error registering /${commandName} command:`,
+          e.message
+        );
       }
     }
   });
 
   // Register aliases
-  bot.command('referrals', require('./commands/referral'));
+  bot.command("referrals", require("./commands/referral"));
   console.log(`✅ /referrals command alias registered`);
-  bot.command('browse', require('./commands/products'));
+  bot.command("browse", require("./commands/products"));
   console.log(`✅ /browse command alias registered for /products`);
-  
+
   const handlers = [
     { name: "User", handler: userHandlers },
     { name: "Company", handler: companyHandlers },
@@ -123,7 +132,7 @@ async function startBot(app) {
     console.log("📦 Registering bot handlers...");
     try {
       console.log("Before registerHandlers");
-    registerHandlers(bot);
+      registerHandlers(bot);
       console.log("After registerHandlers");
     } catch (e) {
       console.error("Error in registerHandlers:", e);
@@ -144,21 +153,23 @@ async function startBot(app) {
     // Set bot commands before launching
     if (bot && bot.telegram && bot.telegram.setMyCommands) {
       const commands = [
-        { command: 'start', description: 'Start or restart the bot' },
-        { command: 'browse', description: 'Browse products' },
-        { command: 'referrals', description: 'My referrals & codes' },
-        { command: 'favorites', description: 'View your favorite products' },
-        { command: 'cart', description: 'View your cart' },
-        { command: 'profile', description: 'Your profile & settings' },
-        { command: 'leaderboard', description: 'Top referrers' },
-        { command: 'help', description: 'Help & support' },
-        { command: 'withdraw', description: 'Request a withdrawal' },
-        { command: 'orders', description: 'Your order history' },
-        { command: 'feecalculator', description: 'Calculate fee for a transaction' },
-        { command: 'company', description: 'Company dashboard (owners)' },
-        { command: 'admin', description: 'Admin panel (admins)' },
+        { command: "start", description: "Start or restart the bot" },
+        { command: "browse", description: "Browse products" },
+        { command: "referrals", description: "My referrals & codes" },
+        { command: "favorites", description: "View your favorite products" },
+        { command: "cart", description: "View your cart" },
+        { command: "profile", description: "Your profile & settings" },
+        { command: "leaderboard", description: "Top referrers" },
+        { command: "help", description: "Help & support" },
+        { command: "withdraw", description: "Request a withdrawal" },
+        {
+          command: "feecalculator",
+          description: "Calculate fee for a transaction",
+        },
+        { command: "company", description: "Company dashboard (owners)" },
+        { command: "admin", description: "Admin panel (admins)" },
       ];
-      
+
       await bot.telegram.setMyCommands(commands);
     }
 

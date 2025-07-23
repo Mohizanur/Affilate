@@ -509,15 +509,32 @@ class UserService {
     });
     const withdrawal = withdrawalDoc.data();
     const notificationService = require("./notificationService");
-    await notificationService.sendNotification(
+    const getNotificationServiceInstance =
+      notificationService.getNotificationServiceInstance || notificationService;
+    // Get user and company info for admin message
+    const user = await module.exports.userService.getUserByTelegramId(
+      withdrawal.userId
+    );
+    const company = await require("./companyService").getCompanyById(
+      withdrawal.companyId
+    );
+    const userDisplay = user.username
+      ? `@${user.username}`
+      : `${user.first_name || user.firstName || "User"} ${
+          user.last_name || user.lastName || ""
+        }`;
+    const companyDisplay = company?.name || withdrawal.companyId;
+    await getNotificationServiceInstance().sendNotification(
       withdrawal.userId,
       `Your withdrawal request for $${withdrawal.amount.toFixed(
         2
       )} was approved.`,
       { type: "withdrawal", action: "approved", withdrawalId }
     );
-    await notificationService.sendAdminNotification(
-      `Withdrawal request ${withdrawalId} approved by ${approverTelegramId}.`,
+    await getNotificationServiceInstance().sendAdminNotification(
+      `✅ Withdrawal approved for ${userDisplay} from ${companyDisplay} ($${withdrawal.amount.toFixed(
+        2
+      )}).`,
       { type: "withdrawal", action: "approved", withdrawalId }
     );
   }
@@ -534,15 +551,32 @@ class UserService {
     });
     const withdrawal = withdrawalDoc.data();
     const notificationService = require("./notificationService");
-    await notificationService.sendNotification(
+    const getNotificationServiceInstance =
+      notificationService.getNotificationServiceInstance || notificationService;
+    // Get user and company info for admin message
+    const user = await module.exports.userService.getUserByTelegramId(
+      withdrawal.userId
+    );
+    const company = await require("./companyService").getCompanyById(
+      withdrawal.companyId
+    );
+    const userDisplay = user.username
+      ? `@${user.username}`
+      : `${user.first_name || user.firstName || "User"} ${
+          user.last_name || user.lastName || ""
+        }`;
+    const companyDisplay = company?.name || withdrawal.companyId;
+    await getNotificationServiceInstance().sendNotification(
       withdrawal.userId,
       `Your withdrawal request for $${withdrawal.amount.toFixed(
         2
       )} was declined.`,
       { type: "withdrawal", action: "declined", withdrawalId }
     );
-    await notificationService.sendAdminNotification(
-      `Withdrawal request ${withdrawalId} declined by ${approverTelegramId}.`,
+    await getNotificationServiceInstance().sendAdminNotification(
+      `❌ Withdrawal declined for ${userDisplay} from ${companyDisplay} ($${withdrawal.amount.toFixed(
+        2
+      )}).`,
       { type: "withdrawal", action: "declined", withdrawalId }
     );
   }
@@ -591,6 +625,9 @@ async function getAllUsers() {
 }
 
 const userService = new UserService();
+
+UserService.prototype.getAdminTelegramIds =
+  UserService.prototype.getAdminTelegramIds;
 
 module.exports = {
   userService,

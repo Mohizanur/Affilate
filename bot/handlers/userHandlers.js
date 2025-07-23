@@ -5,8 +5,6 @@ const userService = require("../services/userService");
 console.log("Loaded services/userService in userHandlers");
 const productService = require("../services/productService");
 console.log("Loaded services/productService in userHandlers");
-const orderService = require("../services/orderService");
-console.log("Loaded services/orderService in userHandlers");
 const referralService = require("../services/referralService");
 console.log("Loaded services/referralService in userHandlers");
 const logger = require("../../utils/logger");
@@ -561,16 +559,30 @@ Share your code and start earning! 💸
   }
 
   async handleLeaderboard(ctx) {
-    ctx.session = {}; // Reset session state
-    const referralService = require("../services/referralService");
-    const leaderboard = await referralService.getTopReferrers(10);
-    let msg = "🏆 Top Referrers Leaderboard:\n";
-    leaderboard.forEach((u, i) => {
-      msg += `${i + 1}. ${u.firstName || "User"}: $${u.totalEarnings.toFixed(
-        2
-      )}\n`;
-    });
-    ctx.reply(msg);
+    try {
+      const topReferrers = await referralService.getTopReferrers(10); // [{telegramId, firstName, totalReferrals}]
+      let message = "🏆 *Top Referrers Leaderboard*\n\n";
+      if (!topReferrers || topReferrers.length === 0) {
+        message += "No referral activity yet.";
+      } else {
+        topReferrers.forEach((user, i) => {
+          const displayName = user.username ? `@${user.username}` : (user.firstName || "User");
+          message += `${i + 1}. ${displayName} (${user.telegramId}): ${user.totalReferrals} referrals\n`;
+        });
+      }
+      const buttons = [
+        [Markup.button.callback("🔙 Back to Menu", "main_menu")],
+      ];
+      ctx.reply(message, {
+        parse_mode: "Markdown",
+        ...Markup.inlineKeyboard(buttons),
+      });
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    } catch (error) {
+      logger.error("Error showing leaderboard:", error);
+      ctx.reply("❌ Failed to load leaderboard. Please try again.");
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    }
   }
 
   async handleRequestPayout(ctx) {
@@ -931,13 +943,10 @@ How much would you like to withdraw?
     try {
       ctx.session = {}; // Reset session state
       const telegramId = ctx.from.id;
-      const user = await userService.userService.getUserByTelegramId(
-        telegramId
-      );
+      const user = await userService.userService.getUserByTelegramId(telegramId);
       if (user.phone_verified && !user.phoneVerified)
         user.phoneVerified = user.phone_verified;
-      const orders = await orderService.getUserOrders(telegramId);
-
+      // Remove orderService and order stats
       const message = `
 👤 *Your Profile*
 
@@ -946,24 +955,14 @@ How much would you like to withdraw?
 • Username: @${user.username || "Not set"}
 • Phone: ${user.phoneVerified ? "✅ Verified" : "❌ Not verified"}
 • Member since: ${toDateSafe(user.createdAt)?.toLocaleDateString()}
-
-📊 Activity:
-• Total Orders: ${orders.length}
-• Payment Method: ${user.paymentMethod || "Not set"}
-      `;
-
+`;
       const buttons = [
         [
           Markup.button.callback("✏️ Edit Profile", "edit_profile"),
           Markup.button.callback("💳 Payment Settings", "payment_settings"),
         ],
-        [
-          Markup.button.callback("📋 Order History", "order_history"),
-          Markup.button.callback("🔔 Notifications", "notification_settings"),
-        ],
         [Markup.button.callback("🔙 Main Menu", "main_menu")],
       ];
-
       ctx.reply(message, {
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard(buttons),
@@ -1459,34 +1458,6 @@ Toggle notifications:
     } catch (error) {
       logger.error("Error toggling notification:", error);
       ctx.reply("❌ Failed to update notification setting.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handleLeaderboard(ctx) {
-    try {
-      const topReferrers = await referralService.getTopReferrers(10); // [{telegramId, firstName, totalEarnings}]
-      let message = "🏆 *Top Referrers Leaderboard*\n\n";
-      if (!topReferrers || topReferrers.length === 0) {
-        message += "No referral activity yet.";
-      } else {
-        topReferrers.forEach((user, i) => {
-          message += `${i + 1}. ${user.firstName || "User"} (${
-            user.telegramId
-          }): $${user.totalEarnings.toFixed(2)}\n`;
-        });
-      }
-      const buttons = [
-        [Markup.button.callback("🔙 Back to Menu", "main_menu")],
-      ];
-      ctx.reply(message, {
-        parse_mode: "Markdown",
-        ...Markup.inlineKeyboard(buttons),
-      });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error showing leaderboard:", error);
-      ctx.reply("❌ Failed to load leaderboard. Please try again.");
       if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
@@ -2812,16 +2783,11 @@ Toggle notifications:
   async handleWithdrawCompany(ctx, companyId) {
     try {
       const telegramId = ctx.from.id;
-      const stats =
-        await require("../services/referralService").getUserReferralStats(
-          telegramId
-        );
+      const stats = await require("../services/referralService").getUserReferralStats(telegramId);
       const minPayout = parseFloat(process.env.MIN_PAYOUT_AMOUNT || "10");
       const companyStats = stats.companyStats && stats.companyStats[companyId];
       if (!companyStats || companyStats.earnings < minPayout) {
-        return ctx.reply(
-          "❌ You are not eligible to withdraw from this company yet."
-        );
+        return ctx.reply("❌ You are not eligible to withdraw from this company yet.");
       }
       // Create withdrawal request
       const withdrawal = {
@@ -2831,23 +2797,26 @@ Toggle notifications:
         status: "pending",
         createdAt: new Date(),
       };
-      const ref = await require("../config/database")
-        .withdrawals()
-        .add(withdrawal);
-      // Notify company with referral history
-      const company =
-        await require("../services/companyService").getCompanyById(companyId);
-      let historyMsg = `💸 *Withdrawal Request*\n\nUser: ${telegramId}\nAmount: $${companyStats.earnings.toFixed(
-        2
-      )}\n\n*Referral History:*\n`;
+      const ref = await require("../config/database").withdrawals().add(withdrawal);
+      // Get user and company info for message
+      const company = await require("../services/companyService").getCompanyById(companyId);
+      const user = await require("../services/userService").userService.getUserByTelegramId(telegramId);
+      const userDisplay = user.username ? `@${user.username}` : `${user.first_name || user.firstName || "User"} ${user.last_name || user.lastName || ""}`;
+      let historyMsg = `💸 *Withdrawal Request*\n\n👤 User: ${userDisplay}\n🏢 Company: ${company?.name || companyId}\n💰 Amount: $${companyStats.earnings.toFixed(2)}\n\n*Referral History:*\n`;
       // List referrals for this company
       if (companyStats.referrals && companyStats.referrals.length > 0) {
         companyStats.referrals.forEach((ref) => {
-          historyMsg += `• $${ref.amount.toFixed(2)} — ${
-            ref.product_title || ""
-          } — ${
-            ref.createdAt ? new Date(ref.createdAt).toLocaleDateString() : ""
-          }\n`;
+          let createdAt = ref.createdAt;
+          if (createdAt && createdAt.toDate) {
+            createdAt = createdAt.toDate();
+          } else if (typeof createdAt === "string" || typeof createdAt === "number") {
+            createdAt = new Date(createdAt);
+          }
+          let dateStr = "Unknown";
+          if (createdAt instanceof Date && !isNaN(createdAt)) {
+            dateStr = `${createdAt.toLocaleDateString()} (${createdAt.toLocaleTimeString()})`;
+          }
+          historyMsg += `• $${ref.amount.toFixed(2)} — ${ref.product_title || ""} — ${dateStr}\n`;
         });
       } else {
         historyMsg += "No detailed referral history.";
@@ -2867,7 +2836,7 @@ Toggle notifications:
           ...require("telegraf").Markup.inlineKeyboard([[approveBtn, denyBtn]]),
         });
       }
-      ctx.reply("✅ Withdrawal request sent to the company for approval.");
+      ctx.reply("✅ Your withdrawal request has been sent for approval. You will be notified once it is processed.");
     } catch (error) {
       logger.error("Error in handleWithdrawCompany:", error);
       ctx.reply("❌ Failed to request withdrawal.");
@@ -2889,16 +2858,18 @@ Toggle notifications:
         approvedBy: ctx.from.id,
       });
       // Notify user
+      const user = await require("../services/userService").userService.getUserByTelegramId(withdrawal.userId);
+      const company = await require("../services/companyService").getCompanyById(withdrawal.companyId);
+      const userDisplay = user.username ? `@${user.username}` : `${user.first_name || user.firstName || "User"} ${user.last_name || user.lastName || ""}`;
       ctx.telegram.sendMessage(
         withdrawal.userId,
-        `✅ Your withdrawal request from company ${
-          withdrawal.companyId
-        } for $${withdrawal.amount.toFixed(2)} has been approved!`
+        `✅ Your withdrawal request from *${company?.name || withdrawal.companyId}* for $${withdrawal.amount.toFixed(2)} has been *approved*!\n\nThank you for using our platform.`,
+        { parse_mode: "Markdown" }
       );
-      ctx.reply("✅ Withdrawal approved and user notified.");
+      ctx.reply(`✅ Withdrawal approved and user (${userDisplay}) notified.`);
     } catch (error) {
       logger.error("Error in handleApproveWithdrawal:", error);
-      ctx.reply("❌ Failed to approve withdrawal.");
+      ctx.reply("❌ Failed to approve withdrawal. Please try again.");
     }
   }
 
@@ -2912,21 +2883,23 @@ Toggle notifications:
       if (withdrawal.status !== "pending")
         return ctx.reply("❌ Withdrawal already processed.");
       await withdrawalRef.update({
-        status: "denied",
-        deniedAt: new Date(),
-        deniedBy: ctx.from.id,
+        status: "declined",
+        declinedAt: new Date(),
+        declinedBy: ctx.from.id,
       });
       // Notify user
+      const user = await require("../services/userService").userService.getUserByTelegramId(withdrawal.userId);
+      const company = await require("../services/companyService").getCompanyById(withdrawal.companyId);
+      const userDisplay = user.username ? `@${user.username}` : `${user.first_name || user.firstName || "User"} ${user.last_name || user.lastName || ""}`;
       ctx.telegram.sendMessage(
         withdrawal.userId,
-        `❌ Your withdrawal request from company ${
-          withdrawal.companyId
-        } for $${withdrawal.amount.toFixed(2)} was denied.`
+        `❌ Your withdrawal request from *${company?.name || withdrawal.companyId}* for $${withdrawal.amount.toFixed(2)} has been *declined*.\n\nIf you have questions, please contact support.`,
+        { parse_mode: "Markdown" }
       );
-      ctx.reply("❌ Withdrawal denied and user notified.");
+      ctx.reply(`❌ Withdrawal declined and user (${userDisplay}) notified.`);
     } catch (error) {
       logger.error("Error in handleDenyWithdrawal:", error);
-      ctx.reply("❌ Failed to deny withdrawal.");
+      ctx.reply("❌ Failed to decline withdrawal. Please try again.");
     }
   }
 
@@ -3004,11 +2977,22 @@ Toggle notifications:
     } else {
       msg += `\n*Referrals:*\n`;
       data.referrals.forEach((ref, i) => {
+        let createdAt = ref.createdAt;
+        if (createdAt && createdAt.toDate) {
+          createdAt = createdAt.toDate();
+        } else if (
+          typeof createdAt === "string" ||
+          typeof createdAt === "number"
+        ) {
+          createdAt = new Date(createdAt);
+        }
+        let dateStr = "Unknown";
+        if (createdAt instanceof Date && !isNaN(createdAt)) {
+          dateStr = `${createdAt.toLocaleDateString()} (${createdAt.toLocaleTimeString()})`;
+        }
         msg += `• $${ref.amount.toFixed(2)} — ${
           ref.product_title || "Product"
-        } — ${
-          ref.createdAt ? new Date(ref.createdAt).toLocaleDateString() : ""
-        } (${ref.status})\n`;
+        } — ${dateStr} (${ref.status})\n`;
       });
     }
     msg += `\n`;

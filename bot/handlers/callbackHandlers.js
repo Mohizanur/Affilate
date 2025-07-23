@@ -5,8 +5,6 @@ const userService = require("../services/userService");
 console.log("Loaded userService in callbackHandlers");
 const companyService = require("../services/companyService");
 console.log("Loaded companyService in callbackHandlers");
-const orderService = require("../services/orderService");
-console.log("Loaded orderService in callbackHandlers");
 const adminService = require("../services/adminService");
 console.log("Loaded adminService in callbackHandlers");
 const adminHandlers = require("./adminHandlers");
@@ -117,6 +115,14 @@ class CallbackHandlers {
           return adminHandlers.handleAdminListUsers(ctx);
         case "platform_analytics_dashboard":
           return adminHandlers.handlePlatformAnalyticsDashboard(ctx);
+        case "error_logs":
+          return adminHandlers.handleErrorLogs(ctx);
+        case "warning_logs":
+          return adminHandlers.handleWarningLogs(ctx);
+        case "export_logs":
+          return adminHandlers.handleExportLogs(ctx);
+        case "clear_logs":
+          return adminHandlers.handleClearLogs(ctx);
         // Company handlers
         case "register_company":
           return userHandlers.handleRegisterCompany(ctx);
@@ -150,16 +156,8 @@ class CallbackHandlers {
           return userHandlers.handlePaymentSettings(ctx);
         case "edit_profile":
           return userHandlers.handleEditProfile(ctx);
-        case "order_history":
-          return userHandlers.handleOrderHistory(ctx);
         case "my_products":
           return userHandlers.handleMyProducts(ctx);
-
-        // Order handlers
-        case "create_order":
-          return this.handleCreateOrder(ctx);
-        case "my_orders":
-          return this.handleMyOrders(ctx);
 
         // Withdrawal handlers
         case "request_withdrawal":
@@ -177,6 +175,11 @@ class CallbackHandlers {
             return this.handleApproveWithdrawal(ctx, callbackData);
           } else if (callbackData.startsWith("reject_withdrawal_")) {
             return this.handleRejectWithdrawal(ctx, callbackData);
+          } else if (callbackData.startsWith("deny_withdrawal_")) {
+            return this.handleRejectWithdrawal(
+              ctx,
+              callbackData.replace("deny_withdrawal_", "reject_withdrawal_")
+            );
           } else if (callbackData.startsWith("company_")) {
             return userHandlers.handleCompanyActionMenu(ctx, callbackData);
           } else if (callbackData.startsWith("order_")) {
@@ -255,12 +258,6 @@ class CallbackHandlers {
           }
           if (callbackData.startsWith("company_settings_")) {
             return adminHandlers.handleCompanySettingsCallback(ctx);
-          }
-          if (callbackData.startsWith("approve_order_")) {
-            return adminHandlers.handleApproveOrderCallback(ctx);
-          }
-          if (callbackData.startsWith("reject_order_")) {
-            return adminHandlers.handleRejectOrderCallback(ctx);
           }
           if (callbackData.startsWith("approve_payout_")) {
             return adminHandlers.handleApprovePayoutCallback(ctx);
@@ -383,6 +380,11 @@ class CallbackHandlers {
             return userHandlers.handleShareCode(ctx);
           }
 
+          if (callbackData.startsWith("withdraw_company_")) {
+            const companyId = callbackData.replace("withdraw_company_", "");
+            return userHandlers.handleWithdrawCompany(ctx, companyId);
+          }
+
           ctx.reply("❌ Unknown action. Please try again.");
       }
       // Text input routing for admin add/remove company steps
@@ -442,24 +444,34 @@ ${user.referredBy ? `👥 *Referred By:* ${user.referredBy}` : ""}
   async handleApproveWithdrawal(ctx, callbackData) {
     try {
       const telegramId = ctx.from.id;
+      const withdrawalId = callbackData.replace("approve_withdrawal_", "");
+      const withdrawalDoc = await require("../config/database")
+        .withdrawals()
+        .doc(withdrawalId)
+        .get();
+      if (!withdrawalDoc.exists) return ctx.reply("❌ Withdrawal not found.");
+      const withdrawal = withdrawalDoc.data();
+      // Get company info
+      const company =
+        await require("../services/companyService").getCompanyById(
+          withdrawal.companyId
+        );
       const user = await userService.userService.getUserByTelegramId(
         telegramId
       );
-
-      if (!user || !(user.role === "admin" || user.isAdmin)) {
+      // Allow if admin or company owner
+      if (
+        !user ||
+        !(
+          user.role === "admin" ||
+          user.isAdmin ||
+          (company && company.telegramId === telegramId)
+        )
+      ) {
         return ctx.reply("❌ Access denied.");
       }
-
-      const withdrawalId = callbackData.replace("approve_withdrawal_", "");
-
-      await adminService.approveWithdrawal(withdrawalId);
-
+      await userService.userService.approveWithdrawal(withdrawalId, telegramId);
       ctx.reply("✅ Withdrawal approved successfully!");
-
-      // Refresh the withdrawals list
-      setTimeout(() => {
-        adminHandlers.handleManageWithdrawals(ctx);
-      }, 1000);
     } catch (error) {
       logger.error("Error approving withdrawal:", error);
       ctx.reply("❌ Failed to approve withdrawal. Please try again.");
@@ -469,24 +481,34 @@ ${user.referredBy ? `👥 *Referred By:* ${user.referredBy}` : ""}
   async handleRejectWithdrawal(ctx, callbackData) {
     try {
       const telegramId = ctx.from.id;
+      const withdrawalId = callbackData.replace("reject_withdrawal_", "");
+      const withdrawalDoc = await require("../config/database")
+        .withdrawals()
+        .doc(withdrawalId)
+        .get();
+      if (!withdrawalDoc.exists) return ctx.reply("❌ Withdrawal not found.");
+      const withdrawal = withdrawalDoc.data();
+      // Get company info
+      const company =
+        await require("../services/companyService").getCompanyById(
+          withdrawal.companyId
+        );
       const user = await userService.userService.getUserByTelegramId(
         telegramId
       );
-
-      if (!user || !(user.role === "admin" || user.isAdmin)) {
+      // Allow if admin or company owner
+      if (
+        !user ||
+        !(
+          user.role === "admin" ||
+          user.isAdmin ||
+          (company && company.telegramId === telegramId)
+        )
+      ) {
         return ctx.reply("❌ Access denied.");
       }
-
-      const withdrawalId = callbackData.replace("reject_withdrawal_", "");
-
-      await adminService.rejectWithdrawal(withdrawalId, "Rejected by admin");
-
+      await userService.userService.declineWithdrawal(withdrawalId, telegramId);
       ctx.reply("❌ Withdrawal rejected. Funds returned to user.");
-
-      // Refresh the withdrawals list
-      setTimeout(() => {
-        adminHandlers.handleManageWithdrawals(ctx);
-      }, 1000);
     } catch (error) {
       logger.error("Error rejecting withdrawal:", error);
       ctx.reply("❌ Failed to reject withdrawal. Please try again.");
@@ -511,10 +533,7 @@ ${user.referredBy ? `👥 *Referred By:* ${user.referredBy}` : ""}
 
   async handleOrders(ctx) {
     const buttons = [
-      [
-        Markup.button.callback("➕ Create Order", "create_order"),
-        Markup.button.callback("📦 My Orders", "my_orders"),
-      ],
+      [Markup.button.callback("📦 My Orders", "my_orders")],
       [Markup.button.callback("🔙 Back to Menu", "main_menu")],
     ];
 

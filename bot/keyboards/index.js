@@ -1,23 +1,47 @@
-const { Markup } = require('telegraf');
+const { Markup } = require("telegraf");
 
 class Keyboards {
   // Main menu keyboard
   static mainMenu() {
     return Markup.inlineKeyboard([
-      [Markup.button.callback('🛍️ Browse Products', 'browse_products'), Markup.button.callback('💰 My Earnings', 'my_earnings')],
-      [Markup.button.callback('🔗 My Referrals', 'my_referrals'), Markup.button.callback('🏢 My Company', 'my_company')],
-      [Markup.button.callback('👤 Profile', 'user_profile'), Markup.button.callback('📊 Statistics', 'statistics')],
-      [Markup.button.callback('⚙️ Settings', 'settings'), Markup.button.callback('❓ Help', 'help')],
+      [
+        Markup.button.callback("🛍️ Browse Products", "browse_products"),
+        Markup.button.callback("💰 My Earnings", "my_earnings"),
+      ],
+      [
+        Markup.button.callback("🔗 My Referrals", "my_referrals"),
+        Markup.button.callback("🏢 My Company", "my_company"),
+      ],
+      [
+        Markup.button.callback("👤 Profile", "user_profile"),
+        Markup.button.callback("📊 Statistics", "statistics"),
+      ],
+      [
+        Markup.button.callback("⚙️ Settings", "settings"),
+        Markup.button.callback("❓ Help", "help"),
+      ],
     ]);
   }
 
   // Admin menu keyboard
   static adminMenu() {
     return Markup.inlineKeyboard([
-      [Markup.button.callback('📊 Analytics', 'admin_analytics'), Markup.button.callback('👥 Users', 'admin_users')],
-      [Markup.button.callback('🏢 Companies', 'admin_companies'), Markup.button.callback('🛒 Orders', 'admin_orders')],
-      [Markup.button.callback('💸 Payouts', 'admin_payouts'), Markup.button.callback('📢 Broadcast', 'admin_broadcast')],
-      [Markup.button.callback('⚙️ Settings', 'admin_settings'), Markup.button.callback('🔙 Back to Main', 'main_menu')],
+      [
+        Markup.button.callback("📊 Analytics", "admin_analytics"),
+        Markup.button.callback("👥 Users", "admin_users"),
+      ],
+      [
+        Markup.button.callback("🏢 Companies", "admin_companies"),
+        Markup.button.callback("🛒 Orders", "admin_orders"),
+      ],
+      [
+        Markup.button.callback("💸 Payouts", "admin_payouts"),
+        Markup.button.callback("📢 Broadcast", "admin_broadcast"),
+      ],
+      [
+        Markup.button.callback("⚙️ Settings", "admin_settings"),
+        Markup.button.callback("🔙 Back to Main", "main_menu"),
+      ],
     ]);
   }
 
@@ -41,16 +65,6 @@ class Keyboards {
         Markup.button.callback("ℹ️ More Info", `info_${productId}`),
         Markup.button.callback("📞 Contact Seller", `contact_${productId}`),
       ],
-    ]);
-  }
-
-  static orderActions(orderId) {
-    return Markup.inlineKeyboard([
-      [
-        Markup.button.callback("✅ Approve", `approve_order_${orderId}`),
-        Markup.button.callback("❌ Reject", `reject_order_${orderId}`),
-      ],
-      [Markup.button.callback("ℹ️ View Details", `order_details_${orderId}`)],
     ]);
   }
 
@@ -207,19 +221,6 @@ class Keyboards {
     ];
 
     return Markup.inlineKeyboard(buttons);
-  }
-
-  static orderStatusFilter() {
-    return Markup.inlineKeyboard([
-      [
-        Markup.button.callback("⏳ Pending", "filter_orders_pending"),
-        Markup.button.callback("✅ Approved", "filter_orders_approved"),
-      ],
-      [
-        Markup.button.callback("❌ Rejected", "filter_orders_rejected"),
-        Markup.button.callback("📋 All", "filter_orders_all"),
-      ],
-    ]);
   }
 
   static companyStatusFilter() {

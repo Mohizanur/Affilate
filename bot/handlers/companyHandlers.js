@@ -6,20 +6,20 @@ const companyService = require("../services/companyService");
 console.log("Loaded services/companyService in companyHandlers");
 const productService = require("../services/productService");
 console.log("Loaded services/productService in companyHandlers");
-const orderService = require("../services/orderService");
-console.log("After require orderService");
 const referralService = require("../services/referralService");
 console.log("After require referralService");
 const logger = require("../../utils/logger");
 console.log("After require logger");
-const userService = require('../services/userService');
-const notificationService = require('../services/notificationService');
-const { getNotificationServiceInstance } = require('../services/notificationService');
+const userService = require("../services/userService");
+const notificationService = require("../services/notificationService");
+const {
+  getNotificationServiceInstance,
+} = require("../services/notificationService");
 
 function toDateSafe(x) {
   if (!x) return null;
-  if (typeof x.toDate === 'function') return x.toDate();
-  if (typeof x === 'string' || typeof x === 'number') return new Date(x);
+  if (typeof x.toDate === "function") return x.toDate();
+  if (typeof x === "string" || typeof x === "number") return new Date(x);
   return x instanceof Date ? x : null;
 }
 
@@ -27,9 +27,14 @@ class CompanyHandlers {
   async handleCompanyRegistration(ctx) {
     try {
       const telegramId = ctx.from.id;
-      const user = await require('../services/userService').userService.getUserByTelegramId(telegramId);
+      const user =
+        await require("../services/userService").userService.getUserByTelegramId(
+          telegramId
+        );
       if (!user.canRegisterCompany) {
-        return ctx.reply('❌ You are not eligible to register a company. Please contact an admin to request access.');
+        return ctx.reply(
+          "❌ You are not eligible to register a company. Please contact an admin to request access."
+        );
       }
       // Check if already registered
       const existingCompany = await companyService.getCompanyByTelegramId(
@@ -150,7 +155,7 @@ Is this information correct?
         firstName: ctx.from.first_name,
         lastName: ctx.from.last_name,
         username: ctx.from.username,
-        status: 'active', // Instantly active
+        status: "active", // Instantly active
         createdAt: new Date(),
       };
       // Register company in Firestore
@@ -158,17 +163,22 @@ Is this information correct?
       // Clear session
       delete ctx.session.companyData;
       delete ctx.session.registrationStep;
-      ctx.reply('🎉 Company registered and active! You can now add products and manage your dashboard.');
+      ctx.reply(
+        "🎉 Company registered and active! You can now add products and manage your dashboard."
+      );
       if (ctx.callbackQuery) ctx.answerCbQuery();
-      await getNotificationServiceInstance().sendAdminActionNotification('Company Registered', {
+      await getNotificationServiceInstance().sendAdminActionNotification(
+        "Company Registered",
+        {
         company: companyData.name,
         owner: telegramId,
         time: new Date().toISOString(),
-        details: JSON.stringify(companyData)
-      });
+          details: JSON.stringify(companyData),
+        }
+      );
     } catch (error) {
-      logger.error('Error confirming company registration:', error);
-      ctx.reply('❌ Registration failed. Please try again.');
+      logger.error("Error confirming company registration:", error);
+      ctx.reply("❌ Registration failed. Please try again.");
       if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
@@ -177,31 +187,40 @@ Is this information correct?
     try {
       ctx.session = {}; // Reset session
       const telegramId = ctx.from.id;
-      const user = await userService.userService.getUserByTelegramId(telegramId);
+      const user = await userService.userService.getUserByTelegramId(
+        telegramId
+      );
 
       // Permission Check
-      const canAccess = user.canRegisterCompany || user.role === 'admin';
+      const canAccess = user.canRegisterCompany || user.role === "admin";
       if (!canAccess) {
-        return ctx.reply("❌ You don't have permission to access this feature. Please register a company or contact an admin.");
+        return ctx.reply(
+          "❌ You don't have permission to access this feature. Please register a company or contact an admin."
+        );
       }
       
       // If admin, show list of all companies to manage
-      if (user.role === 'admin') {
+      if (user.role === "admin") {
         const allCompanies = await companyService.getAllCompanies();
-        if(!allCompanies || allCompanies.length === 0) {
+        if (!allCompanies || allCompanies.length === 0) {
           return ctx.reply("No companies found in the system.");
         }
         
-        let message = '🏢 *Admin - Company Management*\n\nSelect a company to view its dashboard:\n\n';
-        const buttons = allCompanies.map(comp => {
-            return [Markup.button.callback(comp.name, `admin_view_company_${comp.id}`)];
+        let message =
+          "🏢 *Admin - Company Management*\n\nSelect a company to view its dashboard:\n\n";
+        const buttons = allCompanies.map((comp) => {
+          return [
+            Markup.button.callback(comp.name, `admin_view_company_${comp.id}`),
+          ];
         });
 
-        buttons.push([Markup.button.callback("🔙 Back to Admin Panel", "admin_panel")]);
+        buttons.push([
+          Markup.button.callback("🔙 Back to Admin Panel", "admin_panel"),
+        ]);
 
         return ctx.reply(message, {
-            parse_mode: 'Markdown',
-            ...Markup.inlineKeyboard(buttons)
+          parse_mode: "Markdown",
+          ...Markup.inlineKeyboard(buttons),
         });
       }
 
@@ -236,16 +255,24 @@ What would you like to do?
 
       const buttons = [
         [
-          Markup.button.callback("📦 Manage Products", `manage_products_${company.id}`),
-          Markup.button.callback("👥 Referrals", `company_referrals_${company.id}`),
+          Markup.button.callback(
+            "📦 Manage Products",
+            `manage_products_${company.id}`
+          ),
+          Markup.button.callback(
+            "👥 Referrals",
+            `company_referrals_${company.id}`
+          ),
         ],
         [
-          Markup.button.callback("📋 Orders", `company_orders_${company.id}`),
-          Markup.button.callback("💳 Billing", `company_billing_${company.id}`),
-        ],
-        [
-          Markup.button.callback("📊 Analytics", `company_analytics_${company.id}`),
-          Markup.button.callback("⚙️ Settings", `company_settings_${company.id}`),
+          Markup.button.callback(
+            "📊 Analytics",
+            `company_analytics_${company.id}`
+          ),
+          Markup.button.callback(
+            "⚙️ Settings",
+            `company_settings_${company.id}`
+          ),
         ],
       ];
 
@@ -262,10 +289,14 @@ What would you like to do?
   async handleManageProducts(ctx) {
     try {
       const telegramId = ctx.from.id;
-      const companyId = ctx.callbackQuery?.data.split('_')[2] || (await companyService.getCompanyByTelegramId(telegramId))?.id;
+      const companyId =
+        ctx.callbackQuery?.data.split("_")[2] ||
+        (await companyService.getCompanyByTelegramId(telegramId))?.id;
 
       if (!companyId) {
-        return ctx.reply("Could not identify the company. Please go back to the dashboard.");
+        return ctx.reply(
+          "Could not identify the company. Please go back to the dashboard."
+        );
       }
 
       const products = await productService.getCompanyProducts(companyId);
@@ -285,12 +316,21 @@ What would you like to do?
       ];
       products.forEach((product) => {
         buttons.push([
-          Markup.button.callback(`📝 Edit: ${product.title}`, `edit_product_${product.id}`),
-          Markup.button.callback(`🗑️ Delete: ${product.title}`, `delete_product_${product.id}`),
-          Markup.button.callback(`💸 Sell: ${product.title}`, `sell_product_${product.id}`),
-          Markup.button.callback('✏️ Edit', `edit_product_${product.id}`),
-          Markup.button.callback('📦 Archive', `archive_product_${product.id}`),
-          Markup.button.callback('⭐ Feature', `feature_product_${product.id}`),
+          Markup.button.callback(
+            `📝 Edit: ${product.title}`,
+            `edit_product_${product.id}`
+          ),
+          Markup.button.callback(
+            `🗑️ Delete: ${product.title}`,
+            `delete_product_${product.id}`
+          ),
+          Markup.button.callback(
+            `💸 Sell: ${product.title}`,
+            `sell_product_${product.id}`
+          ),
+          Markup.button.callback("✏️ Edit", `edit_product_${product.id}`),
+          Markup.button.callback("📦 Archive", `archive_product_${product.id}`),
+          Markup.button.callback("⭐ Feature", `feature_product_${product.id}`),
         ]);
       });
       ctx.reply(message, {
@@ -412,13 +452,16 @@ Create this product?
 
       ctx.reply("✅ Product created successfully!");
       if (ctx.callbackQuery) ctx.answerCbQuery();
-      await getNotificationServiceInstance().sendAdminActionNotification('Product Added', {
+      await getNotificationServiceInstance().sendAdminActionNotification(
+        "Product Added",
+        {
         product: productData.title,
         company: company.name,
         owner: telegramId,
         time: new Date().toISOString(),
-        details: JSON.stringify(productData)
-      });
+          details: JSON.stringify(productData),
+        }
+      );
 
       // Show updated product list
       this.handleManageProducts(ctx);
@@ -437,7 +480,10 @@ Create this product?
       ctx.session.editProductId = productId;
       ctx.session.editProductStep = "title";
       ctx.session.editProductData = { ...product };
-      ctx.reply(`📝 *Edit Product*\n\nCurrent Title: ${product.title}\n\nEnter new title or type 'skip' to keep unchanged:`, { parse_mode: "Markdown" });
+      ctx.reply(
+        `📝 *Edit Product*\n\nCurrent Title: ${product.title}\n\nEnter new title or type 'skip' to keep unchanged:`,
+        { parse_mode: "Markdown" }
+      );
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error selecting product to edit:", error);
@@ -455,32 +501,45 @@ Create this product?
         case "title":
           if (text !== "skip") ctx.session.editProductData.title = text;
           ctx.session.editProductStep = "description";
-          ctx.reply(`Current Description: ${ctx.session.editProductData.description}\n\nEnter new description or type 'skip':`);
+          ctx.reply(
+            `Current Description: ${ctx.session.editProductData.description}\n\nEnter new description or type 'skip':`
+          );
           break;
         case "description":
           if (text !== "skip") ctx.session.editProductData.description = text;
           ctx.session.editProductStep = "price";
-          ctx.reply(`Current Price: $${ctx.session.editProductData.price}\n\nEnter new price or type 'skip':`);
+          ctx.reply(
+            `Current Price: $${ctx.session.editProductData.price}\n\nEnter new price or type 'skip':`
+          );
           break;
         case "price":
           if (text !== "skip") {
             const price = parseFloat(text);
-            if (isNaN(price) || price <= 0) return ctx.reply("❌ Please enter a valid price:");
+            if (isNaN(price) || price <= 0)
+              return ctx.reply("❌ Please enter a valid price:");
             ctx.session.editProductData.price = price;
           }
           ctx.session.editProductStep = "category";
-          ctx.reply(`Current Category: ${ctx.session.editProductData.category}\n\nEnter new category or type 'skip':`);
+          ctx.reply(
+            `Current Category: ${ctx.session.editProductData.category}\n\nEnter new category or type 'skip':`
+          );
           break;
         case "category":
           if (text !== "skip") ctx.session.editProductData.category = text;
           // Show confirmation
           const p = ctx.session.editProductData;
-          ctx.reply(`*Confirm Product Update*\n\nTitle: ${p.title}\nDescription: ${p.description}\nPrice: $${p.price}\nCategory: ${p.category}\n\nType 'confirm' to save or 'cancel' to abort.`, { parse_mode: "Markdown" });
+          ctx.reply(
+            `*Confirm Product Update*\n\nTitle: ${p.title}\nDescription: ${p.description}\nPrice: $${p.price}\nCategory: ${p.category}\n\nType 'confirm' to save or 'cancel' to abort.`,
+            { parse_mode: "Markdown" }
+          );
           ctx.session.editProductStep = "confirm";
           break;
         case "confirm":
           if (text.toLowerCase() === "confirm") {
-            await productService.updateProduct(ctx.session.editProductId, ctx.session.editProductData);
+            await productService.updateProduct(
+              ctx.session.editProductId,
+              ctx.session.editProductData
+            );
             ctx.reply("✅ Product updated successfully!");
           } else {
             ctx.reply("❌ Edit cancelled.");
@@ -500,7 +559,9 @@ Create this product?
     try {
       const productId = ctx.callbackQuery.data.split("_")[2];
       ctx.session.deleteProductId = productId;
-      ctx.reply("⚠️ Are you sure you want to delete this product? Type 'delete' to confirm or 'cancel' to abort.");
+      ctx.reply(
+        "⚠️ Are you sure you want to delete this product? Type 'delete' to confirm or 'cancel' to abort."
+      );
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error starting delete product:", error);
@@ -528,7 +589,7 @@ Create this product?
 
   async handleCompanyReferrals(ctx) {
     try {
-      const companyId = ctx.callbackQuery.data.split('_')[2];
+      const companyId = ctx.callbackQuery.data.split("_")[2];
       const referralData = await companyService.getReferralData(companyId);
 
       const message = `
@@ -553,8 +614,18 @@ ${referralData.topReferrers
       `;
 
       const buttons = [
-        [Markup.button.callback("📊 Detailed Analytics", `referral_analytics_${companyId}`)],
-        [Markup.button.callback("⚙️ Referral Settings", `referral_settings_${companyId}`)],
+        [
+          Markup.button.callback(
+            "📊 Detailed Analytics",
+            `referral_analytics_${companyId}`
+          ),
+        ],
+        [
+          Markup.button.callback(
+            "⚙️ Referral Settings",
+            `referral_settings_${companyId}`
+          ),
+        ],
         [Markup.button.callback("🔙 Back to Dashboard", "company_dashboard")],
       ];
 
@@ -570,101 +641,9 @@ ${referralData.topReferrers
     }
   }
 
-  async handleCompanyOrders(ctx) {
-    try {
-      const companyId = ctx.callbackQuery.data.split('_')[2];
-      const pendingOrders = await orderService.getPendingOrdersForCompany(
-        companyId
-      );
-
-      let message = `📋 *Order Management*\n\n`;
-
-      if (pendingOrders.length === 0) {
-        message += "No pending orders.";
-      } else {
-        message += `${pendingOrders.length} pending order(s):\n\n`;
-        pendingOrders.slice(0, 5).forEach((order, index) => {
-          message += `${index + 1}. ${order.productTitle}\n`;
-          message += `   💰 $${order.amount} | 👤 ${order.buyerName}\n`;
-          message += `   📅 ${toDateSafe(order.createdAt) ? toDateSafe(order.createdAt).toLocaleDateString() : '-'}\n\n`;
-        });
-      }
-
-      const buttons = [];
-
-      if (pendingOrders.length > 0) {
-        buttons.push([
-          Markup.button.callback("✅ Review Orders", `review_orders_${companyId}`),
-        ]);
-      }
-
-      buttons.push(
-        [Markup.button.callback("📊 Order History", `order_history_${companyId}`)],
-        [Markup.button.callback("🔙 Back to Dashboard", "company_dashboard")]
-      );
-
-      ctx.reply(message, {
-        parse_mode: "Markdown",
-        ...Markup.inlineKeyboard(buttons),
-      });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error showing company orders:", error);
-      ctx.reply("❌ Failed to load orders. Please try again.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handleReviewOrders(ctx) {
-    try {
-      const companyId = ctx.callbackQuery.data.split('_')[2];
-      const pendingOrders = await orderService.getPendingOrdersForCompany(
-        companyId
-      );
-
-      if (pendingOrders.length === 0) {
-        ctx.reply("No pending orders to review.");
-        if (ctx.callbackQuery) return ctx.answerCbQuery();
-      }
-
-      // Show first order for review
-      const order = pendingOrders[0];
-      const orderMessage = `
-📋 *Order Review*
-
-📦 Product: ${order.productTitle}
-💰 Amount: $${order.amount}
-👤 Buyer: ${order.buyerName}
-📅 Date: ${toDateSafe(order.createdAt) ? toDateSafe(order.createdAt).toLocaleDateString() : '-'}
-${order.referralCode ? `🎯 Referral Code: ${order.referralCode}` : ""}
-
-Order ID: ${order.id.substring(0, 8)}...
-      `;
-
-      const buttons = [
-        [
-          Markup.button.callback("✅ Approve", `approve_order_${order.id}`),
-          Markup.button.callback("❌ Reject", `reject_order_${order.id}`),
-        ],
-        [Markup.button.callback("➡️ Next Order", "next_order")],
-        [Markup.button.callback("🔙 Back", "company_orders")],
-      ];
-
-      ctx.reply(orderMessage, {
-        parse_mode: "Markdown",
-        ...Markup.inlineKeyboard(buttons),
-      });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error reviewing orders:", error);
-      ctx.reply("❌ Failed to load order details. Please try again.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
   async handleCompanyAnalytics(ctx) {
     try {
-      const companyId = ctx.callbackQuery.data.split('_')[2];
+      const companyId = ctx.callbackQuery.data.split("_")[2];
       const summary = await companyService.getReferralSummary(companyId);
 
       const message = `
@@ -695,7 +674,12 @@ Order ID: ${order.id.substring(0, 8)}...
       `;
 
       const buttons = [
-        [Markup.button.callback("�� Detailed Reports", `detailed_reports_${companyId}`)],
+        [
+          Markup.button.callback(
+            "�� Detailed Reports",
+            `detailed_reports_${companyId}`
+          ),
+        ],
         [Markup.button.callback("📈 Export Data", `export_data_${companyId}`)],
         [Markup.button.callback("🔙 Back to Dashboard", "company_dashboard")],
       ];
@@ -714,7 +698,7 @@ Order ID: ${order.id.substring(0, 8)}...
 
   async handleCompanySettings(ctx) {
     try {
-      const companyId = ctx.callbackQuery.data.split('_')[2];
+      const companyId = ctx.callbackQuery.data.split("_")[2];
       const company = await companyService.getCompanyById(companyId);
 
       const message = `
@@ -729,9 +713,24 @@ Order ID: ${order.id.substring(0, 8)}...
       `;
 
       const buttons = [
-        [Markup.button.callback("✏️ Edit Profile", `edit_company_profile_${companyId}`)],
-        [Markup.button.callback("💰 Commission Rate", `edit_commission_rate_${companyId}`)],
-        [Markup.button.callback("🔔 Notifications", `notification_settings_${companyId}`)],
+        [
+          Markup.button.callback(
+            "✏️ Edit Profile",
+            `edit_company_profile_${companyId}`
+          ),
+        ],
+        [
+          Markup.button.callback(
+            "💰 Commission Rate",
+            `edit_commission_rate_${companyId}`
+          ),
+        ],
+        [
+          Markup.button.callback(
+            "🔔 Notifications",
+            `notification_settings_${companyId}`
+          ),
+        ],
         [Markup.button.callback("🔙 Back to Dashboard", "company_dashboard")],
       ];
 
@@ -751,13 +750,16 @@ Order ID: ${order.id.substring(0, 8)}...
     try {
       const telegramId = ctx.from.id;
       const company = await companyService.getCompanyByTelegramId(telegramId);
-      if (!company) return ctx.reply('❌ Company not found.');
-      ctx.session.editCompanyStep = 'name';
+      if (!company) return ctx.reply("❌ Company not found.");
+      ctx.session.editCompanyStep = "name";
       ctx.session.editCompanyData = { ...company };
-      ctx.reply(`🏢 *Edit Company Profile*\n\nCurrent Name: ${company.name}\n\nEnter new name or type 'skip' to keep unchanged:`, { parse_mode: 'Markdown' });
+      ctx.reply(
+        `🏢 *Edit Company Profile*\n\nCurrent Name: ${company.name}\n\nEnter new name or type 'skip' to keep unchanged:`,
+        { parse_mode: "Markdown" }
+      );
     } catch (error) {
-      logger.error('Error starting company profile edit:', error);
-      ctx.reply('❌ Failed to start profile edit.');
+      logger.error("Error starting company profile edit:", error);
+      ctx.reply("❌ Failed to start profile edit.");
     }
   }
 
@@ -767,76 +769,70 @@ Order ID: ${order.id.substring(0, 8)}...
       const text = ctx.message.text;
       if (!ctx.session.editCompanyData) return;
       switch (step) {
-        case 'name':
-          if (text !== 'skip') ctx.session.editCompanyData.name = text;
-          ctx.session.editCompanyStep = 'description';
-          ctx.reply(`Current Description: ${ctx.session.editCompanyData.description}\n\nEnter new description or type 'skip':`);
+        case "name":
+          if (text !== "skip") ctx.session.editCompanyData.name = text;
+          ctx.session.editCompanyStep = "description";
+          ctx.reply(
+            `Current Description: ${ctx.session.editCompanyData.description}\n\nEnter new description or type 'skip':`
+          );
           break;
-        case 'description':
-          if (text !== 'skip') ctx.session.editCompanyData.description = text;
-          ctx.session.editCompanyStep = 'website';
-          ctx.reply(`Current Website: ${ctx.session.editCompanyData.website || 'Not set'}\n\nEnter new website or type 'skip':`);
+        case "description":
+          if (text !== "skip") ctx.session.editCompanyData.description = text;
+          ctx.session.editCompanyStep = "website";
+          ctx.reply(
+            `Current Website: ${
+              ctx.session.editCompanyData.website || "Not set"
+            }\n\nEnter new website or type 'skip':`
+          );
           break;
-        case 'website':
-          if (text !== 'skip') ctx.session.editCompanyData.website = text;
-          ctx.session.editCompanyStep = 'phone';
-          ctx.reply(`Current Phone: ${ctx.session.editCompanyData.phone}\n\nEnter new phone or type 'skip':`);
+        case "website":
+          if (text !== "skip") ctx.session.editCompanyData.website = text;
+          ctx.session.editCompanyStep = "phone";
+          ctx.reply(
+            `Current Phone: ${ctx.session.editCompanyData.phone}\n\nEnter new phone or type 'skip':`
+          );
           break;
-        case 'phone':
-          if (text !== 'skip') ctx.session.editCompanyData.phone = text;
-          ctx.session.editCompanyStep = 'commission_rate';
-          ctx.reply(`Current Commission Rate: ${ctx.session.editCompanyData.referrerCommissionRate}%\n\nEnter new commission rate (1-50) or type 'skip':`);
+        case "phone":
+          if (text !== "skip") ctx.session.editCompanyData.phone = text;
+          ctx.session.editCompanyStep = "commission_rate";
+          ctx.reply(
+            `Current Commission Rate: ${ctx.session.editCompanyData.referrerCommissionRate}%\n\nEnter new commission rate (1-50) or type 'skip':`
+          );
           break;
-        case 'commission_rate':
-          if (text !== 'skip') {
+        case "commission_rate":
+          if (text !== "skip") {
             const rate = parseFloat(text);
-            if (isNaN(rate) || rate < 1 || rate > 50) return ctx.reply('❌ Please enter a valid commission rate (1-50):');
+            if (isNaN(rate) || rate < 1 || rate > 50)
+              return ctx.reply(
+                "❌ Please enter a valid commission rate (1-50):"
+              );
             ctx.session.editCompanyData.referrerCommissionRate = rate;
           }
           // Show confirmation
           const c = ctx.session.editCompanyData;
-          ctx.reply(`*Confirm Company Profile Update*\n\nName: ${c.name}\nDescription: ${c.description}\nWebsite: ${c.website}\nPhone: ${c.phone}\nCommission Rate: ${c.referrerCommissionRate}%\n\nType 'confirm' to save or 'cancel' to abort.`, { parse_mode: 'Markdown' });
-          ctx.session.editCompanyStep = 'confirm';
+          ctx.reply(
+            `*Confirm Company Profile Update*\n\nName: ${c.name}\nDescription: ${c.description}\nWebsite: ${c.website}\nPhone: ${c.phone}\nCommission Rate: ${c.referrerCommissionRate}%\n\nType 'confirm' to save or 'cancel' to abort.`,
+            { parse_mode: "Markdown" }
+          );
+          ctx.session.editCompanyStep = "confirm";
           break;
-        case 'confirm':
-          if (text.toLowerCase() === 'confirm') {
-            await companyService.updateCompany(ctx.session.editCompanyData.id, ctx.session.editCompanyData);
-            ctx.reply('✅ Company profile updated successfully!');
+        case "confirm":
+          if (text.toLowerCase() === "confirm") {
+            await companyService.updateCompany(
+              ctx.session.editCompanyData.id,
+              ctx.session.editCompanyData
+            );
+            ctx.reply("✅ Company profile updated successfully!");
           } else {
-            ctx.reply('❌ Edit cancelled.');
+            ctx.reply("❌ Edit cancelled.");
           }
           delete ctx.session.editCompanyStep;
           delete ctx.session.editCompanyData;
           break;
       }
     } catch (error) {
-      logger.error('Error editing company profile:', error);
-      ctx.reply('❌ Failed to edit company profile. Please try again.');
-    }
-  }
-
-  // Order approval handlers
-  async handleApproveOrder(ctx) {
-    try {
-      const orderId = ctx.callbackQuery.data.split("_")[2];
-      await orderService.approveOrder(ctx, orderId);
-      if (ctx.callbackQuery) ctx.answerCbQuery("Order approved successfully!");
-    } catch (error) {
-      logger.error("Error approving order:", error);
-      ctx.reply("❌ Failed to approve order.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handleRejectOrder(ctx) {
-    try {
-      const orderId = ctx.callbackQuery.data.split("_")[2];
-      await orderService.rejectOrder(ctx, orderId);
-      if (ctx.callbackQuery) ctx.answerCbQuery("Order rejected.");
-    } catch (error) {
-      logger.error("Error rejecting order:", error);
-      ctx.reply("❌ Failed to reject order.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
+      logger.error("Error editing company profile:", error);
+      ctx.reply("❌ Failed to edit company profile. Please try again.");
     }
   }
 
@@ -856,8 +852,8 @@ Order ID: ${order.id.substring(0, 8)}...
   }
 
   async handleSellProductStart(ctx) {
-    ctx.session.sellProductStep = 'search';
-    ctx.reply('🔎 Enter product name or keyword to search:');
+    ctx.session.sellProductStep = "search";
+    ctx.reply("🔎 Enter product name or keyword to search:");
   }
 
   async handleSellProductStep(ctx) {
@@ -865,40 +861,50 @@ Order ID: ${order.id.substring(0, 8)}...
     const text = ctx.message.text;
     if (!ctx.session.sellProductData) ctx.session.sellProductData = {};
     switch (step) {
-      case 'search':
+      case "search":
         // Search products for this company
-        const company = await companyService.getCompanyByTelegramId(ctx.from.id);
+        const company = await companyService.getCompanyByTelegramId(
+          ctx.from.id
+        );
         const products = await companyService.getCompanyProducts(company.id);
-        const matches = products.filter(p => p.title.toLowerCase().includes(text.toLowerCase()));
-        if (!matches.length) return ctx.reply('❌ No products found. Try another keyword.');
+        const matches = products.filter((p) =>
+          p.title.toLowerCase().includes(text.toLowerCase())
+        );
+        if (!matches.length)
+          return ctx.reply("❌ No products found. Try another keyword.");
         ctx.session.sellProductData.matches = matches;
-        ctx.session.sellProductStep = 'select';
-        let msg = 'Select a product to sell:\n';
-        matches.forEach((p, i) => { msg += `${i + 1}. ${p.title} ($${p.price})\n`; });
-        ctx.reply(msg + '\nSend the product number:');
+        ctx.session.sellProductStep = "select";
+        let msg = "Select a product to sell:\n";
+        matches.forEach((p, i) => {
+          msg += `${i + 1}. ${p.title} ($${p.price})\n`;
+        });
+        ctx.reply(msg + "\nSend the product number:");
         break;
-      case 'select':
+      case "select":
         const idx = parseInt(text) - 1;
         const matchList = ctx.session.sellProductData.matches || [];
-        if (isNaN(idx) || idx < 0 || idx >= matchList.length) return ctx.reply('❌ Invalid selection.');
+        if (isNaN(idx) || idx < 0 || idx >= matchList.length)
+          return ctx.reply("❌ Invalid selection.");
         ctx.session.sellProductData.product = matchList[idx];
-        ctx.session.sellProductStep = 'buyer_username';
-        ctx.reply('Enter buyer Telegram username (without @):');
+        ctx.session.sellProductStep = "buyer_username";
+        ctx.reply("Enter buyer Telegram username (without @):");
         break;
-      case 'buyer_username':
-        ctx.session.sellProductData.buyerUsername = text.replace(/^@/, '');
-        ctx.session.sellProductStep = 'buyer_phone';
-        ctx.reply('Enter buyer phone number:');
+      case "buyer_username":
+        ctx.session.sellProductData.buyerUsername = text.replace(/^@/, "");
+        ctx.session.sellProductStep = "buyer_phone";
+        ctx.reply("Enter buyer phone number:");
         break;
-      case 'buyer_phone':
+      case "buyer_phone":
         ctx.session.sellProductData.buyerPhone = text;
-        ctx.session.sellProductStep = 'confirm';
+        ctx.session.sellProductStep = "confirm";
         const p = ctx.session.sellProductData.product;
-        ctx.reply(`Confirm sale of ${p.title} ($${p.price}) to @${ctx.session.sellProductData.buyerUsername} (${ctx.session.sellProductData.buyerPhone})? Type "confirm" to proceed or "cancel" to abort.`);
+        ctx.reply(
+          `Confirm sale of ${p.title} ($${p.price}) to @${ctx.session.sellProductData.buyerUsername} (${ctx.session.sellProductData.buyerPhone})? Type "confirm" to proceed or "cancel" to abort.`
+        );
         break;
-      case 'confirm':
-        if (text.trim().toLowerCase() !== 'confirm') {
-          ctx.reply('❌ Sale cancelled.');
+      case "confirm":
+        if (text.trim().toLowerCase() !== "confirm") {
+          ctx.reply("❌ Sale cancelled.");
           ctx.session.sellProductStep = null;
           ctx.session.sellProductData = null;
           return;
@@ -908,39 +914,62 @@ Order ID: ${order.id.substring(0, 8)}...
         const buyerUsername = ctx.session.sellProductData.buyerUsername;
         const buyerPhone = ctx.session.sellProductData.buyerPhone;
         const product = ctx.session.sellProductData.product;
-        const referralService = require('../services/referralService');
-        const userService = require('../services/userService');
-        const buyer = await userService.getUserByUsername(buyerUsername, ctx.from);
+        const referralService = require("../services/referralService");
+        const userService = require("../services/userService");
+        const buyer = await userService.getUserByUsername(
+          buyerUsername,
+          ctx.from
+        );
         // Update user info if changed
         if (buyer && ctx.from) {
           const updates = {};
-          if (ctx.from.username && ctx.from.username.toLowerCase() !== buyer.username) updates.username = ctx.from.username.toLowerCase();
-          if (ctx.from.first_name && ctx.from.first_name !== buyer.firstName && ctx.from.first_name !== buyer.first_name) updates.first_name = ctx.from.first_name;
-          if (ctx.from.last_name && ctx.from.last_name !== buyer.lastName && ctx.from.last_name !== buyer.last_name) updates.last_name = ctx.from.last_name;
+          if (
+            ctx.from.username &&
+            ctx.from.username.toLowerCase() !== buyer.username
+          )
+            updates.username = ctx.from.username.toLowerCase();
+          if (
+            ctx.from.first_name &&
+            ctx.from.first_name !== buyer.firstName &&
+            ctx.from.first_name !== buyer.first_name
+          )
+            updates.first_name = ctx.from.first_name;
+          if (
+            ctx.from.last_name &&
+            ctx.from.last_name !== buyer.lastName &&
+            ctx.from.last_name !== buyer.last_name
+          )
+            updates.last_name = ctx.from.last_name;
           if (Object.keys(updates).length > 0) {
             await userService.updateUser(buyer.telegramId, updates);
           }
         }
-        const code = await referralService.generateReferralCode(companyId, buyer.telegramId);
+        const code = await referralService.generateReferralCode(
+          companyId,
+          buyer.telegramId
+        );
         // Record the sale (order)
-        await require('../services/orderService').createOrder({
+        await require("../services/orderService").createOrder({
           userId: buyer.telegramId,
           productId: product.id,
           companyId,
           amount: product.price,
           referralCode: null,
           customerInfo: { username: buyerUsername, phone: buyerPhone },
-          status: 'approved',
+          status: "approved",
           createdAt: new Date(),
         });
         // Notify buyer
-        ctx.telegram.sendMessage(buyer.telegramId, `🎉 You bought ${product.title} from ${company.name}! Your referral code: ${code}`);
-        ctx.reply('✅ Sale recorded and referral code sent to buyer.');
+        ctx.telegram.sendMessage(
+          buyer.telegramId,
+          `🎉 You bought ${product.title} from ${company.name}! Your referral code: ${code}`
+        );
+        ctx.reply("✅ Sale recorded and referral code sent to buyer.");
         ctx.session.sellProductStep = null;
         ctx.session.sellProductData = null;
         break;
       default:
-        ctx.reply('❌ Invalid step. Please start again.');
+        ctx.reply("❌ Invalid step. Please start again.");
         ctx.session.sellProductStep = null;
         ctx.session.sellProductData = null;
     }
@@ -949,14 +978,14 @@ Order ID: ${order.id.substring(0, 8)}...
   // Add handler for sell_product callback
   async handleSellProduct(ctx) {
     try {
-      const productId = ctx.callbackQuery.data.split('_')[2];
+      const productId = ctx.callbackQuery.data.split("_")[2];
       ctx.session.sellProductId = productId;
-      ctx.session.sellStep = 'user';
-      ctx.reply('Is this sale with a referral code? (Yes/No):');
+      ctx.session.sellStep = "user";
+      ctx.reply("Is this sale with a referral code? (Yes/No):");
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
-      logger.error('Error starting sell flow:', error);
-      ctx.reply('❌ Failed to start sell flow.');
+      logger.error("Error starting sell flow:", error);
+      ctx.reply("❌ Failed to start sell flow.");
       if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
@@ -967,7 +996,7 @@ Order ID: ${order.id.substring(0, 8)}...
       const productId = ctx.session.sellProductId;
       const step = ctx.session.sellStep;
       const text = ctx.message.text.trim();
-      if (step === 'user') {
+      if (step === "user") {
         // Lookup user by Telegram ID or phone
         let user = null;
         if (/^\d{5,}$/.test(text)) {
@@ -976,17 +1005,24 @@ Order ID: ${order.id.substring(0, 8)}...
           user = await userService.getUserByPhone(text);
         }
         if (!user) {
-          ctx.reply('❌ User not found. Enter a valid Telegram ID or phone number:');
+          ctx.reply(
+            "❌ User not found. Enter a valid Telegram ID or phone number:"
+          );
           return;
         }
         ctx.session.sellUserId = user.telegramId;
-        ctx.session.sellStep = 'confirm';
+        ctx.session.sellStep = "confirm";
         const product = await productService.getProductById(productId);
-        ctx.reply(`Confirm sale of *${product.title}* ($${product.price}) to @${user.username || user.telegramId}?\nType 'confirm' to proceed or 'cancel' to abort.`, { parse_mode: 'Markdown' });
+        ctx.reply(
+          `Confirm sale of *${product.title}* ($${product.price}) to @${
+            user.username || user.telegramId
+          }?\nType 'confirm' to proceed or 'cancel' to abort.`,
+          { parse_mode: "Markdown" }
+        );
         return;
       }
-      if (step === 'confirm') {
-        if (text.toLowerCase() === 'confirm') {
+      if (step === "confirm") {
+        if (text.toLowerCase() === "confirm") {
           // Create order for user
           const product = await productService.getProductById(productId);
           const orderData = {
@@ -997,25 +1033,31 @@ Order ID: ${order.id.substring(0, 8)}...
             referralCode: null,
             customerInfo: {},
           };
-          await orderService.createOrder(orderData);
-          ctx.reply('✅ Sale completed and user notified!');
+          await require("../services/orderService").createOrder(orderData);
+          ctx.reply("✅ Sale completed and user notified!");
           // Notify user
-          await notificationService.sendNotification(ctx.session.sellUserId, `🎉 You have a new purchase: ${product.title}!`);
+          await notificationService.sendNotification(
+            ctx.session.sellUserId,
+            `🎉 You have a new purchase: ${product.title}!`
+          );
           // Notify admins
           const adminIds = await userService.getAdminTelegramIds();
           for (const adminId of adminIds) {
-            await notificationService.sendNotification(adminId, `Company ${ctx.from.id} sold ${product.title} to user ${ctx.session.sellUserId}.`);
+            await notificationService.sendNotification(
+              adminId,
+              `Company ${ctx.from.id} sold ${product.title} to user ${ctx.session.sellUserId}.`
+            );
           }
         } else {
-          ctx.reply('❌ Sale cancelled.');
+          ctx.reply("❌ Sale cancelled.");
         }
         delete ctx.session.sellProductId;
         delete ctx.session.sellStep;
         delete ctx.session.sellUserId;
       }
     } catch (error) {
-      logger.error('Error in sell flow:', error);
-      ctx.reply('❌ Failed to complete sale.');
+      logger.error("Error in sell flow:", error);
+      ctx.reply("❌ Failed to complete sale.");
     }
   }
 }

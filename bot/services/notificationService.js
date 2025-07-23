@@ -7,7 +7,7 @@ class NotificationService {
 
   async sendNotification(userId, message, options = {}) {
     try {
-      const userService = require('./userService').userService;
+      const userService = require("./userService").userService;
       const user = await userService.getUserByTelegramId(userId);
 
       if (!user) {
@@ -43,7 +43,7 @@ class NotificationService {
 
   async sendBulkNotification(userIds, message, options = {}) {
     try {
-      const userService = require('./userService');
+      const userService = require("./userService");
       const results = [];
 
       for (const userId of userIds) {
@@ -61,46 +61,9 @@ class NotificationService {
     }
   }
 
-  async notifyOrderStatusUpdate(orderId, status, userId) {
-    try {
-      const userService = require('./userService');
-      let message = "";
-
-      switch (status) {
-        case "approved":
-          message = `✅ <b>Order Approved!</b>\n\nYour order #${orderId.slice(
-            0,
-            8
-          )} has been approved and is being processed.\n\nThank you for your purchase!`;
-          break;
-        case "rejected":
-          message = `❌ <b>Order Rejected</b>\n\nYour order #${orderId.slice(
-            0,
-            8
-          )} has been rejected.\n\nPlease contact support for more information.`;
-          break;
-        case "completed":
-          message = `🎉 <b>Order Completed!</b>\n\nYour order #${orderId.slice(
-            0,
-            8
-          )} has been completed successfully.\n\nWe hope you're satisfied with your purchase!`;
-          break;
-        default:
-          message = `📋 <b>Order Update</b>\n\nYour order #${orderId.slice(
-            0,
-            8
-          )} status has been updated to: ${status}`;
-      }
-
-      await this.sendNotification(userId, message, { type: "orders" });
-    } catch (error) {
-      logger.error("Error sending order status notification:", error);
-    }
-  }
-
   async notifyPayoutStatusUpdate(payoutId, status, userId, amount) {
     try {
-      const userService = require('./userService');
+      const userService = require("./userService");
       let message = "";
 
       switch (status) {
@@ -137,7 +100,7 @@ class NotificationService {
 
   async notifyNewReferral(referrerId, customerName, productTitle, commission) {
     try {
-      const userService = require('./userService');
+      const userService = require("./userService");
       const message = `🎉 <b>New Referral!</b>\n\n${customerName} just purchased "${productTitle}" using your referral link!\n\n💰 Commission earned: $${commission.toFixed(
         2
       )}\n\nKeep up the great work!`;
@@ -148,29 +111,9 @@ class NotificationService {
     }
   }
 
-  async notifyNewOrder(
-    companyOwnerId,
-    orderId,
-    productTitle,
-    customerName,
-    amount
-  ) {
-    try {
-      const userService = require('./userService');
-      const message = `🛒 <b>New Order Received!</b>\n\nProduct: ${productTitle}\nCustomer: ${customerName}\nAmount: $${amount}\nOrder ID: #${orderId.slice(
-        0,
-        8
-      )}\n\nPlease review and process this order.`;
-
-      await this.sendNotification(companyOwnerId, message, { type: "orders" });
-    } catch (error) {
-      logger.error("Error sending new order notification:", error);
-    }
-  }
-
   async notifyLowBalance(userId, currentBalance) {
     try {
-      const userService = require('./userService');
+      const userService = require("./userService");
       const message = `⚠️ <b>Low Balance Alert</b>\n\nYour referral balance is running low: $${currentBalance.toFixed(
         2
       )}\n\nKeep referring customers to earn more commissions!`;
@@ -183,7 +126,7 @@ class NotificationService {
 
   async notifySystemMaintenance(message, userIds = null) {
     try {
-      const userService = require('./userService');
+      const userService = require("./userService");
       const maintenanceMessage = `🔧 <b>System Maintenance</b>\n\n${message}`;
 
       if (userIds) {
@@ -205,7 +148,7 @@ class NotificationService {
 
   async notifyPromotionalOffer(userId, title, description, discount) {
     try {
-      const userService = require('./userService');
+      const userService = require("./userService");
       const message = `🎁 <b>${title}</b>\n\n${description}\n\n💰 Discount: ${discount}%\n\nDon't miss out on this limited-time offer!`;
 
       await this.sendNotification(userId, message, { type: "promotions" });
@@ -216,7 +159,7 @@ class NotificationService {
 
   async notifyAdminAlert(adminIds, alertType, message) {
     try {
-      const userService = require('./userService');
+      const userService = require("./userService");
       const alertMessage = `🚨 <b>Admin Alert - ${alertType}</b>\n\n${message}`;
 
       await this.sendBulkNotification(adminIds, alertMessage, {
@@ -229,7 +172,7 @@ class NotificationService {
 
   async scheduleNotification(userId, message, scheduleTime, options = {}) {
     try {
-      const userService = require('./userService');
+      const userService = require("./userService");
       const delay = scheduleTime.getTime() - Date.now();
 
       if (delay <= 0) {
@@ -253,7 +196,7 @@ class NotificationService {
 
   async sendWelcomeMessage(userId, firstName) {
     try {
-      const userService = require('./userService');
+      const userService = require("./userService");
       const message = `🎉 <b>Welcome to our Referral Platform, ${firstName}!</b>\n\nThank you for joining us! Here's what you can do:\n\n🛍️ Browse products and make purchases\n💰 Earn commissions by referring others\n🏢 Register your company to sell products\n📊 Track your earnings and referrals\n\nUse /help to see all available commands.\n\nHappy earning! 🚀`;
 
       await this.sendNotification(userId, message, { type: "welcome" });
@@ -264,7 +207,7 @@ class NotificationService {
 
   async sendDailyEarningsReport(userId, dailyEarnings, totalEarnings) {
     try {
-      const userService = require('./userService');
+      const userService = require("./userService");
       const message = `📊 <b>Daily Earnings Report</b>\n\n💰 Today's earnings: $${dailyEarnings.toFixed(
         2
       )}\n💎 Total earnings: $${totalEarnings.toFixed(
@@ -279,7 +222,7 @@ class NotificationService {
 
   async sendWeeklyReport(userId, weeklyStats) {
     try {
-      const userService = require('./userService');
+      const userService = require("./userService");
       const message = `📈 <b>Weekly Report</b>\n\n🔗 Referrals this week: ${
         weeklyStats.referrals
       }\n💰 Earnings this week: $${weeklyStats.earnings.toFixed(
@@ -301,7 +244,7 @@ class NotificationService {
   // Notification preferences management
   async updateNotificationPreferences(userId, preferences) {
     try {
-      const userService = require('./userService');
+      const userService = require("./userService");
       await userService.updateNotificationPreferences(userId, preferences);
       logger.info(`Notification preferences updated for user ${userId}`);
       return true;
@@ -313,7 +256,7 @@ class NotificationService {
 
   async getNotificationPreferences(userId) {
     try {
-      const userService = require('./userService');
+      const userService = require("./userService");
       const user = await userService.getUserByTelegramId(userId);
       return (
         user?.notifications || {
@@ -333,8 +276,8 @@ class NotificationService {
   }
 
   async sendAdminNotification(message, meta = {}) {
-    const userService = require('./userService');
-    const adminIds = await userService.getAdminTelegramIds();
+    const userService = require("./userService");
+    const adminIds = await userService.userService.getAdminTelegramIds();
     for (const adminId of adminIds) {
       await this.sendNotification(adminId, message, { ...meta, admin: true });
       logger.info(`Admin notified: ${adminId} - ${message}`);
@@ -347,7 +290,7 @@ class NotificationService {
 
   async sendAdminActionNotification(action, details, meta = {}) {
     try {
-      const userService = require('./userService').userService;
+      const userService = require("./userService").userService;
       // Get all admin Telegram IDs
       const adminIds = await userService.getAdminTelegramIds();
       let message = `🚨 <b>Action:</b> ${action}\n`;
@@ -356,23 +299,32 @@ class NotificationService {
       }
       // If message is too long, send a summary with a button
       if (message.length > 3500) {
-        const summary = message.slice(0, 3400) + '\n...';
+        const summary = message.slice(0, 3400) + "\n...";
         const buttons = {
           reply_markup: {
-            inline_keyboard: [[{ text: 'View Details', callback_data: `admin_action_details_${Date.now()}` }]]
+            inline_keyboard: [
+              [
+                {
+                  text: "View Details",
+                  callback_data: `admin_action_details_${Date.now()}`,
+                },
+              ],
+            ],
           },
-          parse_mode: 'HTML'
+          parse_mode: "HTML",
         };
         for (const adminId of adminIds) {
           await this.bot.telegram.sendMessage(adminId, summary, buttons);
         }
       } else {
         for (const adminId of adminIds) {
-          await this.bot.telegram.sendMessage(adminId, message, { parse_mode: 'HTML' });
+          await this.bot.telegram.sendMessage(adminId, message, {
+            parse_mode: "HTML",
+          });
         }
       }
     } catch (error) {
-      logger.error('Error sending admin action notification:', error);
+      logger.error("Error sending admin action notification:", error);
     }
   }
 }
@@ -388,5 +340,5 @@ function getNotificationServiceInstance() {
 module.exports = {
   NotificationService,
   setNotificationServiceInstance,
-  getNotificationServiceInstance
+  getNotificationServiceInstance,
 };
