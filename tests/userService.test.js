@@ -1,7 +1,35 @@
 const userService = require("../bot/services/userService").userService;
 const databaseService = require("../bot/config/database");
 
-jest.mock("../bot/config/database");
+jest.mock("../bot/config/database", () => {
+  let usersData = {};
+  return {
+    users: jest.fn(() => ({
+      doc: jest.fn((id) => ({
+        get: jest.fn().mockImplementation(() => {
+          if (usersData[id]) {
+            return Promise.resolve({ exists: true, data: () => usersData[id] });
+          }
+          return Promise.resolve({ exists: false });
+        }),
+        set: jest.fn().mockImplementation((data) => {
+          usersData[id] = data;
+          return Promise.resolve(true);
+        }),
+        update: jest.fn().mockImplementation((data) => {
+          usersData[id] = { ...usersData[id], ...data };
+          return Promise.resolve(true);
+        }),
+      })),
+      where: jest.fn(() => ({
+        get: jest.fn().mockResolvedValue({ empty: true, docs: [] }),
+      })),
+    })),
+  };
+});
+jest.mock("../bot/services/notificationService", () => ({
+  getNotificationServiceInstance: () => ({ sendNotification: jest.fn() }),
+}));
 
 describe("UserService", () => {
   beforeEach(() => {
@@ -22,8 +50,11 @@ describe("UserService", () => {
       lastName: "User",
       username: "testuser",
     };
-    const result = await userService.createOrUpdateUser(userData);
-    expect(result.id).toBeDefined();
+    // Ensure user does not exist in mock
+    const databaseService = require("../bot/config/database");
+    delete databaseService.users().doc(userData.telegramId).usersData;
+    const userId = await userService.createOrUpdateUser(userData);
+    expect(userId).toBeDefined();
     expect(result.first_name).toBe("Test");
   });
 
@@ -55,12 +86,9 @@ describe("UserService", () => {
   });
 
   it("should update username if changed", async () => {
-    databaseService.users.mockReturnValue({
-      doc: () => ({
-        update: jest.fn().mockResolvedValue(true),
-        get: async () => ({ data: () => ({ username: "olduser" }) }),
-      }),
-    });
+    // Ensure user exists in mock
+    const databaseService = require("../bot/config/database");
+    databaseService.users().doc("u1").set({ username: "olduser" });
     const result = await userService.updateUser("u1", { username: "newuser" });
     expect(result.username).toBe("newuser");
   });

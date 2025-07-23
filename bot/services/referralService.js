@@ -2,19 +2,22 @@ console.log("Entering services/referralService.js");
 const databaseService = require("../config/database");
 const { v4: uuidv4 } = require("uuid");
 const logger = require("../../utils/logger");
-const { getNotificationServiceInstance } = require('./notificationService');
+const { getNotificationServiceInstance } = require("./notificationService");
 
 class ReferralService {
   // Helper: Get user doc and data, throw if not found
   async _getUserOrThrow(telegramId) {
-      const userDoc = await databaseService.users().doc(telegramId.toString()).get();
-      if (!userDoc.exists) throw new Error('User not found');
+    const userDoc = await databaseService
+      .users()
+      .doc(telegramId.toString())
+      .get();
+    if (!userDoc.exists) throw new Error("User not found");
     return { userDoc, userData: userDoc.data() };
   }
   // Helper: Get company doc and data, throw if not found
   async _getCompanyOrThrow(companyId) {
     const companyDoc = await databaseService.companies().doc(companyId).get();
-    if (!companyDoc.exists) throw new Error('Company not found');
+    if (!companyDoc.exists) throw new Error("Company not found");
     return { companyDoc, company: companyDoc.data() };
   }
 
@@ -24,8 +27,11 @@ class ReferralService {
       const { userDoc, userData } = await this._getUserOrThrow(telegramId);
       const { companyDoc, company } = await this._getCompanyOrThrow(companyId);
       // Generate new code (single-use)
-      const codePrefix = company.codePrefix || 'XX';
-      const code = `${codePrefix}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+      const codePrefix = company.codePrefix || "XX";
+      const code = `${codePrefix}-${Math.random()
+        .toString(36)
+        .substr(2, 6)
+        .toUpperCase()}`;
       // Save code to referralCodes collection
       const refCodeDoc = await databaseService.referralCodes().add({
         code,
@@ -34,11 +40,26 @@ class ReferralService {
         createdAt: new Date(),
         active: true,
       });
-      await getNotificationServiceInstance().sendNotification(telegramId, `🔗 Your new referral code for ${company.name}: ${code}`, { type: 'referral', action: 'generate', companyId, code });
-      logger.info(`Referral code generated: ${code} for user ${telegramId} and company ${companyId}`);
+      // Ensure user joinedCompanies is updated
+      const joinedCompanies = userData.joinedCompanies || [];
+      if (!joinedCompanies.includes(companyId)) {
+        joinedCompanies.push(companyId);
+        await databaseService
+          .users()
+          .doc(telegramId.toString())
+          .update({ joinedCompanies });
+      }
+      // await getNotificationServiceInstance().sendNotification(
+      //   telegramId,
+      //   `🔗 Your new referral code for ${company.name}: ${code}`,
+      //   { type: "referral", action: "generate", companyId, code }
+      // );
+      logger.info(
+        `Referral code generated: ${code} for user ${telegramId} and company ${companyId}`
+      );
       return code;
     } catch (error) {
-      logger.error('Error generating referral code (Firestore):', error);
+      logger.error("Error generating referral code (Firestore):", error);
       throw error;
     }
   }
@@ -54,12 +75,19 @@ class ReferralService {
 
   async getReferralCodeByCode(code) {
     try {
-      const snap = await databaseService.referralCodes().where("code", "==", code).get();
+      const snap = await databaseService
+        .referralCodes()
+        .where("code", "==", code)
+        .get();
       if (snap.empty) throw new Error("Referral code not found");
       const refCode = snap.docs[0].data();
       // Attach product, company, user info
       const [productDoc, companyDoc, userDoc] = await Promise.all([
-        databaseService.getDb().collection('products').doc(refCode.productId).get(),
+        databaseService
+          .getDb()
+          .collection("products")
+          .doc(refCode.productId)
+          .get(),
         databaseService.companies().doc(refCode.companyId).get(),
         databaseService.users().doc(refCode.userId.toString()).get(),
       ]);
@@ -68,7 +96,9 @@ class ReferralService {
         product_title: productDoc.exists ? productDoc.data().title : null,
         price: productDoc.exists ? productDoc.data().price : null,
         company_name: companyDoc.exists ? companyDoc.data().name : null,
-        commission_rate: companyDoc.exists ? companyDoc.data().commission_rate : null,
+        commission_rate: companyDoc.exists
+          ? companyDoc.data().commission_rate
+          : null,
         first_name: userDoc.exists ? userDoc.data().first_name : null,
         last_name: userDoc.exists ? userDoc.data().last_name : null,
       };
@@ -80,21 +110,34 @@ class ReferralService {
 
   async getUserReferralCodes(userId) {
     try {
-      const snap = await databaseService.referralCodes().where("userId", "==", userId).get();
-      const codes = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const snap = await databaseService
+        .referralCodes()
+        .where("userId", "==", userId)
+        .get();
+      const codes = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       // Attach product, company info
       for (const code of codes) {
-        let productDoc = { exists: false }, companyDoc = { exists: false };
+        let productDoc = { exists: false },
+          companyDoc = { exists: false };
         if (code.productId) {
-          productDoc = await databaseService.getDb().collection('products').doc(code.productId).get();
+          productDoc = await databaseService
+            .getDb()
+            .collection("products")
+            .doc(code.productId)
+            .get();
         }
         if (code.companyId) {
-          companyDoc = await databaseService.companies().doc(code.companyId).get();
+          companyDoc = await databaseService
+            .companies()
+            .doc(code.companyId)
+            .get();
         }
         code.product_title = productDoc.exists ? productDoc.data().title : null;
         code.price = productDoc.exists ? productDoc.data().price : null;
         code.company_name = companyDoc.exists ? companyDoc.data().name : null;
-        code.commission_rate = companyDoc.exists ? companyDoc.data().commission_rate : null;
+        code.commission_rate = companyDoc.exists
+          ? companyDoc.data().commission_rate
+          : null;
       }
       return codes;
     } catch (error) {
@@ -112,23 +155,38 @@ class ReferralService {
           cleanData[key] = referralData[key];
         }
       }
+      // Ensure referrerTelegramId and companyId are set
+      if (!cleanData.referrerTelegramId && cleanData.userId) {
+        cleanData.referrerTelegramId = cleanData.userId;
+      }
+      if (!cleanData.companyId && cleanData.company_id) {
+        cleanData.companyId = cleanData.company_id;
+      }
       const { userId } = cleanData;
       const referralId = cleanData.id || uuidv4();
       cleanData.id = referralId;
       await databaseService.referrals().doc(referralId).set(cleanData);
-      await getNotificationServiceInstance().sendNotification(userId, `🎉 You have successfully referred a user!`, { type: 'referral', action: 'success', referralId });
+      // await getNotificationServiceInstance().sendNotification(
+      //   userId,
+      //   `🎉 You have successfully referred a user!`,
+      //   { type: "referral", action: "success", referralId }
+      // );
       logger.info(`Referral created: ${referralId} by user ${userId}`);
       return cleanData;
     } catch (error) {
-      logger.error('Error creating referral (Firestore):', error);
+      logger.error("Error creating referral (Firestore):", error);
       throw error;
     }
   }
 
   async getReferralsByUser(userId) {
     try {
-      const snap = await databaseService.referrals().where("userId", "==", userId).orderBy("createdAt", "desc").get();
-      const referrals = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const snap = await databaseService
+        .referrals()
+        .where("referrerTelegramId", "==", userId)
+        .orderBy("createdAt", "desc")
+        .get();
+      const referrals = snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       // Attach referral code, product, company, order info
       for (const ref of referrals) {
         const [refCodeDoc, orderDoc] = await Promise.all([
@@ -148,38 +206,37 @@ class ReferralService {
   }
 
   async getReferralStats(userId) {
+    if (!userId) throw new Error("User ID is required for referral stats");
     try {
-      // Aggregate stats from referrals and orders
-      const referralsSnap = await databaseService.referrals().where("userId", "==", userId).get();
-      const referrals = referralsSnap.docs.map(doc => doc.data());
+      // Aggregate stats from referrals
+      const referralsSnap = await databaseService
+        .referrals()
+        .where("referrerTelegramId", "==", userId)
+        .get();
+      const referrals = referralsSnap.docs.map((doc) => doc.data());
       let totalEarnings = 0;
       let pendingEarnings = 0;
       let thisMonthEarnings = 0;
       let totalReferrals = referrals.length;
       const now = new Date();
       for (const ref of referrals) {
-        const orderDoc = await databaseService.orders().doc(ref.orderId).get();
-        if (orderDoc.exists) {
-          const order = orderDoc.data();
-          const companyDoc = await databaseService.companies().doc(order.companyId).get();
-          const commissionRate = companyDoc.exists ? (companyDoc.data().commission_rate || 0) : 0;
-          const earning = (order.amount || 0) * (commissionRate / 100);
-          if (order.status === 'approved') {
-            totalEarnings += earning;
-            // This month
-            const orderDate = order.createdAt instanceof Date ? order.createdAt : new Date(order.createdAt);
-            if (orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear()) {
-              thisMonthEarnings += earning;
-            }
-          } else if (order.status === 'pending') {
-            pendingEarnings += earning;
-          }
+        // No orderId logic, use ref.amount directly
+        const earning = (ref.amount || 0) * 0.025; // 2.5% commission
+        totalEarnings += earning;
+        // This month
+        const createdAt = ref.createdAt instanceof Date ? ref.createdAt : (ref.createdAt && ref.createdAt.toDate ? ref.createdAt.toDate() : new Date(ref.createdAt));
+        if (
+          createdAt.getMonth() === now.getMonth() &&
+          createdAt.getFullYear() === now.getFullYear()
+        ) {
+          thisMonthEarnings += earning;
         }
+        // No pending logic without order status
       }
       return {
         totalReferrals,
         totalEarnings,
-        pendingEarnings,
+        pendingEarnings: 0,
         thisMonthEarnings,
       };
     } catch (error) {
@@ -192,17 +249,25 @@ class ReferralService {
     try {
       // Fetch all users
       const usersSnap = await databaseService.users().get();
-      const users = usersSnap.docs.map(doc => ({ telegramId: doc.id, ...doc.data() }));
+      const users = usersSnap.docs.map((doc) => ({
+        telegramId: doc.id,
+        ...doc.data(),
+      }));
       // Fetch all referrals
       const referralsSnap = await databaseService.referrals().get();
-      const referrals = referralsSnap.docs.map(doc => doc.data());
+      const referrals = referralsSnap.docs.map((doc) => doc.data());
       // Fetch all orders
       const ordersSnap = await databaseService.orders().get();
-      const orders = ordersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const orders = ordersSnap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
       // Map: telegramId -> total earnings
       const earningsMap = {};
-      referrals.forEach(ref => {
-        const order = orders.find(o => o.id === ref.orderId && o.status === 'approved');
+      referrals.forEach((ref) => {
+        const order = orders.find(
+          (o) => o.id === ref.orderId && o.status === "approved"
+        );
         if (order) {
           const userId = ref.userId || ref.telegramId;
           if (!earningsMap[userId]) earningsMap[userId] = 0;
@@ -212,36 +277,67 @@ class ReferralService {
         }
       });
       // Build leaderboard array
-      const leaderboard = users.map(u => ({
+      const leaderboard = users.map((u) => ({
         telegramId: u.telegramId,
-        firstName: u.firstName || '',
+        firstName: u.firstName || "",
         totalEarnings: earningsMap[u.telegramId] || 0,
       }));
       leaderboard.sort((a, b) => b.totalEarnings - a.totalEarnings);
       return leaderboard.slice(0, limit);
     } catch (error) {
-      logger.error('Error getting top referrers (Firestore):', error);
+      logger.error("Error getting top referrers (Firestore):", error);
       throw error;
     }
   }
 
   // Validate a referral code for a purchase (single-use, deactivate after use)
-  async validateReferralCode({ code, companyId, buyerTelegramId }) {
+  async validateReferralCode({ code, companyId, buyerTelegramId, amount }) {
     try {
       // Find code in referralCodes collection
-      const snap = await databaseService.referralCodes().where('code', '==', code).where('companyId', '==', companyId).where('active', '==', true).get();
-      if (snap.empty) return { valid: false, message: 'Referral code not found or already used.' };
+      const snap = await databaseService
+        .referralCodes()
+        .where("code", "==", code)
+        .where("companyId", "==", companyId)
+        .where("active", "==", true)
+        .get();
+      if (snap.empty)
+        return {
+          valid: false,
+          message: "Referral code not found or already used.",
+        };
       const refCode = snap.docs[0].data();
       // Prevent self-referral
-      if (refCode.userId === buyerTelegramId) return { valid: false, message: 'You cannot refer yourself.' };
+      if (refCode.userId === buyerTelegramId)
+        return { valid: false, message: "You cannot refer yourself." };
       // Deactivate code after use
-      await databaseService.referralCodes().doc(snap.docs[0].id).update({ active: false, usedBy: buyerTelegramId, usedAt: new Date() });
-      // Notify referrer
-      await getNotificationServiceInstance().sendNotification(refCode.userId, `🎉 Your referral code was used by a new buyer! You earned a 2% reward (manual payout or discount).`, { type: 'referral', action: 'used', code });
-      logger.info(`Referral code ${code} used by ${buyerTelegramId} for company ${companyId}`);
+      await databaseService
+        .referralCodes()
+        .doc(snap.docs[0].id)
+        .update({ active: false, usedBy: buyerTelegramId, usedAt: new Date() });
+      // Update referrer's coinBalance
+      if (amount && typeof amount === "number") {
+        const referrerRef = databaseService
+          .users()
+          .doc(refCode.userId.toString());
+        const referrerDoc = await referrerRef.get();
+        if (referrerDoc.exists) {
+          const currentBalance = referrerDoc.data().coinBalance || 0;
+          const reward = amount * 0.02;
+          await referrerRef.update({ coinBalance: currentBalance + reward });
+        }
+      }
+      // // Notify referrer
+      // await getNotificationServiceInstance().sendNotification(
+      //   refCode.userId,
+      //   `🎉 Your referral code was used by a new buyer! You earned a 2% reward (manual payout or discount).`,
+      //   { type: "referral", action: "used", code }
+      // );
+      logger.info(
+        `Referral code ${code} used by ${buyerTelegramId} for company ${companyId}`
+      );
       return { valid: true, referrerId: refCode.userId, code: refCode.code };
     } catch (error) {
-      logger.error('Error validating referral code:', error);
+      logger.error("Error validating referral code:", error);
       throw error;
     }
   }
@@ -257,7 +353,11 @@ class ReferralService {
         throw new Error("Referral code not found or unauthorized");
       }
 
-      await getNotificationServiceInstance().sendNotification(userId, `❌ Referral code deleted.`, { type: 'referral', action: 'delete', codeId });
+      await getNotificationServiceInstance().sendNotification(
+        userId,
+        `❌ Referral code deleted.`,
+        { type: "referral", action: "delete", codeId }
+      );
       logger.info(`Referral code deleted: ${codeId} by user ${userId}`);
       return result.rows[0];
     } catch (error) {
@@ -269,9 +369,10 @@ class ReferralService {
   async getReferralCodeStats(codeId) {
     try {
       const [clicks, orders, earnings] = await Promise.all([
-        databaseService.query("SELECT COUNT(*) FROM referrals WHERE referral_code_id = $1", [
-          codeId,
-        ]),
+        databaseService.query(
+          "SELECT COUNT(*) FROM referrals WHERE referral_code_id = $1",
+          [codeId]
+        ),
         databaseService.query(
           `SELECT COUNT(*) FROM referrals r
            JOIN orders o ON r.order_id = o.id
@@ -313,55 +414,73 @@ class ReferralService {
     try {
       // Get user's referral stats
       const stats = await this.getReferralStats(userId);
-      
       // Get user's referral codes
-      const userDoc = await databaseService.users().doc(userId.toString()).get();
-      if (!userDoc.exists) throw new Error('User not found');
+      const userDoc = await databaseService
+        .users()
+        .doc(userId.toString())
+        .get();
+      if (!userDoc.exists) throw new Error("User not found");
       const userData = userDoc.data();
-      
       // Get companies the user has joined
       const joinedCompanies = userData.joinedCompanies || [];
       const referralCodes = userData.referralCodes || {};
-      
       const companyStats = {};
-      
       for (const companyId of joinedCompanies) {
-        const companyDoc = await databaseService.companies().doc(companyId).get();
+        const companyDoc = await databaseService
+          .companies()
+          .doc(companyId)
+          .get();
         if (companyDoc.exists) {
           const company = companyDoc.data();
           const code = referralCodes[company.codePrefix];
-          
           // Get referrals for this company
-          const referralsSnap = await databaseService.referrals().where('referrerTelegramId', '==', userId).where('companyId', '==', companyId).get();
-          const referrals = referralsSnap.docs.map(doc => doc.data());
-          
+          const referralsSnap = await databaseService
+            .referrals()
+            .where("referrerTelegramId", "==", userId)
+            .where("companyId", "==", companyId)
+            .get();
+          const referrals = referralsSnap.docs.map((doc) => doc.data());
           let earnings = 0;
+          const detailedReferrals = [];
           for (const ref of referrals) {
-            const orderDoc = await databaseService.orders().doc(ref.orderId).get();
-            if (orderDoc.exists) {
-              const order = orderDoc.data();
-              if (order.status === 'approved') {
-                earnings += (order.amount || 0) * 0.025; // 2.5% commission
-              }
-            }
+            earnings += (ref.amount || 0) * 0.025; // 2.5% commission
+            detailedReferrals.push({
+              amount: ref.amount || 0,
+              product_title: ref.product_title || ref.productId || "",
+              createdAt: ref.createdAt,
+              status: ref.status || "",
+            });
           }
-          
           companyStats[companyId] = {
             count: referrals.length,
             earnings: earnings,
-            code: code
+            code: code,
+            referrals: detailedReferrals,
+            companyName: company.name,
           };
         }
       }
-      
       return {
         ...stats,
-        companyStats
+        companyStats,
       };
     } catch (error) {
       logger.error("Error getting user referral stats:", error);
       throw error;
     }
+  }
+
+  // Add referral earnings to a user's coinBalance and return new balance
+  async addReferralEarnings(userId, amount) {
+    const userRef = databaseService.users().doc(userId.toString());
+    const userDoc = await userRef.get();
+    if (userDoc.exists) {
+      const currentBalance = userDoc.data().coinBalance || 0;
+      const newBalance = currentBalance + amount;
+      await userRef.update({ coinBalance: newBalance });
+      return newBalance;
+    }
+    return null;
   }
 }
 

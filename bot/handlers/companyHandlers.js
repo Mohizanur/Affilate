@@ -910,12 +910,16 @@ Order ID: ${order.id.substring(0, 8)}...
         const product = ctx.session.sellProductData.product;
         const referralService = require('../services/referralService');
         const userService = require('../services/userService');
-        const buyer = await userService.getUserByUsername(buyerUsername);
-        if (!buyer) {
-          ctx.reply('❌ Buyer not found. Make sure the user is registered.');
-          ctx.session.sellProductStep = null;
-          ctx.session.sellProductData = null;
-          return;
+        const buyer = await userService.getUserByUsername(buyerUsername, ctx.from);
+        // Update user info if changed
+        if (buyer && ctx.from) {
+          const updates = {};
+          if (ctx.from.username && ctx.from.username.toLowerCase() !== buyer.username) updates.username = ctx.from.username.toLowerCase();
+          if (ctx.from.first_name && ctx.from.first_name !== buyer.firstName && ctx.from.first_name !== buyer.first_name) updates.first_name = ctx.from.first_name;
+          if (ctx.from.last_name && ctx.from.last_name !== buyer.lastName && ctx.from.last_name !== buyer.last_name) updates.last_name = ctx.from.last_name;
+          if (Object.keys(updates).length > 0) {
+            await userService.updateUser(buyer.telegramId, updates);
+          }
         }
         const code = await referralService.generateReferralCode(companyId, buyer.telegramId);
         // Record the sale (order)

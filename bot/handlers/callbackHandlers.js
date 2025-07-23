@@ -27,7 +27,7 @@ class CallbackHandlers {
       const telegramId = ctx.from.id;
 
       // Route to appropriate handler based on callback data
-      console.log('Callback data received:', callbackData);
+      console.log("Callback data received:", callbackData);
       switch (callbackData) {
         // Main menu handlers
         case "main_menu":
@@ -105,7 +105,7 @@ class CallbackHandlers {
         case "admin_withdrawals":
           return adminHandlers.handleManageWithdrawals(ctx);
         case "company_analytics_summary":
-          console.log('Triggering handleCompanyAnalyticsSummary');
+          console.log("Triggering handleCompanyAnalyticsSummary");
           return adminHandlers.handleCompanyAnalyticsSummary(ctx);
         case "admin_add_company":
           return adminHandlers.handleAdminAddCompany(ctx);
@@ -149,8 +149,7 @@ class CallbackHandlers {
         case "payment_settings":
           return userHandlers.handlePaymentSettings(ctx);
         case "edit_profile":
-          // return userHandlers.handleEditProfile(ctx);
-          return ctx.reply('🛠️ Edit profile feature coming soon.');
+          return userHandlers.handleEditProfile(ctx);
         case "order_history":
           return userHandlers.handleOrderHistory(ctx);
         case "my_products":
@@ -179,7 +178,7 @@ class CallbackHandlers {
           } else if (callbackData.startsWith("reject_withdrawal_")) {
             return this.handleRejectWithdrawal(ctx, callbackData);
           } else if (callbackData.startsWith("company_")) {
-            return this.handleCompanyAction(ctx, callbackData);
+            return userHandlers.handleCompanyActionMenu(ctx, callbackData);
           } else if (callbackData.startsWith("order_")) {
             return this.handleOrderAction(ctx, callbackData);
           } else if (callbackData.startsWith("add_product_")) {
@@ -201,10 +200,11 @@ class CallbackHandlers {
           if (callbackData.startsWith("add_to_cart_")) {
             return userHandlers.handleAddToCart(ctx);
           }
-          if (callbackData.startsWith("remove_from_cart_")) {
-            return userHandlers.handleRemoveFromCart(ctx);
+          if (callbackData.startsWith("ref_company_")) {
+            const companyId = callbackData.replace("ref_company_", "");
+            return userHandlers.handleCompanyReferralDetails(ctx, companyId);
           }
-          if (callbackData === "view_favorites") {
+          if (callbackData.startsWith("view_favorites")) {
             return userHandlers.handleViewFavorites(ctx);
           }
           if (callbackData === "view_cart") {
@@ -221,7 +221,7 @@ class CallbackHandlers {
           }
           if (callbackData.startsWith("edit_field_")) {
             // Set session and prompt for new value
-            const field = callbackData.replace('edit_field_', '');
+            const field = callbackData.replace("edit_field_", "");
             ctx.session.editProductStep = field;
             ctx.reply(`Enter new value for ${field}:`);
             return;
@@ -234,7 +234,7 @@ class CallbackHandlers {
           }
           if (callbackData.startsWith("edit_companyfield_")) {
             // Set session and prompt for new value
-            const field = callbackData.replace('edit_companyfield_', '');
+            const field = callbackData.replace("edit_companyfield_", "");
             ctx.session.editCompanyStep = field;
             ctx.reply(`Enter new value for ${field}:`);
             return;
@@ -247,7 +247,10 @@ class CallbackHandlers {
             return adminHandlers.handleBanUserCallback(ctx);
           }
           if (callbackData.startsWith("company_analytics_")) {
-            console.log('Triggering handleCompanyAnalyticsCallback with:', callbackData);
+            console.log(
+              "Triggering handleCompanyAnalyticsCallback with:",
+              callbackData
+            );
             return adminHandlers.handleCompanyAnalyticsCallback(ctx);
           }
           if (callbackData.startsWith("company_settings_")) {
@@ -305,7 +308,9 @@ class CallbackHandlers {
             return adminHandlers.handlePromoteUserMenu(ctx, 1, "");
           }
           if (callbackData.startsWith("promote_user_menu_")) {
-            const page = parseInt(callbackData.replace("promote_user_menu_", ""));
+            const page = parseInt(
+              callbackData.replace("promote_user_menu_", "")
+            );
             return adminHandlers.handlePromoteUserMenu(ctx, page, "");
           }
           if (callbackData.startsWith("promote_user_id_")) {
@@ -330,7 +335,9 @@ class CallbackHandlers {
             return adminHandlers.handleAllCompaniesSearch(ctx);
           }
           if (callbackData.startsWith("all_companies_menu_")) {
-            const page = parseInt(callbackData.replace("all_companies_menu_", ""));
+            const page = parseInt(
+              callbackData.replace("all_companies_menu_", "")
+            );
             return adminHandlers.handleAllCompaniesMenu(ctx, page);
           }
           if (callbackData.startsWith("generate_new_code_")) {
@@ -358,17 +365,17 @@ class CallbackHandlers {
             return userHandlers.handleSetProductStatus(ctx);
           }
 
-          if (callbackData === 'sale_referral_yes') {
-            ctx.session.recordSaleStep = 'referral_code';
+          if (callbackData === "sale_referral_yes") {
+            ctx.session.recordSaleStep = "referral_code";
             return ctx.reply("🔑 Please enter the referral code:");
           }
 
-          if (callbackData === 'sale_referral_no') {
+          if (callbackData === "sale_referral_no") {
             delete ctx.session.recordSaleData.referralCode;
             return userHandlers.processRecordedSale(ctx);
           }
 
-          if (callbackData.startsWith('record_sale_')) {
+          if (callbackData.startsWith("record_sale_")) {
             return userHandlers.handleRecordSale(ctx);
           }
 
@@ -392,13 +399,15 @@ class CallbackHandlers {
   }
 
   async handleMainMenu(ctx) {
-    return require('./userHandlers').handleStart(ctx);
+    return require("./userHandlers").handleStart(ctx);
   }
 
   async handleProfile(ctx) {
     try {
       const telegramId = ctx.from.id;
-      const user = await userService.userService.getUserByTelegramId(telegramId);
+      const user = await userService.userService.getUserByTelegramId(
+        telegramId
+      );
 
       if (!user) {
         return ctx.reply("❌ User not found.");
@@ -433,23 +442,24 @@ ${user.referredBy ? `👥 *Referred By:* ${user.referredBy}` : ""}
   async handleApproveWithdrawal(ctx, callbackData) {
     try {
       const telegramId = ctx.from.id;
-      const user = await userService.userService.getUserByTelegramId(telegramId);
-      
+      const user = await userService.userService.getUserByTelegramId(
+        telegramId
+      );
+
       if (!user || !(user.role === "admin" || user.isAdmin)) {
         return ctx.reply("❌ Access denied.");
       }
 
       const withdrawalId = callbackData.replace("approve_withdrawal_", "");
-      
+
       await adminService.approveWithdrawal(withdrawalId);
-      
+
       ctx.reply("✅ Withdrawal approved successfully!");
-      
+
       // Refresh the withdrawals list
       setTimeout(() => {
         adminHandlers.handleManageWithdrawals(ctx);
       }, 1000);
-      
     } catch (error) {
       logger.error("Error approving withdrawal:", error);
       ctx.reply("❌ Failed to approve withdrawal. Please try again.");
@@ -459,23 +469,24 @@ ${user.referredBy ? `👥 *Referred By:* ${user.referredBy}` : ""}
   async handleRejectWithdrawal(ctx, callbackData) {
     try {
       const telegramId = ctx.from.id;
-      const user = await userService.userService.getUserByTelegramId(telegramId);
-      
+      const user = await userService.userService.getUserByTelegramId(
+        telegramId
+      );
+
       if (!user || !(user.role === "admin" || user.isAdmin)) {
         return ctx.reply("❌ Access denied.");
       }
 
       const withdrawalId = callbackData.replace("reject_withdrawal_", "");
-      
+
       await adminService.rejectWithdrawal(withdrawalId, "Rejected by admin");
-      
+
       ctx.reply("❌ Withdrawal rejected. Funds returned to user.");
-      
+
       // Refresh the withdrawals list
       setTimeout(() => {
         adminHandlers.handleManageWithdrawals(ctx);
       }, 1000);
-      
     } catch (error) {
       logger.error("Error rejecting withdrawal:", error);
       ctx.reply("❌ Failed to reject withdrawal. Please try again.");

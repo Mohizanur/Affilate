@@ -3,7 +3,7 @@ const userService = require("../services/userService");
 const companyService = require("../services/companyService");
 const orderService = require("../services/orderService");
 const adminService = require("../services/adminService");
-const logger =require("../../utils/logger");
+const logger = require("../../utils/logger");
 const referralService = require("../services/referralService");
 
 const adminHandlers = require("./adminHandlers");
@@ -11,14 +11,17 @@ const userHandlers = require("./userHandlers");
 
 class MessageHandlers {
   async handleTextMessage(ctx) {
-    if (ctx.message && ctx.message.text && ctx.message.text.startsWith('/')) {
-        return;
+    if (ctx.message && ctx.message.text && ctx.message.text.startsWith("/")) {
+      return;
     }
 
     console.log("handleTextMessage called", {
       user: ctx.from.id,
       session: ctx.session,
-      messageType: ctx.message && ctx.message.text ? "text" : Object.keys(ctx.message || {})
+      messageType:
+        ctx.message && ctx.message.text
+          ? "text"
+          : Object.keys(ctx.message || {}),
     });
     try {
       const telegramId = ctx.from.id;
@@ -35,6 +38,9 @@ class MessageHandlers {
       }
       if (ctx.session && ctx.session.companyRegistrationStep) {
         return userHandlers.handleCompanyRegistrationStep(ctx);
+      }
+      if (ctx.session && ctx.session.editProfileStep) {
+        return userHandlers.handleEditProfileStep(ctx);
       }
       // Prioritize sellStep, editProductStep, and editCompanyStep over addProductStep
       if (ctx.session && ctx.session.sellStep) {
@@ -57,11 +63,15 @@ class MessageHandlers {
         return this.handleReferralCodeUsage(ctx, messageText);
       }
 
-      if (messageText === '/my_referral_codes') {
+      if (messageText === "/my_referral_codes") {
         return userHandlers.handleMyReferralCodes(ctx);
       }
 
-      console.error(`Invalid selection: user=${telegramId}, session=${JSON.stringify(ctx.session)}, text='${messageText}'`);
+      console.error(
+        `Invalid selection: user=${telegramId}, session=${JSON.stringify(
+          ctx.session
+        )}, text='${messageText}'`
+      );
       ctx.reply(
         "❓ I didn't understand that. Use /start to see available options."
       );
@@ -103,15 +113,16 @@ class MessageHandlers {
         case "awaiting_all_companies_search":
           ctx.session.state = null;
           return adminHandlers.handleAllCompaniesMenu(ctx, 1, messageText);
-        case 'awaiting_fee_calculator_amount': {
+        case "awaiting_fee_calculator_amount": {
           const amount = parseFloat(messageText);
           if (isNaN(amount) || amount <= 0) {
-            return ctx.reply('❌ Please enter a valid amount.');
+            return ctx.reply("❌ Please enter a valid amount.");
           }
           const discount = amount * 0.01;
           const referrerReward = amount * 0.025;
           const platformFee = amount * 0.015;
-          const companyPayout = amount - discount - referrerReward - platformFee;
+          const companyPayout =
+            amount - discount - referrerReward - platformFee;
           const message = `
 💰 *Fee & Reward Calculation*
 
@@ -122,7 +133,7 @@ Purchase Amount: $${amount.toFixed(2)}
 = Company Payout: $${companyPayout.toFixed(2)}
 `;
           ctx.session.state = null;
-          return ctx.reply(message, { parse_mode: 'Markdown' });
+          return ctx.reply(message, { parse_mode: "Markdown" });
         }
         default:
           ctx.session.state = null;
@@ -218,7 +229,11 @@ Purchase Amount: $${amount.toFixed(2)}
       const user = await userService.getUserByTelegramId(ctx.from.id);
       const balance = user.coinBalance || 0;
       ctx.reply(
-        `✅ Payment details saved!\\n\\nHow much would you like to withdraw?\\n\\nAvailable balance: $${balance.toFixed(2)}\\nMinimum withdrawal: $${process.env.MIN_WITHDRAWAL_AMOUNT}\\n\\nPlease enter the amount:`
+        `✅ Payment details saved!\\n\\nHow much would you like to withdraw?\\n\\nAvailable balance: $${balance.toFixed(
+          2
+        )}\\nMinimum withdrawal: $${
+          process.env.MIN_WITHDRAWAL_AMOUNT
+        }\\n\\nPlease enter the amount:`
       );
     } catch (error) {
       logger.error("Error in handleWithdrawalDetails:", error);
@@ -252,10 +267,12 @@ Use /start to return to the main menu.
       `;
       ctx.reply(successMessage, { parse_mode: "Markdown" });
       // Notify admins with full details
-      const adminIds = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(',') : [];
+      const adminIds = process.env.ADMIN_IDS
+        ? process.env.ADMIN_IDS.split(",")
+        : [];
       const user = await userService.getUserByTelegramId(ctx.from.id);
       const adminMsg = `🚨 *Withdrawal Request*
-User: ${user.firstName} ${user.lastName || ''} (@${user.username || 'N/A'})
+User: ${user.firstName} ${user.lastName || ""} (@${user.username || "N/A"})
 User ID: ${user.telegramId}
 Amount: $${amount.toFixed(2)}
 Method: ${ctx.session.withdrawalMethod}
@@ -263,7 +280,7 @@ Details: ${JSON.stringify(ctx.session.withdrawalDetails)}
 Request ID: ${withdrawalId}
 `;
       for (const adminId of adminIds) {
-        ctx.telegram.sendMessage(adminId, adminMsg, { parse_mode: 'Markdown' });
+        ctx.telegram.sendMessage(adminId, adminMsg, { parse_mode: "Markdown" });
       }
     } catch (error) {
       logger.error("Error in handleWithdrawalAmount:", error);
@@ -333,14 +350,16 @@ Use /company_dashboard to manage orders.
   async handleContact(ctx) {
     try {
       let phoneNumber = ctx.message.contact.phone_number;
-      phoneNumber = phoneNumber.trim().replace(/(?!^\+)\D/g, '');
-      if (!phoneNumber.startsWith('+') && /^\d{10,}$/.test(phoneNumber)) {
-        phoneNumber = '+' + phoneNumber;
+      phoneNumber = phoneNumber.trim().replace(/(?!^\+)\D/g, "");
+      if (!phoneNumber.startsWith("+") && /^\d{10,}$/.test(phoneNumber)) {
+        phoneNumber = "+" + phoneNumber;
       }
-      if (phoneNumber.startsWith('+')) {
+      if (phoneNumber.startsWith("+")) {
         await userService.userService.verifyPhone(ctx.from.id, phoneNumber);
       } else {
-        return ctx.reply('❌ Please resend your phone number in international format, starting with + and country code (e.g., +251911234567).');
+        return ctx.reply(
+          "❌ Please resend your phone number in international format, starting with + and country code (e.g., +251911234567)."
+        );
       }
       const successMessage = `
 ✅ *Phone Number Verified!*
@@ -364,12 +383,17 @@ const messageHandlers = new MessageHandlers();
 function setupHandlers(bot) {
   bot.on("text", (ctx) => messageHandlers.handleTextMessage(ctx));
   bot.on("contact", (ctx) => messageHandlers.handleContact(ctx));
-  bot.on(["photo", "document", "sticker", "video", "audio", "voice", "video_note"], async (ctx) => {
-    if (ctx.session && ctx.session.waitingForBroadcast) {
-      return adminHandlers.handleBroadcastMedia(ctx);
+  bot.on(
+    ["photo", "document", "sticker", "video", "audio", "voice", "video_note"],
+    async (ctx) => {
+      if (ctx.session && ctx.session.waitingForBroadcast) {
+        return adminHandlers.handleBroadcastMedia(ctx);
+      }
+      ctx.reply(
+        "❓ I didn't understand that. Use /start to see available options."
+      );
     }
-    ctx.reply("❓ I didn't understand that. Use /start to see available options.");
-  });
+  );
 }
 
 console.log("Exiting handlers/messageHandlers.js");

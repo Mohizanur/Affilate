@@ -65,9 +65,9 @@ class OrderService {
       };
       await databaseService.orders().doc(orderId).set(orderDoc);
       // Notify buyer and referrer
-      if (referrerId) {
-        await notificationService.sendNotification(referrerId, `You earned a 2% reward for referring a buyer.`, { type: 'order', action: 'commission', orderId, amount: referrerReward });
-      }
+      // if (referrerId) {
+      //   await notificationService.sendNotification(referrerId, `You earned a 2% reward for referring a buyer.`, { type: 'order', action: 'commission', orderId, amount: referrerReward });
+      // }
       await notificationService.sendNotification(userId, `Your purchase is complete!${userDiscount ? ` You received a 1% discount.` : ''}`, { type: 'order', action: 'approved', orderId });
       logger.info(`Order created: ${orderId} (user: ${userId}, product: ${productId}, referrer: ${referrerId})`);
       return { id: orderId, ...orderDoc };

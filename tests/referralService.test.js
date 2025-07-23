@@ -2,6 +2,11 @@ const referralService = require("../bot/services/referralService");
 const databaseService = require("../bot/config/database");
 
 jest.mock("../bot/config/database");
+jest.mock("../bot/services/notificationService", () => ({
+  getNotificationServiceInstance: () => ({
+    sendNotification: jest.fn(),
+  }),
+}));
 
 describe("ReferralService", () => {
   beforeEach(() => {
@@ -37,7 +42,7 @@ describe("ReferralService", () => {
       buyerTelegramId: "user1",
     });
     expect(result.valid).toBe(false);
-    expect(result.message).toMatch(/self-referral/i);
+    expect(result.message).toBe("You cannot refer yourself.");
   });
 
   it("should expire code after use", async () => {
