@@ -443,9 +443,22 @@ class ReferralService {
               status: ref.status || "",
             });
           }
+          // Subtract approved withdrawals for this user and company
+          const withdrawalsSnap = await databaseService
+            .withdrawals()
+            .where("userId", "==", userId)
+            .where("companyId", "==", companyId)
+            .where("status", "==", "approved")
+            .get();
+          let withdrawn = 0;
+          withdrawalsSnap.forEach((doc) => {
+            const w = doc.data();
+            withdrawn += w.amount || 0;
+          });
+          const withdrawable = Math.max(0, earnings - withdrawn);
           companyStats[companyId] = {
             count: referrals.length,
-            earnings: earnings,
+            earnings: withdrawable,
             code: code,
             referrals: detailedReferrals,
             companyName: company.name,

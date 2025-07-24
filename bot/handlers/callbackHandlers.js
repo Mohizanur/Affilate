@@ -1,3 +1,4 @@
+console.log("callbackHandlers.js loaded");
 console.log("Entering handlers/callbackHandlers.js");
 const { Markup } = require("telegraf");
 console.log("Loaded telegraf in callbackHandlers");
@@ -19,13 +20,39 @@ console.log("Loaded companyHandlers in callbackHandlers");
 class CallbackHandlers {
   async handleCallback(ctx) {
     try {
+      console.log("TOP OF handleCallback");
+      const telegramId = ctx.from.id;
+      const user = await userService.userService.getUserByTelegramId(
+        telegramId
+      );
+      if (user && user.banned) {
+        await ctx.answerCbQuery("🚫 You are banned from using this bot.");
+        return ctx.reply("🚫 You are banned from using this bot.");
+      }
       // Immediately answer the callback to avoid Telegram timeout errors
       await ctx.answerCbQuery();
       const callbackData = ctx.callbackQuery.data;
-      const telegramId = ctx.from.id;
-
+      // Log callbackData and its char codes
+      console.log(
+        "Callback data received:",
+        callbackData,
+        "| char codes:",
+        Array.from(callbackData).map((c) => c.charCodeAt(0))
+      );
       // Route to appropriate handler based on callback data
-      console.log("Callback data received:", callbackData);
+      console.log("CHECKING company_approve_withdrawal_");
+      if (callbackData.startsWith("company_approve_withdrawal_")) {
+        console.log("INSIDE company_approve_withdrawal_ block");
+        const withdrawalId = callbackData.replace(
+          "company_approve_withdrawal_",
+          ""
+        );
+        console.log(
+          "CALLING handleCompanyApproveWithdrawal with withdrawalId:",
+          withdrawalId
+        );
+        return adminHandlers.handleCompanyApproveWithdrawal(ctx, withdrawalId);
+      }
       switch (callbackData) {
         // Main menu handlers
         case "main_menu":
@@ -123,6 +150,10 @@ class CallbackHandlers {
           return adminHandlers.handleExportLogs(ctx);
         case "clear_logs":
           return adminHandlers.handleClearLogs(ctx);
+        case "promoted_users":
+          return adminHandlers.handlePromotedUsers(ctx);
+        case "set_platform_fee":
+          return adminHandlers.handleSetPlatformFee(ctx);
         // Company handlers
         case "register_company":
           return userHandlers.handleRegisterCompany(ctx);
@@ -172,7 +203,21 @@ class CallbackHandlers {
         default:
           // Handle dynamic callbacks
           if (callbackData.startsWith("approve_withdrawal_")) {
-            return this.handleApproveWithdrawal(ctx, callbackData);
+            // Route directly to userService for company withdrawals
+            const withdrawalId = callbackData.replace(
+              "approve_withdrawal_",
+              ""
+            );
+            try {
+              await userService.userService.companyApproveWithdrawal(
+                withdrawalId,
+                ctx.from.id
+              );
+              ctx.reply("✅ Withdrawal approved and processed by the company.");
+            } catch (err) {
+              ctx.reply(`❌ ${err.message}`);
+            }
+            return;
           } else if (callbackData.startsWith("reject_withdrawal_")) {
             return this.handleRejectWithdrawal(ctx, callbackData);
           } else if (callbackData.startsWith("deny_withdrawal_")) {
@@ -214,10 +259,11 @@ class CallbackHandlers {
             return userHandlers.handleViewCart(ctx);
           }
           if (callbackData.startsWith("sell_product_")) {
-            return userHandlers.handleSellProduct(ctx);
+            const productId = callbackData.replace("sell_product_", "");
+            return userHandlers.handleSellProduct(ctx, productId);
           }
           if (callbackData.startsWith("product_action_")) {
-            return userHandlers.handleProductActionMenu(ctx);
+            return userHandlers.handleProductActionMenu(ctx, callbackData);
           }
           if (callbackData.startsWith("edit_product_field_")) {
             return userHandlers.handleEditProductField(ctx);
@@ -383,6 +429,51 @@ class CallbackHandlers {
           if (callbackData.startsWith("withdraw_company_")) {
             const companyId = callbackData.replace("withdraw_company_", "");
             return userHandlers.handleWithdrawCompany(ctx, companyId);
+          }
+
+          if (callbackData.startsWith("request_withdrawal_")) {
+            const companyId = callbackData.replace("request_withdrawal_", "");
+            return adminHandlers.handleAdminRequestWithdrawal(ctx, companyId);
+          }
+
+          if (callbackData.startsWith("confirm_admin_withdrawal_")) {
+            const companyId = callbackData.replace(
+              "confirm_admin_withdrawal_",
+              ""
+            );
+            return adminHandlers.handleAdminConfirmWithdrawal(ctx, companyId);
+          }
+
+          if (callbackData.startsWith("company_approve_withdrawal_")) {
+            const withdrawalId = callbackData.replace(
+              "company_approve_withdrawal_",
+              ""
+            );
+            console.log(
+              "CALLING handleCompanyApproveWithdrawal with withdrawalId:",
+              withdrawalId
+            );
+            return adminHandlers.handleCompanyApproveWithdrawal(
+              ctx,
+              withdrawalId
+            );
+          }
+          if (callbackData.startsWith("company_deny_withdrawal_")) {
+            const withdrawalId = callbackData.replace(
+              "company_deny_withdrawal_",
+              ""
+            );
+            return adminHandlers.handleCompanyDenyWithdrawal(ctx, withdrawalId);
+          }
+          if (callbackData.startsWith("finalize_admin_withdrawal_")) {
+            const withdrawalId = callbackData.replace(
+              "finalize_admin_withdrawal_",
+              ""
+            );
+            return adminHandlers.handleAdminFinalizeWithdrawal(
+              ctx,
+              withdrawalId
+            );
           }
 
           ctx.reply("❌ Unknown action. Please try again.");
@@ -593,8 +684,19 @@ ${user.referredBy ? `👥 *Referred By:* ${user.referredBy}` : ""}
     ctx.reply("📦 Order action feature coming soon!");
   }
 
+  async handleText(ctx) {
+    if (ctx.session && ctx.session.awaitingPlatformFee) {
+      return adminHandlers.handlePlatformFeeInput(ctx);
+    }
+    if (ctx.session && ctx.session.sellStep) {
+      return userHandlers.handleSellProductStep(ctx);
+    }
+    // fallback: do nothing or pass to other handlers
+  }
+
   setupHandlers(bot) {
     bot.on("callback_query", (ctx) => this.handleCallback(ctx));
+    bot.on("text", (ctx) => this.handleText(ctx));
     logger.info("Callback handlers setup completed");
   }
 }

@@ -40,8 +40,30 @@ function toDateSafe(x) {
 class UserHandlers {
   async handleStart(ctx) {
     try {
+      let user;
+      try {
+        user = await userService.userService.getUserByTelegramId(ctx.from.id);
+      } catch (err) {
+        if (err.message === "User not found") {
+          // Create the user if not found
+          user = await userService.userService.createUser({
+            telegramId: ctx.from.id,
+            username: ctx.from.username || null,
+            firstName: ctx.from.first_name || null,
+            lastName: ctx.from.last_name || null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+        } else {
+          throw err;
+        }
+      }
       ctx.session = {}; // Reset session state
       const telegramId = ctx.from.id;
+      // Use the already declared 'user' variable for all further logic
+      if (user && user.banned) {
+        return ctx.reply("🚫 You are banned from using this bot.");
+      }
       const userData = {
         telegramId,
         firstName: ctx.from.first_name,
@@ -86,7 +108,7 @@ class UserHandlers {
       }
 
       // Create or update user in Firestore
-      const user = await userService.userService.createOrUpdateUser(userData);
+      user = await userService.userService.createOrUpdateUser(userData);
       console.log("[DEBUG] handleStart user:", user);
       logger.info(`[DEBUG] handleStart user: ${JSON.stringify(user)}`);
 
@@ -566,8 +588,12 @@ Share your code and start earning! 💸
         message += "No referral activity yet.";
       } else {
         topReferrers.forEach((user, i) => {
-          const displayName = user.username ? `@${user.username}` : (user.firstName || "User");
-          message += `${i + 1}. ${displayName} (${user.telegramId}): ${user.totalReferrals} referrals\n`;
+          const displayName = user.username
+            ? `@${user.username}`
+            : user.firstName || "User";
+          message += `${i + 1}. ${displayName} (${user.telegramId}): ${
+            user.totalReferrals
+          } referrals\n`;
         });
       }
       const buttons = [
@@ -802,18 +828,16 @@ How much would you like to withdraw?
 
   async handleVerifyPhone(ctx) {
     try {
-      ctx.session = {}; // Reset session state
-      ctx.reply("📱 Please share your phone number to verify your account:", {
+      // Prompt for phone number with reply keyboard
+      await ctx.reply("Please share your phone number to verify:", {
         reply_markup: {
-          keyboard: [
-            [{ text: "📱 Share Phone Number", request_contact: true }],
-          ],
-          resize_keyboard: true,
+          keyboard: [[{ text: "Share Phone Number", request_contact: true }]],
           one_time_keyboard: true,
+          resize_keyboard: true,
         },
       });
     } catch (error) {
-      logger.error("Error in verify phone handler:", error);
+      logger.error("Error starting phone verification:", error);
       ctx.reply("❌ Failed to start phone verification.");
     }
   }
@@ -834,90 +858,18 @@ How much would you like to withdraw?
       } catch (err) {
         return ctx.reply("❌ " + err.message);
       }
-      // Show unified main menu after verification
-      // Remove the custom keyboard (Share Phone Number) using sendMessage for reliability
-      await ctx.telegram.sendMessage(telegramId, t("phone_verified"), {
+      // Remove the reply keyboard after verification
+      await ctx.reply("✅ Phone verified!", {
         reply_markup: { remove_keyboard: true },
       });
-      const user = await userService.userService.getUserByTelegramId(
-        telegramId
-      );
-      // Update user info if changed
-      if (user) {
-        const updates = {};
-        if (ctx.from) {
-          if (
-            ctx.from.username &&
-            ctx.from.username.toLowerCase() !== user.username
-          )
-            updates.username = ctx.from.username.toLowerCase();
-          if (
-            ctx.from.first_name &&
-            ctx.from.first_name !== user.firstName &&
-            ctx.from.first_name !== user.first_name
-          )
-            updates.first_name = ctx.from.first_name;
-          if (
-            ctx.from.last_name &&
-            ctx.from.last_name !== user.lastName &&
-            ctx.from.last_name !== user.last_name
-          )
-            updates.last_name = ctx.from.last_name;
-        }
-        if (
-          ctx.message &&
-          ctx.message.contact &&
-          ctx.message.contact.phone_number &&
-          ctx.message.contact.phone_number !== user.phone_number
-        ) {
-          updates.phone_number = ctx.message.contact.phone_number;
-        }
-        if (Object.keys(updates).length > 0) {
-          await userService.userService.updateUser(telegramId, updates);
-        }
-      }
-      const isAdmin = user.role === "admin" || user.isAdmin === true;
-      const isCompany = user.isCompanyOwner === true || user.companyId;
-      const welcomeMessage = t("welcome");
-      const buttons = [
-        [
-          Markup.button.callback("🛍️ Browse Products", "browse_products"),
-          Markup.button.callback("💰 My Referrals", "my_referrals"),
-        ],
-        [
-          Markup.button.callback("⭐ Favorites", "view_favorites"),
-          Markup.button.callback("🛒 Cart", "view_cart"),
-        ],
-        [
-          Markup.button.callback("👤 Profile", "user_profile"),
-          Markup.button.callback("🏆 Leaderboard", "leaderboard"),
-        ],
-        [Markup.button.callback("ℹ️ Help", "help")],
-      ];
-      if (isCompany) {
-        buttons.push([
-          Markup.button.callback("🏢 Company Dashboard", "company_dashboard"),
-        ]);
-      }
-      if (user.canRegisterCompany) {
-        buttons.push([
-          Markup.button.callback("🏢 Register Company", "register_company"),
-        ]);
-      }
-      if (isAdmin) {
-        buttons.push([Markup.button.callback("🔧 Admin Panel", "admin_panel")]);
-      }
-      ctx.reply(welcomeMessage, {
-        parse_mode: "Markdown",
-        ...Markup.inlineKeyboard(buttons),
-      });
+      // Show the main menu as an inline keyboard
+      await this.handleStart(ctx);
     } catch (error) {
-      logger.error("Error handling phone contact:", error);
-      ctx.reply("❌ Failed to verify phone. Please try again.");
+      logger.error("Error in handlePhoneContact:", error);
+      ctx.reply("❌ Failed to verify phone.");
     }
   }
 
-  // Add handler for joining a company
   async handleJoinCompany(ctx, companyId) {
     try {
       logger.info(`[JoinCompany] Attempting to join company: ${companyId}`);
@@ -943,7 +895,9 @@ How much would you like to withdraw?
     try {
       ctx.session = {}; // Reset session state
       const telegramId = ctx.from.id;
-      const user = await userService.userService.getUserByTelegramId(telegramId);
+      const user = await userService.userService.getUserByTelegramId(
+        telegramId
+      );
       if (user.phone_verified && !user.phoneVerified)
         user.phoneVerified = user.phone_verified;
       // Remove orderService and order stats
@@ -2531,15 +2485,67 @@ Toggle notifications:
       }
       sellerReceipt += `• Date: ${saleDate}`;
       ctx.telegram.sendMessage(ctx.from.id, sellerReceipt);
+      // Fetch buyer and owner usernames/names for admin notification
+      let buyerDisplay = buyerId;
+      let ownerDisplay = product.creatorTelegramId;
+      try {
+        const buyerDoc = await databaseService
+          .users()
+          .doc(buyerId.toString())
+          .get();
+        if (buyerDoc.exists) {
+          const b = buyerDoc.data();
+          buyerDisplay = b.username
+            ? `@${b.username}${b.firstName ? ` (${b.firstName})` : ""}`
+            : b.firstName || buyerId;
+        }
+        const ownerDoc = await databaseService
+          .users()
+          .doc(product.creatorTelegramId.toString())
+          .get();
+        if (ownerDoc.exists) {
+          const o = ownerDoc.data();
+          ownerDisplay = o.username
+            ? `@${o.username}${o.firstName ? ` (${o.firstName})` : ""}`
+            : o.firstName || product.creatorTelegramId;
+        }
+      } catch (e) {
+        /* ignore */
+      }
+      // Calculate platform fee and update platform balance before admin notification
+      const adminService = require("../services/adminService");
+      const platformSettings = await adminService.getPlatformSettings();
+      const PLATFORM_FEE_PERCENT = platformSettings.platformFeePercent;
+      const platformFee = total * (PLATFORM_FEE_PERCENT / 100);
+      await databaseService
+        .getDb()
+        .collection("platform")
+        .doc("commission")
+        .set(
+          {
+            balance: databaseService.increment(platformFee),
+          },
+          { merge: true }
+        );
+      const platformDoc = await databaseService
+        .getDb()
+        .collection("platform")
+        .doc("commission")
+        .get();
+      const platformBalance = platformDoc.exists
+        ? platformDoc.data().balance
+        : 0;
       await getNotificationServiceInstance().sendAdminActionNotification(
         "Product Sold",
         {
           product: product.title,
           quantity,
-          buyer: buyerId,
+          buyer: buyerDisplay,
           company: product.companyName || product.companyId,
-          owner: product.creatorTelegramId,
-          total: total,
+          owner: ownerDisplay,
+          total: total.toFixed(2),
+          platformFee: platformFee,
+          platformBalance: platformBalance,
           code:
             referral && typeof referral.code === "string"
               ? referral.code
@@ -2783,11 +2789,16 @@ Toggle notifications:
   async handleWithdrawCompany(ctx, companyId) {
     try {
       const telegramId = ctx.from.id;
-      const stats = await require("../services/referralService").getUserReferralStats(telegramId);
+      const stats =
+        await require("../services/referralService").getUserReferralStats(
+          telegramId
+        );
       const minPayout = parseFloat(process.env.MIN_PAYOUT_AMOUNT || "10");
       const companyStats = stats.companyStats && stats.companyStats[companyId];
       if (!companyStats || companyStats.earnings < minPayout) {
-        return ctx.reply("❌ You are not eligible to withdraw from this company yet.");
+        return ctx.reply(
+          "❌ You are not eligible to withdraw from this company yet."
+        );
       }
       // Create withdrawal request
       const withdrawal = {
@@ -2797,26 +2808,45 @@ Toggle notifications:
         status: "pending",
         createdAt: new Date(),
       };
-      const ref = await require("../config/database").withdrawals().add(withdrawal);
+      const ref = await require("../config/database")
+        .withdrawals()
+        .add(withdrawal);
       // Get user and company info for message
-      const company = await require("../services/companyService").getCompanyById(companyId);
-      const user = await require("../services/userService").userService.getUserByTelegramId(telegramId);
-      const userDisplay = user.username ? `@${user.username}` : `${user.first_name || user.firstName || "User"} ${user.last_name || user.lastName || ""}`;
-      let historyMsg = `💸 *Withdrawal Request*\n\n👤 User: ${userDisplay}\n🏢 Company: ${company?.name || companyId}\n💰 Amount: $${companyStats.earnings.toFixed(2)}\n\n*Referral History:*\n`;
+      const company =
+        await require("../services/companyService").getCompanyById(companyId);
+      const user =
+        await require("../services/userService").userService.getUserByTelegramId(
+          telegramId
+        );
+      const userDisplay = user.username
+        ? `@${user.username}`
+        : `${user.first_name || user.firstName || "User"} ${
+            user.last_name || user.lastName || ""
+          }`;
+      let historyMsg = `💸 *Withdrawal Request*\n\n👤 User: ${userDisplay}\n🏢 Company: ${
+        company?.name || companyId
+      }\n💰 Amount: $${companyStats.earnings.toFixed(
+        2
+      )}\n\n*Referral History:*\n`;
       // List referrals for this company
       if (companyStats.referrals && companyStats.referrals.length > 0) {
         companyStats.referrals.forEach((ref) => {
           let createdAt = ref.createdAt;
           if (createdAt && createdAt.toDate) {
             createdAt = createdAt.toDate();
-          } else if (typeof createdAt === "string" || typeof createdAt === "number") {
+          } else if (
+            typeof createdAt === "string" ||
+            typeof createdAt === "number"
+          ) {
             createdAt = new Date(createdAt);
           }
           let dateStr = "Unknown";
           if (createdAt instanceof Date && !isNaN(createdAt)) {
             dateStr = `${createdAt.toLocaleDateString()} (${createdAt.toLocaleTimeString()})`;
           }
-          historyMsg += `• $${ref.amount.toFixed(2)} — ${ref.product_title || ""} — ${dateStr}\n`;
+          historyMsg += `• $${ref.amount.toFixed(2)} — ${
+            ref.product_title || ""
+          } — ${dateStr}\n`;
         });
       } else {
         historyMsg += "No detailed referral history.";
@@ -2836,7 +2866,9 @@ Toggle notifications:
           ...require("telegraf").Markup.inlineKeyboard([[approveBtn, denyBtn]]),
         });
       }
-      ctx.reply("✅ Your withdrawal request has been sent for approval. You will be notified once it is processed.");
+      ctx.reply(
+        "✅ Your withdrawal request has been sent for approval. You will be notified once it is processed."
+      );
     } catch (error) {
       logger.error("Error in handleWithdrawCompany:", error);
       ctx.reply("❌ Failed to request withdrawal.");
@@ -2858,12 +2890,26 @@ Toggle notifications:
         approvedBy: ctx.from.id,
       });
       // Notify user
-      const user = await require("../services/userService").userService.getUserByTelegramId(withdrawal.userId);
-      const company = await require("../services/companyService").getCompanyById(withdrawal.companyId);
-      const userDisplay = user.username ? `@${user.username}` : `${user.first_name || user.firstName || "User"} ${user.last_name || user.lastName || ""}`;
+      const user =
+        await require("../services/userService").userService.getUserByTelegramId(
+          withdrawal.userId
+        );
+      const company =
+        await require("../services/companyService").getCompanyById(
+          withdrawal.companyId
+        );
+      const userDisplay = user.username
+        ? `@${user.username}`
+        : `${user.first_name || user.firstName || "User"} ${
+            user.last_name || user.lastName || ""
+          }`;
       ctx.telegram.sendMessage(
         withdrawal.userId,
-        `✅ Your withdrawal request from *${company?.name || withdrawal.companyId}* for $${withdrawal.amount.toFixed(2)} has been *approved*!\n\nThank you for using our platform.`,
+        `✅ Your withdrawal request from *${
+          company?.name || withdrawal.companyId
+        }* for $${withdrawal.amount.toFixed(
+          2
+        )} has been *approved*!\n\nThank you for using our platform.`,
         { parse_mode: "Markdown" }
       );
       ctx.reply(`✅ Withdrawal approved and user (${userDisplay}) notified.`);
@@ -2888,12 +2934,26 @@ Toggle notifications:
         declinedBy: ctx.from.id,
       });
       // Notify user
-      const user = await require("../services/userService").userService.getUserByTelegramId(withdrawal.userId);
-      const company = await require("../services/companyService").getCompanyById(withdrawal.companyId);
-      const userDisplay = user.username ? `@${user.username}` : `${user.first_name || user.firstName || "User"} ${user.last_name || user.lastName || ""}`;
+      const user =
+        await require("../services/userService").userService.getUserByTelegramId(
+          withdrawal.userId
+        );
+      const company =
+        await require("../services/companyService").getCompanyById(
+          withdrawal.companyId
+        );
+      const userDisplay = user.username
+        ? `@${user.username}`
+        : `${user.first_name || user.firstName || "User"} ${
+            user.last_name || user.lastName || ""
+          }`;
       ctx.telegram.sendMessage(
         withdrawal.userId,
-        `❌ Your withdrawal request from *${company?.name || withdrawal.companyId}* for $${withdrawal.amount.toFixed(2)} has been *declined*.\n\nIf you have questions, please contact support.`,
+        `❌ Your withdrawal request from *${
+          company?.name || withdrawal.companyId
+        }* for $${withdrawal.amount.toFixed(
+          2
+        )} has been *declined*.\n\nIf you have questions, please contact support.`,
         { parse_mode: "Markdown" }
       );
       ctx.reply(`❌ Withdrawal declined and user (${userDisplay}) notified.`);

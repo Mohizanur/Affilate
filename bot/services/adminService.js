@@ -690,11 +690,52 @@ class AdminService {
 
   // STUB: Return placeholder platform settings
   async getPlatformSettings() {
-    return {
-      maintenanceMode: false,
-      minPayout: 10,
-      supportContact: "",
-    };
+    try {
+      const doc = await databaseService
+        .getDb()
+        .collection("settings")
+        .doc("platform")
+        .get();
+      if (!doc.exists) {
+        return {
+          platformFeePercent: parseFloat(
+            process.env.PLATFORM_FEE_PERCENTAGE || "1.5"
+          ),
+          referralCommissionPercent: 10,
+          referralDiscountPercent: 5,
+          minWithdrawalAmount: 10,
+          maxReferralUses: 0,
+          referralExpiryDays: 0,
+        };
+      }
+      return doc.data();
+    } catch (error) {
+      logger.error("Error loading platform settings:", error);
+      return {
+        platformFeePercent: parseFloat(
+          process.env.PLATFORM_FEE_PERCENTAGE || "1.5"
+        ),
+        referralCommissionPercent: 10,
+        referralDiscountPercent: 5,
+        minWithdrawalAmount: 10,
+        maxReferralUses: 0,
+        referralExpiryDays: 0,
+      };
+    }
+  }
+
+  async setPlatformSetting(key, value) {
+    try {
+      await databaseService
+        .getDb()
+        .collection("settings")
+        .doc("platform")
+        .set({ [key]: value }, { merge: true });
+      return true;
+    } catch (error) {
+      logger.error("Error updating platform setting:", error);
+      return false;
+    }
   }
 
   // Real implementation: send broadcast to all users
@@ -951,29 +992,36 @@ class AdminService {
   async getSystemLogs() {
     try {
       // Try to read from utils/logger.js if logs are stored there, else return stub
-      const fs = require('fs');
-      const path = require('path');
-      const logPath = path.join(__dirname, '../../logs/app.log');
+      const fs = require("fs");
+      const path = require("path");
+      const logPath = path.join(__dirname, "../../logs/app.log");
       if (fs.existsSync(logPath)) {
-        const lines = fs.readFileSync(logPath, 'utf-8').split('\n').filter(Boolean);
+        const lines = fs
+          .readFileSync(logPath, "utf-8")
+          .split("\n")
+          .filter(Boolean);
         // Parse last 10 log lines as JSON or plain text
-        return lines.slice(-10).map(line => {
+        return lines.slice(-10).map((line) => {
           try {
             const obj = JSON.parse(line);
             return {
-              level: obj.level || 'info',
+              level: obj.level || "info",
               message: obj.message || line,
               timestamp: obj.timestamp || Date.now(),
             };
           } catch {
-            return { level: 'info', message: line, timestamp: Date.now() };
+            return { level: "info", message: line, timestamp: Date.now() };
           }
         });
       } else {
-        return [{ level: 'info', message: 'No logs found.', timestamp: Date.now() }];
+        return [
+          { level: "info", message: "No logs found.", timestamp: Date.now() },
+        ];
       }
     } catch (error) {
-      return [{ level: 'error', message: error.message, timestamp: Date.now() }];
+      return [
+        { level: "error", message: error.message, timestamp: Date.now() },
+      ];
     }
   }
 
@@ -981,24 +1029,102 @@ class AdminService {
     try {
       const usersSnap = await databaseService.users().get();
       const companiesSnap = await databaseService.companies().get();
-      const users = usersSnap.docs.map(doc => doc.data());
-      const companies = companiesSnap.docs.map(doc => doc.data());
+      const users = usersSnap.docs.map((doc) => doc.data());
+      const companies = companiesSnap.docs.map((doc) => doc.data());
       const backup = {
         id: `backup_${Date.now()}`,
         createdAt: new Date(),
-        size: Buffer.byteLength(JSON.stringify({ users, companies }), 'utf-8'),
-        tables: ['users', 'companies'],
+        size: Buffer.byteLength(JSON.stringify({ users, companies }), "utf-8"),
+        tables: ["users", "companies"],
         users,
         companies,
       };
       // Optionally write to disk
-      const fs = require('fs');
-      const path = require('path');
-      const backupPath = path.join(__dirname, '../../logs', `${backup.id}.json`);
+      const fs = require("fs");
+      const path = require("path");
+      const backupPath = path.join(
+        __dirname,
+        "../../logs",
+        `${backup.id}.json`
+      );
       fs.writeFileSync(backupPath, JSON.stringify(backup, null, 2));
       return backup;
     } catch (error) {
-      return { id: null, createdAt: new Date(), size: 0, tables: [], error: error.message };
+      return {
+        id: null,
+        createdAt: new Date(),
+        size: 0,
+        tables: [],
+        error: error.message,
+      };
+    }
+  }
+
+  async getPlatformStats() {
+    try {
+      const usersSnap = await databaseService.users().get();
+      const companiesSnap = await databaseService.companies().get();
+      const totalUsers = usersSnap.size;
+      const totalCompanies = companiesSnap.size;
+      // Revenue: sum all completed sales amounts
+      const salesSnap = await databaseService
+        .getDb()
+        .collection("sales")
+        .where("status", "==", "completed")
+        .get();
+      let platformRevenue = 0;
+      salesSnap.forEach((doc) => {
+        const s = doc.data();
+        platformRevenue += s.amount || 0;
+      });
+      // Growth: dummy values for now, or implement real growth logic if needed
+      const growth = { users30d: 0, revenue30d: 0 };
+      return { totalUsers, totalCompanies, platformRevenue, growth };
+    } catch (error) {
+      logger.error("Error getting platform stats:", error);
+      throw error;
+    }
+  }
+
+  async getCompanySalesAndCommission() {
+    try {
+      const platformSettings = await this.getPlatformSettings();
+      const PLATFORM_FEE_PERCENT = platformSettings.platformFeePercent;
+      const companiesSnap = await databaseService.companies().get();
+      const companies = {};
+      companiesSnap.forEach((doc) => {
+        const c = doc.data();
+        companies[doc.id] = {
+          id: doc.id,
+          name: c.name,
+          commissionRate: PLATFORM_FEE_PERCENT,
+          totalSales: 0,
+          totalRevenue: 0,
+          platformCommissionLifetime: 0, // sum of all sales commissions (lifetime)
+          platformCommissionCurrent: c.platformCommission || 0, // current withdrawable
+          ownerTelegramId: c.ownerTelegramId,
+          telegramId: c.telegramId,
+        };
+      });
+      // Aggregate sales and revenue from sales collection
+      const salesSnap = await databaseService
+        .getDb()
+        .collection("sales")
+        .where("status", "==", "completed")
+        .get();
+      salesSnap.forEach((doc) => {
+        const s = doc.data();
+        if (!s.companyId || !companies[s.companyId]) return;
+        const company = companies[s.companyId];
+        company.totalSales += 1;
+        company.totalRevenue += s.amount || 0;
+        const commission = (s.amount || 0) * (PLATFORM_FEE_PERCENT / 100);
+        company.platformCommissionLifetime += commission;
+      });
+      return Object.values(companies);
+    } catch (error) {
+      logger.error("Error getting company sales and commission:", error);
+      throw error;
     }
   }
 }

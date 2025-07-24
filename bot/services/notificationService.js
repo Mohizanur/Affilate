@@ -295,7 +295,17 @@ class NotificationService {
       const adminIds = await userService.getAdminTelegramIds();
       let message = `🚨 <b>Action:</b> ${action}\n`;
       for (const key in details) {
-        message += `<b>${key}:</b> ${details[key]}\n`;
+        if (key === "platformFee") {
+          message += `<b>Platform Fee (this sale):</b> $${parseFloat(
+            details[key]
+          ).toFixed(2)}\n`;
+        } else if (key === "platformBalance") {
+          message += `<b>Platform Balance:</b> $${parseFloat(
+            details[key]
+          ).toFixed(2)}\n`;
+        } else {
+          message += `<b>${key}:</b> ${details[key]}\n`;
+        }
       }
       // If message is too long, send a summary with a button
       if (message.length > 3500) {

@@ -13,9 +13,14 @@ class MessageHandlers {
     if (ctx.message && ctx.message.text && ctx.message.text.startsWith("/")) {
       return;
     }
-
     try {
       const telegramId = ctx.from.id;
+      const user = await userService.userService.getUserByTelegramId(
+        telegramId
+      );
+      if (user && user.banned) {
+        return ctx.reply("🚫 You are banned from using this bot.");
+      }
       const messageText = ctx.message.text;
 
       if (ctx.session && ctx.session.adminAddCompanyStep) {
@@ -102,9 +107,12 @@ class MessageHandlers {
           if (isNaN(amount) || amount <= 0) {
             return ctx.reply("❌ Please enter a valid amount.");
           }
+          const PLATFORM_FEE_PERCENT = parseFloat(
+            process.env.PLATFORM_FEE_PERCENTAGE || "1.5"
+          );
           const discount = amount * 0.01;
           const referrerReward = amount * 0.025;
-          const platformFee = amount * 0.015;
+          const platformFee = amount * (PLATFORM_FEE_PERCENT / 100);
           const companyPayout =
             amount - discount - referrerReward - platformFee;
           const message = `
@@ -113,7 +121,7 @@ class MessageHandlers {
 Purchase Amount: $${amount.toFixed(2)}
 - Buyer Discount (1%): $${discount.toFixed(2)}
 - Referrer Reward (2.5%): $${referrerReward.toFixed(2)}
-- Platform Fee (1.5%): $${platformFee.toFixed(2)}
+- Platform Fee (${PLATFORM_FEE_PERCENT}%): $${platformFee.toFixed(2)}
 = Company Payout: $${companyPayout.toFixed(2)}
 `;
           ctx.session.state = null;
@@ -250,22 +258,6 @@ Purchase Amount: $${amount.toFixed(2)}
 Use /start to return to the main menu.
       `;
       ctx.reply(successMessage, { parse_mode: "Markdown" });
-      // Notify admins with full details
-      const adminIds = process.env.ADMIN_IDS
-        ? process.env.ADMIN_IDS.split(",")
-        : [];
-      const user = await userService.getUserByTelegramId(ctx.from.id);
-      const adminMsg = `🚨 *Withdrawal Request*
-User: ${user.firstName} ${user.lastName || ""} (@${user.username || "N/A"})
-User ID: ${user.telegramId}
-Amount: $${amount.toFixed(2)}
-Method: ${ctx.session.withdrawalMethod}
-Details: ${JSON.stringify(ctx.session.withdrawalDetails)}
-Request ID: ${withdrawalId}
-`;
-      for (const adminId of adminIds) {
-        ctx.telegram.sendMessage(adminId, adminMsg, { parse_mode: "Markdown" });
-      }
     } catch (error) {
       logger.error("Error in handleWithdrawalAmount:", error);
       ctx.reply(`❌ ${error.message}`);
@@ -274,78 +266,46 @@ Request ID: ${withdrawalId}
 
   async handleReferralCodeUsage(ctx, referralCode) {
     try {
-      const codeInfo = await referralService.validateReferralCode(referralCode);
-      if (!codeInfo) {
-        return ctx.reply("❌ Invalid or expired referral code.");
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
+      );
+      if (!user) {
+        return ctx.reply("❌ You are not registered in the system.");
       }
-      const company = await companyService.getCompanyById(codeInfo.companyId);
-      const codeMessage = `
-🎁 *Valid Referral Code!*
-🏢 Company: ${company.name}
-💰 Your Discount: ${process.env.BUYER_DISCOUNT_PERCENTAGE}%
-🌐 Website: ${company.website}
-📋 *How to use:*
-1. Visit the company website
-2. Make your purchase
-3. Use code: \`${referralCode}\` at checkout
-4. Enjoy your discount!
-⚠️ *Important:* Make sure to use this exact code during checkout to get your discount.
-      `;
-      ctx.reply(codeMessage, { parse_mode: "Markdown" });
-    } catch (error) {
-      logger.error("Error in handleReferralCodeUsage:", error);
-      ctx.reply("❌ Failed to validate referral code. Please try again.");
-    }
-  }
 
-  async handleContact(ctx) {
-    try {
-      let phoneNumber = ctx.message.contact.phone_number;
-      phoneNumber = phoneNumber.trim().replace(/(?!^\+)\D/g, "");
-      if (!phoneNumber.startsWith("+") && /^\d{10,}$/.test(phoneNumber)) {
-        phoneNumber = "+" + phoneNumber;
+      const referral = await referralService.referralService.getReferralByCode(
+        referralCode
+      );
+      if (!referral) {
+        return ctx.reply("❌ Invalid referral code.");
       }
-      if (phoneNumber.startsWith("+")) {
-        await userService.userService.verifyPhone(ctx.from.id, phoneNumber);
-      } else {
-        return ctx.reply(
-          "❌ Please resend your phone number in international format, starting with + and country code (e.g., +251911234567)."
-        );
+
+      if (referral.usedByTelegramId) {
+        return ctx.reply("❌ This referral code has already been used.");
       }
+
+      if (referral.userId === user.id) {
+        return ctx.reply("❌ You cannot use your own referral code.");
+      }
+
+      await userService.userService.addCoinBalance(user.id, 10); // Example reward
+      await referralService.referralService.markReferralAsUsed(
+        referralCode,
+        ctx.from.id
+      );
+
       const successMessage = `
-✅ *Phone Number Verified!*
-📱 Your phone number has been successfully verified.
-🎉 *You can now:*
-• Generate referral codes
-• Withdraw your earnings
-• Access all premium features
-Use /start to return to the main menu.
+🎉 *Referral Code Used!*
+✅ You received 10 coins for using the referral code: ${referralCode}.
+📈 Your total coin balance is now: ${user.coinBalance} coins.
+⏳ You can use this referral code to invite more users!
       `;
       ctx.reply(successMessage, { parse_mode: "Markdown" });
     } catch (error) {
-      logger.error("Error in handleContact:", error);
-      ctx.reply("❌ Failed to verify phone number. Please try again.");
+      logger.error("Error in handleReferralCodeUsage:", error);
+      ctx.reply("❌ Something went wrong. Please try again.");
     }
   }
 }
 
-const messageHandlers = new MessageHandlers();
-
-function setupHandlers(bot) {
-  bot.on("text", (ctx) => messageHandlers.handleTextMessage(ctx));
-  bot.on("contact", (ctx) => messageHandlers.handleContact(ctx));
-  bot.on(
-    ["photo", "document", "sticker", "video", "audio", "voice", "video_note"],
-    async (ctx) => {
-      if (ctx.session && ctx.session.waitingForBroadcast) {
-        return adminHandlers.handleBroadcastMedia(ctx);
-      }
-      ctx.reply(
-        "❓ I didn't understand that. Use /start to see available options."
-      );
-    }
-  );
-}
-
-console.log("Exiting handlers/messageHandlers.js");
-module.exports = { setupHandlers };
+module.exports = MessageHandlers;

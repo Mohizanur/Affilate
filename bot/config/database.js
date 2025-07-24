@@ -79,6 +79,10 @@ class DatabaseService {
     return this.getDb().collection("referralCodes");
   }
 
+  orders() {
+    return this.getDb().collection("orders");
+  }
+
   // Utility methods
   async createUser(userData) {
     try {

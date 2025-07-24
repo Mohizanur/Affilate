@@ -451,7 +451,7 @@ class UserService {
     return userDoc.data().cart || [];
   }
 
-  async requestWithdrawal(telegramId, companyId) {
+  async requestWithdrawal(telegramId, companyId, amount, method, details) {
     const referralService = require("./referralService");
     const databaseService = require("../config/database");
     // Get total earned for this company
@@ -475,68 +475,81 @@ class UserService {
       userId: telegramId,
       companyId,
       amount: companyEarnings,
-      status: "pending",
+      status: "company_pending",
       createdAt: new Date(),
+      method,
+      details,
     };
     const ref = await databaseService.withdrawals().add(withdrawal);
-    // Notify company and admins
+    // Notify company owner only
     const notificationService = require("./notificationService");
     await notificationService.sendNotification(
       companyDoc.data().telegramId,
       `Withdrawal request from user ${telegramId} for $${companyEarnings.toFixed(
         2
-      )}.`,
-      { type: "withdrawal", action: "request", withdrawalId: ref.id }
+      )}. Approve or deny this request.`,
+      { type: "withdrawal", action: "company_approval", withdrawalId: ref.id }
     );
-    await notificationService.sendAdminNotification(
-      `Withdrawal request from user ${telegramId} for $${companyEarnings.toFixed(
-        2
-      )} (company: ${companyDoc.data().name}).`,
-      { type: "withdrawal", action: "request", withdrawalId: ref.id }
-    );
-    return withdrawal;
+    return ref.id;
   }
 
-  async approveWithdrawal(withdrawalId, approverTelegramId) {
+  async companyApproveWithdrawal(withdrawalId, approverTelegramId) {
     const databaseService = require("../config/database");
     const withdrawalRef = databaseService.withdrawals().doc(withdrawalId);
     const withdrawalDoc = await withdrawalRef.get();
     if (!withdrawalDoc.exists) throw new Error("Withdrawal not found");
+    const withdrawal = withdrawalDoc.data();
+    if (withdrawal.status !== "company_pending") {
+      console.log(
+        `[companyApproveWithdrawal] Withdrawal ${withdrawalId} status is '${withdrawal.status}', not 'company_pending'.`
+      );
+      throw new Error(
+        withdrawal.status === "approved"
+          ? "Withdrawal has already been approved."
+          : withdrawal.status === "declined"
+          ? "Withdrawal has already been declined."
+          : `Withdrawal cannot be approved in its current state: ${withdrawal.status}`
+      );
+    }
+    // Subtract the amount from the user's referral balance (or relevant balance field)
+    const userRef = databaseService.users().doc(withdrawal.userId.toString());
+    const userDoc = await userRef.get();
+    if (!userDoc.exists) throw new Error("User not found");
+    const userData = userDoc.data();
+    const oldBalance = userData.referralBalance || 0;
+    const newBalance = Math.max(0, oldBalance - withdrawal.amount);
+    await userRef.update({ referralBalance: newBalance });
     await withdrawalRef.update({
       status: "approved",
-      approvedBy: approverTelegramId,
-      approvedAt: new Date(),
+      companyApprovedBy: approverTelegramId,
+      companyApprovedAt: new Date(),
+      finalizedAt: new Date(),
     });
-    const withdrawal = withdrawalDoc.data();
-    const notificationService = require("./notificationService");
-    const getNotificationServiceInstance =
-      notificationService.getNotificationServiceInstance || notificationService;
-    // Get user and company info for admin message
-    const user = await module.exports.userService.getUserByTelegramId(
-      withdrawal.userId
-    );
-    const company = await require("./companyService").getCompanyById(
-      withdrawal.companyId
-    );
-    const userDisplay = user.username
-      ? `@${user.username}`
-      : `${user.first_name || user.firstName || "User"} ${
-          user.last_name || user.lastName || ""
-        }`;
-    const companyDisplay = company?.name || withdrawal.companyId;
-    await getNotificationServiceInstance().sendNotification(
-      withdrawal.userId,
-      `Your withdrawal request for $${withdrawal.amount.toFixed(
-        2
-      )} was approved.`,
-      { type: "withdrawal", action: "approved", withdrawalId }
-    );
-    await getNotificationServiceInstance().sendAdminNotification(
-      `✅ Withdrawal approved for ${userDisplay} from ${companyDisplay} ($${withdrawal.amount.toFixed(
-        2
-      )}).`,
-      { type: "withdrawal", action: "approved", withdrawalId }
-    );
+    // Notify the user
+    const { getNotificationServiceInstance } = require("./notificationService");
+    const notificationService = getNotificationServiceInstance();
+    if (
+      notificationService &&
+      typeof notificationService.sendNotification === "function"
+    ) {
+      await notificationService.sendNotification(
+        withdrawal.userId,
+        `✅ Your withdrawal request for $${withdrawal.amount.toFixed(
+          2
+        )} has been approved and processed by the company.\nNew balance: $${newBalance.toFixed(
+          2
+        )}`,
+        { type: "withdrawal", action: "approved", withdrawalId }
+      );
+    } else {
+      console.error(
+        "[companyApproveWithdrawal] NotificationService instance is not set or sendNotification is not a function."
+      );
+    }
+    // Refresh the user's referral stats UI if ctx is available
+    if (typeof global !== "undefined" && global.handleMyReferralsForUserId) {
+      global.handleMyReferralsForUserId(withdrawal.userId);
+    }
   }
 
   async declineWithdrawal(withdrawalId, approverTelegramId) {
@@ -610,6 +623,59 @@ class UserService {
       throw error;
     }
   }
+
+  async banUser(telegramId) {
+    try {
+      const userRef = databaseService.users().doc(telegramId.toString());
+      const userDoc = await userRef.get();
+      if (!userDoc.exists) throw new Error("User not found");
+      await userRef.update({ banned: true, bannedAt: new Date() });
+      logger.info(`User banned: ${telegramId}`);
+      return true;
+    } catch (error) {
+      logger.error("Error banning user:", error);
+      throw error;
+    }
+  }
+
+  async unbanUser(telegramId) {
+    try {
+      const userRef = databaseService.users().doc(telegramId.toString());
+      const userDoc = await userRef.get();
+      if (!userDoc.exists) throw new Error("User not found");
+      await userRef.update({ banned: false, bannedAt: null });
+      logger.info(`User unbanned: ${telegramId}`);
+      return true;
+    } catch (error) {
+      logger.error("Error unbanning user:", error);
+      throw error;
+    }
+  }
+
+  async getBannedUsers() {
+    try {
+      const usersSnap = await databaseService
+        .users()
+        .where("banned", "==", true)
+        .get();
+      return usersSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+    } catch (error) {
+      logger.error("Error getting banned users:", error);
+      throw error;
+    }
+  }
+
+  async getPromotedUsers() {
+    try {
+      const usersSnap = await databaseService.users().get();
+      return usersSnap.docs
+        .map((doc) => ({ id: doc.id, ...doc.data() }))
+        .filter((u) => u.canRegisterCompany === true || u.role === "promoted");
+    } catch (error) {
+      logger.error("Error getting promoted users:", error);
+      throw error;
+    }
+  }
 }
 
 async function getAllUsers() {
@@ -632,5 +698,10 @@ UserService.prototype.getAdminTelegramIds =
 module.exports = {
   userService,
   getAllUsers,
+  // Export these for direct use in adminHandlers.js
+  banUser: (...args) => userService.banUser(...args),
+  getBannedUsers: (...args) => userService.getBannedUsers(...args),
+  unbanUser: (...args) => userService.unbanUser(...args),
+  getPromotedUsers: (...args) => userService.getPromotedUsers(...args),
 };
 console.log("End of userService.js (from companyHandlers)");

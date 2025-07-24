@@ -23,7 +23,8 @@ const adminHandlers = require("./handlers/adminHandlers");
 console.log("Loaded handlers/adminHandlers");
 const callbackHandlers = require("./handlers/callbackHandlers");
 console.log("Loaded handlers/callbackHandlers");
-const messageHandlers = require("./handlers/messageHandlers");
+const MessageHandlers = require("./handlers/messageHandlers");
+const messageHandlers = new MessageHandlers();
 console.log("Loaded handlers/messageHandlers");
 
 // ✅ ADD THESE IMPORTS
@@ -161,7 +162,6 @@ async function startBot(app) {
         { command: "profile", description: "Your profile & settings" },
         { command: "leaderboard", description: "Top referrers" },
         { command: "help", description: "Help & support" },
-        { command: "withdraw", description: "Request a withdrawal" },
         {
           command: "feecalculator",
           description: "Calculate fee for a transaction",
@@ -204,3 +204,30 @@ process.once("SIGTERM", () => {
 });
 
 module.exports = { getBot, startBot };
+
+// Add a global handler to refresh referral stats UI for a user by Telegram ID
+if (typeof global !== "undefined") {
+  global.handleMyReferralsForUserId = async function (userId) {
+    try {
+      // Find the chat context for the user (if available)
+      // This assumes you have a way to get ctx by userId, e.g., from a session store or cache
+      // If not, you can send a direct message instead
+      if (bot && bot.telegram) {
+        // Send a direct message to the user with their updated referral stats
+        // Create a fake ctx object with minimal properties for handleMyReferrals
+        const ctx = {
+          from: { id: userId },
+          reply: (msg, opts) => bot.telegram.sendMessage(userId, msg, opts),
+          callbackQuery: null,
+        };
+        await userHandlers.handleMyReferrals(ctx);
+      }
+    } catch (err) {
+      console.error(
+        "[global.handleMyReferralsForUserId] Failed to refresh referral stats for user:",
+        userId,
+        err
+      );
+    }
+  };
+}

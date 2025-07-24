@@ -1,20 +1,3 @@
 {
-  "sessions": [
-    {
-      "id": "1311279699:1311279699",
-      "data": {
-        "sellProductId": null,
-        "sellStep": null,
-        "sellBuyerId": null,
-        "buyerUsername": "omafesrun2",
-        "sellQuantity": null
-      }
-    },
-    {
-      "id": "5186537254:5186537254",
-      "data": {
-        "state": null
-      }
-    }
-  ]
+  "sessions": []
 }
