@@ -10,6 +10,7 @@ const userHandlers = require("./userHandlers");
 
 class MessageHandlers {
   async handleTextMessage(ctx) {
+    console.log("[DEBUG] handleTextMessage called:", ctx.message.text);
     if (ctx.message && ctx.message.text && ctx.message.text.startsWith("/")) {
       return;
     }

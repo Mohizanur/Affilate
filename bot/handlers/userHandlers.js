@@ -1494,6 +1494,7 @@ Toggle notifications:
   }
 
   async handleCompanyRegistrationStep(ctx) {
+    console.log('[DEBUG] handleCompanyRegistrationStep called:', ctx.message.text, ctx.session);
     try {
       if (ctx.session.awaitingCompanyAgreement) {
         if (ctx.message.text.trim().toLowerCase() !== "i accept") {
