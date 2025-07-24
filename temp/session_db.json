@@ -1,3 +1,12 @@
 {
-  "sessions": []
+  "sessions": [
+    {
+      "id": "5186537254:5186537254",
+      "data": {
+        "adminRemoveCompanyStep": "search",
+        "searchType": "user",
+        "waitingForSearch": true
+      }
+    }
+  ]
 }

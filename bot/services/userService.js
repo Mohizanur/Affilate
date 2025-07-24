@@ -122,17 +122,19 @@ class UserService {
   async verifyPhone(telegramId, phoneNumber) {
     try {
       const validator = require("validator");
-      // Accept if validator.isMobilePhone passes
-      if (!validator.isMobilePhone(phoneNumber + "", "any")) {
-        // Fallback: accept if matches E.164 format
-        if (!/^\+[1-9]\d{9,14}$/.test(phoneNumber)) {
-          throw new Error("Invalid phone number format.");
-        } else {
-          const logger = require("../../utils/logger");
-          logger.warn(
-            `verifyPhone: accepted fallback E.164 for ${phoneNumber}`
-          );
-        }
+      phoneNumber = (phoneNumber + "").trim();
+      // Remove all non-digit characters except leading +
+      let normalizedPhone = phoneNumber.replace(/(?!^)[^\d]/g, "");
+      console.log("DEBUG phoneNumber raw:", phoneNumber);
+      console.log("DEBUG normalizedPhone:", normalizedPhone);
+      // Accept if it starts with + or is just digits, at least 10 digits
+      if (!/^(\+?\d{10,})$/.test(normalizedPhone)) {
+        throw new Error("Invalid phone number format.");
+      }
+      if (!normalizedPhone.startsWith("+")) {
+        phoneNumber = "+" + normalizedPhone;
+      } else {
+        phoneNumber = normalizedPhone;
       }
       // Enforce phone uniqueness
       const existing = await databaseService

@@ -10,7 +10,11 @@ const userHandlers = require("./userHandlers");
 
 class MessageHandlers {
   async handleTextMessage(ctx) {
-    console.log("[DEBUG] handleTextMessage called:", ctx.message.text);
+    console.log(
+      "[DEBUG] handleTextMessage called:",
+      ctx.message.text,
+      JSON.stringify(ctx.session)
+    );
     if (ctx.message && ctx.message.text && ctx.message.text.startsWith("/")) {
       return;
     }
@@ -33,7 +37,11 @@ class MessageHandlers {
       if (ctx.session && ctx.session.waitingForBroadcast) {
         return adminHandlers.handleBroadcastMessage(ctx, messageText);
       }
-      if (ctx.session && ctx.session.companyRegistrationStep) {
+      if (
+        ctx.session &&
+        (ctx.session.companyRegistrationStep ||
+          ctx.session.awaitingCompanyAgreement)
+      ) {
         return userHandlers.handleCompanyRegistrationStep(ctx);
       }
       if (ctx.session && ctx.session.editProfileStep) {

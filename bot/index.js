@@ -90,15 +90,10 @@ function registerHandlers(bot) {
     }
   });
 
-  // ✅ ADD BROADCAST MESSAGE HANDLER
-  bot.on("text", async (ctx) => {
-    try {
-      // This handler should be removed and logic moved to messageHandlers.js
-    } catch (error) {
-      logger.error("Error handling broadcast message:", error);
-      ctx.reply("❌ Something went wrong. Please try again.");
-    }
-  });
+  // Register the main text handler for all text messages
+  bot.on("text", (ctx) => messageHandlers.handleTextMessage(ctx));
+  // Register handler for contact messages (phone number sharing)
+  bot.on("contact", (ctx) => userHandlers.handlePhoneContact(ctx));
 }
 
 async function startBot(app) {

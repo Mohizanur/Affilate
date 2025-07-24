@@ -2,15 +2,16 @@ console.log("Entering services/productService.js");
 const databaseService = require("../config/database");
 const { v4: uuidv4 } = require("uuid");
 const logger = require("../../utils/logger");
-const notificationService = require('./notificationService');
+const { getNotificationServiceInstance } = require('./notificationService');
 
 class ProductService {
   // Helper: Get company doc and data, throw if not found, and check owner
   async _getCompanyOrThrow(companyId, telegramId) {
     const companyDoc = await databaseService.companies().doc(companyId).get();
-    if (!companyDoc.exists) throw new Error('Company not found');
+    if (!companyDoc.exists) throw new Error("Company not found");
     const company = companyDoc.data();
-    if (telegramId && company.telegramId !== telegramId) throw new Error('Only the company owner can perform this action.');
+    if (telegramId && company.telegramId !== telegramId)
+      throw new Error("Only the company owner can perform this action.");
     return { companyDoc, company };
   }
 
@@ -26,40 +27,59 @@ class ProductService {
         contactInfo,
       } = productData;
       // Use _getCompanyOrThrow for permission check
-      const { company } = await this._getCompanyOrThrow(companyId, creatorTelegramId);
+      const { company } = await this._getCompanyOrThrow(
+        companyId,
+        creatorTelegramId
+      );
       // Validation
-      if (!title || !price) throw new Error('Product title and price are required.');
+      if (!title || !price)
+        throw new Error("Product title and price are required.");
       // Check for duplicate title
-      const dup = await databaseService.query('SELECT 1 FROM products WHERE company_id = $1 AND title = $2', [companyId, title]);
-      if (dup.rows.length > 0) throw new Error('A product with this title already exists for your company.');
+      const dupSnap = await databaseService
+        .getDb()
+        .collection("products")
+        .where("companyId", "==", companyId)
+        .where("title", "==", title)
+        .limit(1)
+        .get();
+      if (!dupSnap.empty)
+        throw new Error(
+          "A product with this title already exists for your company."
+        );
       const productId = uuidv4();
-      const result = await databaseService.query(
-        `INSERT INTO products (id, company_id, title, description, price, category, image_url, contact_info, created_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
-         RETURNING *`,
-        [
-          productId,
+      const productDoc = databaseService
+        .getDb()
+        .collection("products")
+        .doc(productId);
+      await productDoc.set({
+        id: productId,
           companyId,
           title,
           description,
           price,
           category,
-          imageUrl,
-          JSON.stringify(contactInfo),
-        ]
-      );
+        imageUrl: imageUrl || null,
+        contactInfo: contactInfo || null,
+        createdAt: new Date(),
+        status: productData.status || "instock",
+        quantity: productData.quantity || 0,
+      });
       // Notify company owner
-      await notificationService.sendNotification(company.telegramId, `✅ Product "${title}" created successfully.`, { type: 'product', action: 'create', productId });
-      return result.rows[0];
+      await getNotificationServiceInstance().sendNotification(company.telegramId, `✅ Product "${title}" created successfully.`, { type: 'product', action: 'create', productId });
+      return { id: productId, ...productData };
     } catch (error) {
-      logger.error('Error creating product:', error);
+      logger.error("Error creating product:", error);
       throw error;
     }
   }
 
   async getProductById(productId) {
     try {
-      const productDoc = await databaseService.getDb().collection('products').doc(productId).get();
+      const productDoc = await databaseService
+        .getDb()
+        .collection("products")
+        .doc(productId)
+        .get();
       if (!productDoc.exists) {
         return null;
       }
@@ -67,7 +87,11 @@ class ProductService {
 
       // Also fetch company data to ensure it's active and get the name
       if (productData.companyId) {
-        const companyDoc = await databaseService.getDb().collection('companies').doc(productData.companyId).get();
+        const companyDoc = await databaseService
+          .getDb()
+          .collection("companies")
+          .doc(productData.companyId)
+          .get();
         if (companyDoc.exists) {
           const companyData = companyDoc.data();
           productData.companyName = companyData.name;
@@ -77,34 +101,43 @@ class ProductService {
 
       return productData;
     } catch (error) {
-      logger.error('Error getting product by ID:', error);
+      logger.error("Error getting product by ID:", error);
       throw error;
     }
   }
 
   async getAllProducts(limit = 20, offset = 0) {
     try {
-      const productsSnap = await databaseService.getDb().collection('products').limit(limit).get();
+      const productsSnap = await databaseService
+        .getDb()
+        .collection("products")
+        .limit(limit)
+        .get();
       const products = [];
       for (const doc of productsSnap.docs) {
         const product = doc.data();
         // Get company info
-        const companyDoc = await databaseService.companies().doc(product.companyId).get();
+        const companyDoc = await databaseService
+          .companies()
+          .doc(product.companyId)
+          .get();
         const company = companyDoc.exists ? companyDoc.data() : {};
-        let companyStatusBadge = '';
-        if (company.status === 'approved') companyStatusBadge = '✅ Approved';
-        else if (company.status === 'pending') companyStatusBadge = '⏳ Pending';
-        else if (company.status === 'rejected') companyStatusBadge = '❌ Rejected';
-        else companyStatusBadge = '❔ Unknown';
-        let statusBadge = '';
-        if (product.status === 'approved') statusBadge = '✅ Approved';
-        else if (product.status === 'pending') statusBadge = '⏳ Pending';
-        else if (product.status === 'rejected') statusBadge = '❌ Rejected';
-        else statusBadge = '❔ Unknown';
+        let companyStatusBadge = "";
+        if (company.status === "approved") companyStatusBadge = "✅ Approved";
+        else if (company.status === "pending")
+          companyStatusBadge = "⏳ Pending";
+        else if (company.status === "rejected")
+          companyStatusBadge = "❌ Rejected";
+        else companyStatusBadge = "❔ Unknown";
+        let statusBadge = "";
+        if (product.status === "approved") statusBadge = "✅ Approved";
+        else if (product.status === "pending") statusBadge = "⏳ Pending";
+        else if (product.status === "rejected") statusBadge = "❌ Rejected";
+        else statusBadge = "❔ Unknown";
         products.push({
           ...product,
           id: doc.id,
-          company_name: company.name || 'Unknown Company',
+          company_name: company.name || "Unknown Company",
           commission_rate: company.commission_rate || 0,
           company_status: company.status,
           company_statusBadge: companyStatusBadge,
@@ -138,7 +171,11 @@ class ProductService {
 
   async getProductsByCompany(companyId) {
     try {
-      const productsSnap = await databaseService.getDb().collection('products').where('companyId', '==', companyId).get();
+      const productsSnap = await databaseService
+        .getDb()
+        .collection("products")
+        .where("companyId", "==", companyId)
+        .get();
       const products = [];
       for (const doc of productsSnap.docs) {
         const product = doc.data();
@@ -154,16 +191,27 @@ class ProductService {
 
   async updateProduct(productId, updateData, updaterTelegramId) {
     try {
-      const { title, description, price, category, imageUrl, contactInfo } = updateData;
+      const { title, description, price, category, imageUrl, contactInfo } =
+        updateData;
       // Use _getCompanyOrThrow for permission check
       const prod = await this.getProductById(productId);
-      if (!prod) throw new Error('Product not found');
-      const { company } = await this._getCompanyOrThrow(prod.company_id, updaterTelegramId);
+      if (!prod) throw new Error("Product not found");
+      const { company } = await this._getCompanyOrThrow(
+        prod.company_id,
+        updaterTelegramId
+      );
       // Validation
-      if (!title || !price) throw new Error('Product title and price are required.');
+      if (!title || !price)
+        throw new Error("Product title and price are required.");
       // Check for duplicate title (exclude self)
-      const dup = await databaseService.query('SELECT 1 FROM products WHERE company_id = $1 AND title = $2 AND id != $3', [prod.company_id, title, productId]);
-      if (dup.rows.length > 0) throw new Error('A product with this title already exists for your company.');
+      const dup = await databaseService.query(
+        "SELECT 1 FROM products WHERE company_id = $1 AND title = $2 AND id != $3",
+        [prod.company_id, title, productId]
+      );
+      if (dup.rows.length > 0)
+        throw new Error(
+          "A product with this title already exists for your company."
+        );
       const result = await databaseService.query(
         `UPDATE products 
          SET title = $1, description = $2, price = $3, category = $4, 
@@ -184,10 +232,10 @@ class ProductService {
         throw new Error("Product not found");
       }
       // Notify company owner
-      await notificationService.sendNotification(company.telegramId, `✏️ Product "${title}" updated successfully.`, { type: 'product', action: 'update', productId });
+      await getNotificationServiceInstance().sendNotification(company.telegramId, `✏️ Product "${title}" updated successfully.`, { type: "product", action: "update", productId });
       return result.rows[0];
     } catch (error) {
-      logger.error('Error updating product:', error);
+      logger.error("Error updating product:", error);
       throw error;
     }
   }
@@ -196,8 +244,11 @@ class ProductService {
     try {
       // Use _getCompanyOrThrow for permission check
       const prod = await this.getProductById(productId);
-      if (!prod) throw new Error('Product not found');
-      const { company } = await this._getCompanyOrThrow(prod.company_id, deleterTelegramId);
+      if (!prod) throw new Error("Product not found");
+      const { company } = await this._getCompanyOrThrow(
+        prod.company_id,
+        deleterTelegramId
+      );
       const result = await databaseService.query(
         "DELETE FROM products WHERE id = $1 RETURNING *",
         [productId]
@@ -206,10 +257,10 @@ class ProductService {
         throw new Error("Product not found");
       }
       // Notify company owner
-      await notificationService.sendNotification(company.telegramId, `🗑️ Product "${prod.title}" deleted.`, { type: 'product', action: 'delete', productId });
+      await getNotificationServiceInstance().sendNotification(company.telegramId, `🗑️ Product "${prod.title}" deleted.`, { type: "product", action: "delete", productId });
       return result.rows[0];
     } catch (error) {
-      logger.error('Error deleting product:', error);
+      logger.error("Error deleting product:", error);
       throw error;
     }
   }
@@ -252,12 +303,14 @@ class ProductService {
   async getProductStats(productId) {
     try {
       const [orders, referrals, revenue] = await Promise.all([
-        databaseService.query("SELECT COUNT(*) FROM orders WHERE product_id = $1", [
-          productId,
-        ]),
-        databaseService.query("SELECT COUNT(*) FROM referrals WHERE product_id = $1", [
-          productId,
-        ]),
+        databaseService.query(
+          "SELECT COUNT(*) FROM orders WHERE product_id = $1",
+          [productId]
+        ),
+        databaseService.query(
+          "SELECT COUNT(*) FROM referrals WHERE product_id = $1",
+          [productId]
+        ),
         databaseService.query(
           "SELECT COALESCE(SUM(amount), 0) FROM orders WHERE product_id = $1 AND status = 'approved'",
           [productId]
@@ -333,23 +386,34 @@ class ProductService {
 
   // Firestore-based update for product management UI
   async updateProductFirestore(productId, updateData) {
-    if (!productId || typeof productId !== 'string') {
-      throw new Error('Invalid productId for updateProductFirestore');
+    if (!productId || typeof productId !== "string") {
+      throw new Error("Invalid productId for updateProductFirestore");
     }
-    return databaseService.getDb().collection('products').doc(productId).update(updateData);
+    return databaseService
+      .getDb()
+      .collection("products")
+      .doc(productId)
+      .update(updateData);
   }
 
   // Firestore-based delete for product management UI
   async deleteProductFirestore(productId) {
-    if (!productId || typeof productId !== 'string') {
-      throw new Error('Invalid productId for deleteProductFirestore');
+    if (!productId || typeof productId !== "string") {
+      throw new Error("Invalid productId for deleteProductFirestore");
     }
-    return databaseService.getDb().collection('products').doc(productId).delete();
+    return databaseService
+      .getDb()
+      .collection("products")
+      .doc(productId)
+      .delete();
   }
 
   async getAllActiveProductsWithCompany() {
     const db = databaseService.getDb();
-    const productsSnapshot = await db.collection('products').where('status', '==', 'active').get();
+    const productsSnapshot = await db
+      .collection("products")
+      .where("status", "==", "active")
+      .get();
     if (productsSnapshot.empty) {
       return [];
     }
@@ -360,11 +424,14 @@ class ProductService {
       
       // Ensure there is a companyId to look up
       if (productData.companyId) {
-        const companyDoc = await db.collection('companies').doc(productData.companyId).get();
+        const companyDoc = await db
+          .collection("companies")
+          .doc(productData.companyId)
+          .get();
         if (companyDoc.exists) {
           const companyData = companyDoc.data();
           // Only include products from active companies
-          if (companyData.status === 'active') {
+          if (companyData.status === "active") {
             productData.companyName = companyData.name;
             products.push(productData);
           }

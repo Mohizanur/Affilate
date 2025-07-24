@@ -263,6 +263,15 @@ Let's get started! 👇
         if (ctx.callbackQuery) return ctx.answerCbQuery();
       }
 
+      // Human-friendly status label
+      const statusLabels = {
+        instock: "In Stock",
+        out_of_stock: "Out of Stock",
+        low_stock: "Low Stock",
+      };
+      const statusLabel =
+        statusLabels[product.status] || product.status || "Unknown";
+
       const productMessage = `
  *${product.title}* ${product.statusBadge || ""}
 
@@ -273,6 +282,7 @@ Let's get started! 👇
 📦 Quantity: ${
         typeof product.quantity !== "undefined" ? product.quantity : "N/A"
       }
+🔖 Status: ${statusLabel}
 
 To purchase this item, please contact the company owner directly. You can provide them with a referral code if you have one.
       `;
@@ -280,13 +290,13 @@ To purchase this item, please contact the company owner directly. You can provid
       const buttons = [
         [
           Markup.button.callback(
-            "⭐ Favorite",
-            `favorite_product_${productId}`
+            `🛒 View ${product.title}`,
+            `view_product_${product.id}`
           ),
-          Markup.button.callback("🛒 Add to Cart", `add_to_cart_${productId}`),
         ],
-        [Markup.button.callback("🔙 Back to Products", "browse_products")],
       ];
+
+      buttons.push([Markup.button.callback("🔙 Back to Menu", "main_menu")]);
 
       ctx.reply(productMessage, {
         parse_mode: "Markdown",
@@ -294,8 +304,8 @@ To purchase this item, please contact the company owner directly. You can provid
       });
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
-      logger.error("Error viewing product:", error);
-      ctx.reply("❌ Failed to load product details.");
+      logger.error("Error browsing products:", error);
+      ctx.reply("❌ Failed to load products. Please try again.");
       if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
@@ -1494,7 +1504,11 @@ Toggle notifications:
   }
 
   async handleCompanyRegistrationStep(ctx) {
-    console.log('[DEBUG] handleCompanyRegistrationStep called:', ctx.message.text, ctx.session);
+    console.log(
+      "[DEBUG] handleCompanyRegistrationStep called:",
+      ctx.message.text,
+      JSON.stringify(ctx.session)
+    );
     try {
       if (ctx.session.awaitingCompanyAgreement) {
         if (ctx.message.text.trim().toLowerCase() !== "i accept") {
@@ -1574,10 +1588,32 @@ Toggle notifications:
             status: "active",
             createdAt: new Date(),
           };
-          const companyId =
+          let companyIdRaw =
             await require("../services/companyService").createCompany(
               companyData
             );
+          console.log(
+            "[DEBUG] createCompany returned:",
+            companyIdRaw,
+            "type:",
+            typeof companyIdRaw
+          );
+          let companyId = companyIdRaw;
+          // Firestore DocumentReference or object with .id
+          if (companyIdRaw && typeof companyIdRaw === "object") {
+            if (companyIdRaw.id) companyId = companyIdRaw.id;
+            else if (companyIdRaw._id) companyId = companyIdRaw._id;
+            else if (
+              companyIdRaw.path &&
+              typeof companyIdRaw.path === "string"
+            ) {
+              // Firestore DocumentReference: path is like 'companies/abc123', extract last part
+              const parts = companyIdRaw.path.split("/");
+              companyId = parts[parts.length - 1];
+            } else {
+              companyId = String(companyIdRaw);
+            }
+          }
 
           // Also update the user to be a company owner
           await userService.userService.updateUser(ctx.from.id, {
@@ -1626,13 +1662,12 @@ Toggle notifications:
     }
   }
 
-  async handleCompanyActionMenu(ctx, companyIdArg) {
+  async handleCompanyActionMenu(ctx, companyId) {
     try {
-      const companyId =
-        companyIdArg ||
-        (ctx.callbackQuery && ctx.callbackQuery.data.split("_")[2]);
+      console.log("[DEBUG] handleCompanyActionMenu companyId:", companyId);
       const companyService = require("../services/companyService");
       const company = await companyService.getCompanyById(companyId);
+      console.log("[DEBUG] handleCompanyActionMenu company:", company);
       if (!company) return ctx.reply("❌ Company not found.");
       let msg = `🏢 *Manage Company*\n\n`;
       msg += `*Name:* ${company.name}\n`;
@@ -1784,7 +1819,8 @@ Toggle notifications:
       typeof companyId
     );
     // Ensure companyId is a string
-    if (typeof companyId === "object" && companyId.id) companyId = companyId.id;
+    if (companyId && typeof companyId === "object" && companyId.id)
+      companyId = companyId.id;
     ctx.session.addProductStep = "title";
     ctx.session.addProductData = { companyId: String(companyId) };
     ctx.reply("Enter product title:", {
@@ -1830,10 +1866,17 @@ Toggle notifications:
         case "category":
           ctx.session.addProductData.category = text;
           ctx.session.addProductStep = "status";
-          ctx.reply("Enter product status (e.g., active, out_of_stock):");
+          ctx.reply("Enter product status (instock, out_of_stock, low_stock):");
           break;
         case "status":
-          ctx.session.addProductData.status = text;
+          const validStatuses = ["instock", "out_of_stock", "low_stock"];
+          if (!validStatuses.includes(text.trim().toLowerCase())) {
+            ctx.reply(
+              "❌ Invalid status. Please enter one of: instock, out_of_stock, low_stock"
+            );
+            return;
+          }
+          ctx.session.addProductData.status = text.trim().toLowerCase();
           ctx.session.addProductStep = null;
           // Save product
           const productService = require("../services/productService");
@@ -2107,7 +2150,15 @@ Toggle notifications:
       msg += `*Description:* ${product.description || "-"}\n`;
       msg += `*Quantity:* ${product.quantity}\n`;
       msg += `*Category:* ${product.category || "-"}\n`;
-      msg += `*Status:* ${product.status || "-"}\n`;
+      // Human-friendly status label
+      const statusLabels = {
+        instock: "In Stock",
+        out_of_stock: "Out of Stock",
+        low_stock: "Low Stock",
+      };
+      const statusLabel =
+        statusLabels[product.status] || product.status || "Unknown";
+      msg += `*Status:* ${statusLabel}\n`;
       msg += `*Company:* ${product.companyName || "-"}\n`;
       const buttons = [
         [
@@ -2118,10 +2169,6 @@ Toggle notifications:
           require("telegraf").Markup.button.callback(
             "🗑️ Delete",
             `delete_product_${product.id}`
-          ),
-          require("telegraf").Markup.button.callback(
-            "💸 Sell",
-            `sell_product_${product.id}`
           ),
         ],
         [

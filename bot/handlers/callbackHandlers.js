@@ -108,7 +108,7 @@ class CallbackHandlers {
         case "export_companies":
           return adminHandlers.handleExportCompanies(ctx);
         case "company_settings":
-          return adminHandlers.handleCompanySettings(ctx);
+          return companyHandlers.handleCompanySettings(ctx);
         case "admin_orders":
           return adminHandlers.handleOrderManagement(ctx);
         case "pending_orders":
