@@ -226,6 +226,11 @@ class CallbackHandlers {
               callbackData.replace("deny_withdrawal_", "reject_withdrawal_")
             );
           } else if (callbackData.startsWith("company_")) {
+            if (callbackData.startsWith("company_action_")) {
+              const companyId = callbackData.replace("company_action_", "");
+              return userHandlers.handleCompanyActionMenu(ctx, companyId);
+            }
+            // fallback for other company_ actions
             return userHandlers.handleCompanyActionMenu(ctx, callbackData);
           } else if (callbackData.startsWith("order_")) {
             return this.handleOrderAction(ctx, callbackData);
@@ -276,7 +281,8 @@ class CallbackHandlers {
             return;
           }
           if (callbackData.startsWith("company_action_")) {
-            return userHandlers.handleCompanyActionMenu(ctx);
+            const companyId = callbackData.replace("company_action_", "");
+            return userHandlers.handleCompanyActionMenu(ctx, companyId);
           }
           if (callbackData.startsWith("edit_company_field_")) {
             return userHandlers.handleEditCompanyField(ctx);
@@ -651,7 +657,8 @@ ${user.referredBy ? `👥 *Referred By:* ${user.referredBy}` : ""}
 
   // Placeholder methods for other handlers
   async handleRegisterCompany(ctx) {
-    ctx.reply("🏢 Company registration feature coming soon!");
+    console.log("[DEBUG] handleRegisterCompany called");
+    return userHandlers.handleRegisterCompany(ctx);
   }
 
   async handleMyCompanies(ctx) {
@@ -696,7 +703,7 @@ ${user.referredBy ? `👥 *Referred By:* ${user.referredBy}` : ""}
 
   setupHandlers(bot) {
     bot.on("callback_query", (ctx) => this.handleCallback(ctx));
-    bot.on("text", (ctx) => this.handleText(ctx));
+    // bot.on("text", (ctx) => this.handleText(ctx)); // Removed to avoid handler conflict
     logger.info("Callback handlers setup completed");
   }
 }
