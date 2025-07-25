@@ -5,7 +5,18 @@
       "data": {
         "adminRemoveCompanyStep": "search",
         "searchType": "user",
-        "waitingForSearch": true
+        "waitingForSearch": true,
+        "state": null
+      }
+    },
+    {
+      "id": "1311279699:1311279699",
+      "data": {
+        "sellProductId": null,
+        "sellStep": null,
+        "sellBuyerId": null,
+        "buyerUsername": "omafesrun2",
+        "sellQuantity": null
       }
     }
   ]

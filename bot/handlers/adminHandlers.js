@@ -268,7 +268,7 @@ class AdminHandlers {
     }
   }
 
-  async handleAdminCompanyDetail(ctx, companyId) {
+  async handleAdminCompanyDetail(ctx, companyId, productPage = 1) {
     if (!(await this.isAdminAsync(ctx.from.id)))
       return ctx.reply("❌ Access denied.");
     try {
@@ -291,19 +291,40 @@ class AdminHandlers {
           : "N/A"
       }\n`;
       msg += `Description: ${company.description || "N/A"}\n`;
-      // List products
+      // List products with pagination
       const products = await companyService.getCompanyProducts(company.id);
+      const perPage = 5;
+      const totalPages = Math.ceil(products.length / perPage) || 1;
+      productPage = Number(productPage) || 1;
+      const start = (productPage - 1) * perPage;
+      const end = start + perPage;
       if (products.length) {
-        msg += `\n*Products:*\n`;
+        msg += `\n*Products (Page ${productPage}/${totalPages}):*\n`;
       }
       const buttons = [];
-      products.forEach((product) => {
+      products.slice(start, end).forEach((product) => {
         msg += `• ${product.title} ($${product.price})\n`;
         buttons.push([
           Markup.button.callback(product.title, `admin_product_${product.id}`),
         ]);
       });
-      // No approve/reject buttons
+      // Pagination buttons for products
+      const navButtons = [];
+      if (productPage > 1)
+        navButtons.push(
+          Markup.button.callback(
+            "⬅️ Previous",
+            `admin_company_products_${company.id}_${productPage - 1}`
+          )
+        );
+      if (productPage < totalPages)
+        navButtons.push(
+          Markup.button.callback(
+            "➡️ Next",
+            `admin_company_products_${company.id}_${productPage + 1}`
+          )
+        );
+      if (navButtons.length) buttons.push(navButtons);
       ctx.reply(msg, {
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard(buttons),
@@ -364,12 +385,12 @@ class AdminHandlers {
       const users = await userService.getAllUsers();
       let msg = `👥 *User Management*\n\nTotal Users: ${users.length}\n`;
       const buttons = [
+        [Markup.button.callback("👥 All Users", "all_users_menu_1")],
         [Markup.button.callback("🔍 Search User", "search_user")],
         [Markup.button.callback("🚫 Banned Users", "banned_users")],
         [Markup.button.callback("📤 Export Users", "export_users")],
         [Markup.button.callback("⬆️ Promote User", "promote_user_menu")],
         [Markup.button.callback("🔙 Back to Admin", "admin_panel")],
-        [Markup.button.callback("👥 All Users", "all_users_menu_1")],
       ];
       ctx.reply(msg, {
         parse_mode: "Markdown",
@@ -466,31 +487,16 @@ class AdminHandlers {
     try {
       if (!(await this.isAdminAsync(ctx.from.id)))
         return ctx.reply("❌ Access denied.");
+      // List all companies
+      const companies = await companyService.getAllCompanies();
+      let msg = `🏢 *Company Management*\n\nTotal Companies: ${companies.length}\n`;
       const buttons = [
-        [
-          Markup.button.callback("🔍 Search Company", "search_company"),
-          Markup.button.callback(
-            "📈 Company Analytics",
-            "company_analytics_summary"
-          ),
-        ],
-        [
-          Markup.button.callback("➕ Add Company", "admin_add_company"),
-          Markup.button.callback("➖ Remove Company", "admin_remove_company"),
-        ],
-        [
-          Markup.button.callback(
-            "📋 List All Companies",
-            "admin_list_companies"
-          ),
-        ],
-        [
-          Markup.button.callback("⚙️ Settings", "company_settings"),
-          Markup.button.callback("Export", "export_companies"),
-        ],
-        [Markup.button.callback("🔙 Back to Admin Panel", "admin_panel")],
+        [Markup.button.callback("🏢 All Companies", "all_companies_menu_1")],
+        [Markup.button.callback("🔍 Search Company", "search_company")],
+        [Markup.button.callback("📤 Export Companies", "export_companies")],
+        [Markup.button.callback("🔙 Back to Admin", "admin_panel")],
       ];
-      ctx.reply("🏢 *Company Management*", {
+      ctx.reply(msg, {
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard(buttons),
       });
@@ -935,12 +941,17 @@ class AdminHandlers {
     await this.handleSystemSettings(ctx);
   }
 
-  async handlePlatformAnalyticsDashboard(ctx) {
+  async handlePlatformAnalyticsDashboard(ctx, page = 1) {
     try {
       if (!(await this.isAdminAsync(ctx.from.id)))
         return ctx.reply("❌ Access denied.");
       const stats = await adminService.getPlatformStats();
       const companies = await adminService.getCompanySalesAndCommission();
+      const perPage = 10;
+      const totalPages = Math.ceil(companies.length / perPage) || 1;
+      page = Number(page) || 1;
+      const start = (page - 1) * perPage;
+      const end = start + perPage;
       let message = `📊 *Platform Analytics Dashboard*\n\n`;
       message += `👥 Users: ${stats.totalUsers}\n`;
       message += `🏢 Companies: ${stats.totalCompanies}\n`;
@@ -950,15 +961,13 @@ class AdminHandlers {
         message += `• Users: +${stats.growth.users30d || 0}%\n`;
         message += `• Revenue: +${stats.growth.revenue30d || 0}%\n`;
       }
-      message += `\n\n*Company Sales & Platform Commission:*\n`;
+      message += `\n\n*Company Sales & Platform Commission (Page ${page}/${totalPages}):*\n`;
       // Compose company sales & commission section
-      console.log("DEBUG companies:", companies);
       let companyStatsMsg = "";
-      companies.forEach((c, idx) => {
+      companies.slice(start, end).forEach((c, idx) => {
         try {
-          console.log("DEBUG company object:", c);
           if (!c || typeof c !== "object") {
-            companyStatsMsg += `• [Company ${idx + 1}] (data missing)\n`;
+            companyStatsMsg += `• [Company ${start + idx + 1}] (data missing)\n`;
             return;
           }
           const name = c.name || "Unknown";
@@ -974,14 +983,12 @@ class AdminHandlers {
             2
           )} lifetime, ${sales} sales, $${revenue.toFixed(2)} total)\n`;
         } catch (err) {
-          console.error("Company stats formatting error:", err, c);
-          companyStatsMsg += `• [Company ${idx + 1}] (formatting error)\n`;
+          companyStatsMsg += `• [Company ${start + idx + 1}] (formatting error)\n`;
         }
       });
       message += `\nCompany Sales & Platform Commission:\n${companyStatsMsg}`;
       const buttons = [];
-      companies.forEach((c) => {
-        // Only show the second line if all fields are present and numbers
+      companies.slice(start, end).forEach((c) => {
         if (
           c &&
           typeof c === "object" &&
@@ -1004,6 +1011,23 @@ class AdminHandlers {
           ),
         ]);
       });
+      // Pagination buttons
+      const navButtons = [];
+      if (page > 1)
+        navButtons.push(
+          Markup.button.callback(
+            "⬅️ Previous",
+            `platform_analytics_dashboard_${page - 1}`
+          )
+        );
+      if (page < totalPages)
+        navButtons.push(
+          Markup.button.callback(
+            "➡️ Next",
+            `platform_analytics_dashboard_${page + 1}`
+          )
+        );
+      if (navButtons.length) buttons.push(navButtons);
       buttons.push([Markup.button.callback("🔙 Back", "admin_panel")]);
       ctx.reply(message, {
         parse_mode: "Markdown",

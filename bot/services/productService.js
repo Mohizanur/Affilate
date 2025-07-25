@@ -2,7 +2,7 @@ console.log("Entering services/productService.js");
 const databaseService = require("../config/database");
 const { v4: uuidv4 } = require("uuid");
 const logger = require("../../utils/logger");
-const { getNotificationServiceInstance } = require('./notificationService');
+const { getNotificationServiceInstance } = require("./notificationService");
 
 class ProductService {
   // Helper: Get company doc and data, throw if not found, and check owner
@@ -47,17 +47,20 @@ class ProductService {
           "A product with this title already exists for your company."
         );
       const productId = uuidv4();
+      logger.info(
+        `[DEBUG] createProduct: Creating product with ID ${productId}`
+      );
       const productDoc = databaseService
         .getDb()
         .collection("products")
         .doc(productId);
       await productDoc.set({
         id: productId,
-          companyId,
-          title,
-          description,
-          price,
-          category,
+        companyId,
+        title,
+        description,
+        price,
+        category,
         imageUrl: imageUrl || null,
         contactInfo: contactInfo || null,
         createdAt: new Date(),
@@ -65,7 +68,11 @@ class ProductService {
         quantity: productData.quantity || 0,
       });
       // Notify company owner
-      await getNotificationServiceInstance().sendNotification(company.telegramId, `✅ Product "${title}" created successfully.`, { type: 'product', action: 'create', productId });
+      await getNotificationServiceInstance().sendNotification(
+        company.telegramId,
+        `✅ Product "${title}" created successfully.`,
+        { type: "product", action: "create", productId }
+      );
       return { id: productId, ...productData };
     } catch (error) {
       logger.error("Error creating product:", error);
@@ -232,7 +239,11 @@ class ProductService {
         throw new Error("Product not found");
       }
       // Notify company owner
-      await getNotificationServiceInstance().sendNotification(company.telegramId, `✏️ Product "${title}" updated successfully.`, { type: "product", action: "update", productId });
+      await getNotificationServiceInstance().sendNotification(
+        company.telegramId,
+        `✏️ Product "${title}" updated successfully.`,
+        { type: "product", action: "update", productId }
+      );
       return result.rows[0];
     } catch (error) {
       logger.error("Error updating product:", error);
@@ -257,7 +268,11 @@ class ProductService {
         throw new Error("Product not found");
       }
       // Notify company owner
-      await getNotificationServiceInstance().sendNotification(company.telegramId, `🗑️ Product "${prod.title}" deleted.`, { type: "product", action: "delete", productId });
+      await getNotificationServiceInstance().sendNotification(
+        company.telegramId,
+        `🗑️ Product "${prod.title}" deleted.`,
+        { type: "product", action: "delete", productId }
+      );
       return result.rows[0];
     } catch (error) {
       logger.error("Error deleting product:", error);
@@ -412,7 +427,7 @@ class ProductService {
     const db = databaseService.getDb();
     const productsSnapshot = await db
       .collection("products")
-      .where("status", "==", "active")
+      .orderBy("createdAt", "desc")
       .get();
     if (productsSnapshot.empty) {
       return [];
@@ -421,7 +436,15 @@ class ProductService {
     const products = [];
     for (const doc of productsSnapshot.docs) {
       const productData = { id: doc.id, ...doc.data() };
-      
+
+      // Exclude out of stock or quantity 0
+      if (
+        productData.status === "out_of_stock" ||
+        productData.quantity === 0
+      ) {
+        continue;
+      }
+
       // Ensure there is a companyId to look up
       if (productData.companyId) {
         const companyDoc = await db

@@ -94,6 +94,8 @@ function registerHandlers(bot) {
   bot.on("text", (ctx) => messageHandlers.handleTextMessage(ctx));
   // Register handler for contact messages (phone number sharing)
   bot.on("contact", (ctx) => userHandlers.handlePhoneContact(ctx));
+  // Register handler for callback queries (inline keyboard button presses)
+  bot.on("callback_query", (ctx) => callbackHandlers.handleCallback(ctx));
 }
 
 async function startBot(app) {
@@ -157,12 +159,7 @@ async function startBot(app) {
         { command: "profile", description: "Your profile & settings" },
         { command: "leaderboard", description: "Top referrers" },
         { command: "help", description: "Help & support" },
-        {
-          command: "feecalculator",
-          description: "Calculate fee for a transaction",
-        },
-        { command: "company", description: "Company dashboard (owners)" },
-        { command: "admin", description: "Admin panel (admins)" },
+        { command: "feecalculator", description: "Calculate fee for a transaction" }
       ];
 
       await bot.telegram.setMyCommands(commands);

@@ -198,61 +198,92 @@ Let's get started! 👇
     }
   }
 
-  async handleBrowseProducts(ctx) {
-    try {
-      ctx.session = {}; // Reset session state
-      const products = await productService.getAllActiveProductsWithCompany();
-      logger.info(`[BrowseProducts] Found ${products.length} active products.`);
+  async handleBrowseProducts(ctx, pageArg) {
+    if (ctx.callbackQuery) await ctx.answerCbQuery();
+    ctx.session = {}; // Reset session state
+    const products = await productService.getAllActiveProductsWithCompany();
+    logger.info(`[BrowseProducts] Found ${products.length} active products.`);
 
-      if (products.length === 0) {
-        ctx.reply("📦 No products available at the moment. Check back later!");
-        if (ctx.callbackQuery) return ctx.answerCbQuery();
-        return;
-      }
-
-      let message = "🛍️ *Available Products*\n\n";
-      const buttons = [];
-
-      products.slice(0, 10).forEach((product, index) => {
-        message += `${index + 1}. **${product.title}**\n`;
-        message += `   💰 $${Number(product.price) || 0} | 🏢 ${
-          product.companyName || "Unknown"
-        }\n`;
-        message += `   📝 ${(product.description || "").substring(
-          0,
-          50
-        )}...\n\n`;
-
-        buttons.push([
-          Markup.button.callback(
-            `🛒 View ${product.title}`,
-            `view_product_${product.id}`
-          ),
-        ]);
-      });
-
-      buttons.push([Markup.button.callback("🔙 Back to Menu", "main_menu")]);
-
-      ctx.reply(message, {
-        parse_mode: "Markdown",
-        ...Markup.inlineKeyboard(buttons),
-      });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error browsing products:", error);
-      ctx.reply("❌ Failed to load products. Please try again.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
+    if (products.length === 0) {
+      ctx.reply("📦 No products available at the moment. Check back later!");
+      return;
     }
+
+    const ITEMS_PER_PAGE = 5;
+    let page = 1;
+    if (typeof pageArg === "number") page = pageArg;
+    else if (
+      ctx.callbackQuery &&
+      ctx.callbackQuery.data.startsWith("browse_products_page_")
+    ) {
+      page =
+        parseInt(ctx.callbackQuery.data.replace("browse_products_page_", "")) ||
+        1;
+    }
+    const totalPages = Math.ceil(products.length / ITEMS_PER_PAGE);
+    if (page < 1) page = 1;
+    if (page > totalPages) page = totalPages;
+    const startIdx = (page - 1) * ITEMS_PER_PAGE;
+    const endIdx = startIdx + ITEMS_PER_PAGE;
+    const pageProducts = products.slice(startIdx, endIdx);
+
+    let message = `🛍️ *Available Products* (Page ${page}/${totalPages})\n\n`;
+    const buttons = [];
+
+    pageProducts.forEach((product, index) => {
+      message += `${startIdx + index + 1}. **${product.title}**\n`;
+      message += `   💰 $${Number(product.price) || 0} | 🏢 ${
+        product.companyName || "Unknown"
+      }\n`;
+      message += `   📝 ${(product.description || "").substring(0, 50)}...\n\n`;
+      buttons.push([
+        Markup.button.callback(
+          `🛒 View ${product.title}`,
+          `view_product_${product.id}`
+        ),
+      ]);
+    });
+
+    // Pagination controls
+    const navButtons = [];
+    if (page > 1)
+      navButtons.push(
+        Markup.button.callback(
+          "⬅️ Previous",
+          `browse_products_page_${page - 1}`
+        )
+      );
+    if (page < totalPages)
+      navButtons.push(
+        Markup.button.callback("Next ➡️", `browse_products_page_${page + 1}`)
+      );
+    if (navButtons.length) buttons.push(navButtons);
+    buttons.push([Markup.button.callback("🔙 Back to Menu", "main_menu")]);
+
+    ctx.reply(message, {
+      parse_mode: "Markdown",
+      ...Markup.inlineKeyboard(buttons),
+    });
   }
 
-  async handleViewProduct(ctx) {
+  async handleViewProduct(ctx, productIdArg) {
     try {
-      const productId = ctx.callbackQuery.data.split("_")[2];
+      let productId = productIdArg;
+      if (!productId) {
+        productId = ctx.callbackQuery.data;
+        if (productId.startsWith("view_product_")) {
+          productId = productId.replace("view_product_", "");
+        }
+      }
+      logger.info(`[DEBUG] handleViewProduct: productId=${productId}`);
       const product = await productService.getProductById(productId);
 
       if (!product) {
+        logger.error(
+          `[DEBUG] handleViewProduct: Product not found for ID ${productId}`
+        );
         ctx.reply("❌ Product not found.");
-        if (ctx.callbackQuery) return ctx.answerCbQuery();
+        return;
       }
 
       // Use the companyStatus from the joined product data
@@ -260,7 +291,7 @@ Let's get started! 👇
         ctx.reply(
           "⏳ This company is not active. You cannot interact with its products."
         );
-        if (ctx.callbackQuery) return ctx.answerCbQuery();
+        return;
       }
 
       // Human-friendly status label
@@ -272,41 +303,71 @@ Let's get started! 👇
       const statusLabel =
         statusLabels[product.status] || product.status || "Unknown";
 
+      // Fetch company details for display
+      let companyDetails = "";
+      try {
+        const companyService = require("../services/companyService");
+        const company = await companyService.getCompanyById(product.companyId);
+        if (company) {
+          companyDetails = `\n🏢 Company: ${company.name || "-"}\n📍 Address: ${
+            company.address || "-"
+          }\n📞 Phone: ${company.phone || "-"}\n✉️ Email: ${
+            company.email || "-"
+          }\n🌐 Website: ${company.website || "-"}\n📌 Location: ${
+            company.location || "-"
+          }\n`;
+          if (company.ownerUsername) {
+            companyDetails += `👤 Telegram: @${company.ownerUsername}\n`;
+          }
+        }
+      } catch (e) {
+        logger.error("Error fetching company details for product view:", e);
+      }
+
       const productMessage = `
  *${product.title}* ${product.statusBadge || ""}
-
-📝 Description: ${product.description}
+\n📝 Description: ${product.description}
 💰 Price: $${Number(product.price) || 0}
-🏢 Company: ${product.companyName || "Unknown"}
 🏷️ Category: ${product.category}
 📦 Quantity: ${
         typeof product.quantity !== "undefined" ? product.quantity : "N/A"
       }
 🔖 Status: ${statusLabel}
-
+${companyDetails}
 To purchase this item, please contact the company owner directly. You can provide them with a referral code if you have one.
       `;
 
-      const buttons = [
-        [
-          Markup.button.callback(
-            `🛒 View ${product.title}`,
-            `view_product_${product.id}`
-          ),
-        ],
-      ];
+      // Fetch company to check ownership
+      let isOwner = false;
+      try {
+        const companyService = require("../services/companyService");
+        const company = await companyService.getCompanyById(product.companyId);
+        if (company && company.telegramId === ctx.from.id) {
+          isOwner = true;
+        }
+      } catch (e) {
+        logger.error("Error checking company ownership:", e);
+      }
 
+      const buttons = [];
+      if (isOwner) {
+        buttons.push([
+          Markup.button.callback("💸 Sell", `sell_product_${product.id}`),
+        ]);
+        buttons.push([
+          Markup.button.callback("✏️ Edit", `edit_product_field_${product.id}`),
+          Markup.button.callback("🗑️ Delete", `delete_product_${product.id}`),
+        ]);
+      }
       buttons.push([Markup.button.callback("🔙 Back to Menu", "main_menu")]);
 
       ctx.reply(productMessage, {
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard(buttons),
       });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error browsing products:", error);
       ctx.reply("❌ Failed to load products. Please try again.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
 
@@ -317,10 +378,8 @@ To purchase this item, please contact the company owner directly. You can provid
 
       ctx.reply("🎯 Please enter your referral code:");
       ctx.session.waitingForReferralCode = true;
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error handling referral yes:", error);
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
 
@@ -354,7 +413,6 @@ To purchase this item, please contact the company owner directly. You can provid
     } catch (error) {
       logger.error("Error processing purchase without referral:", error);
       ctx.reply("❌ Failed to process purchase.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
 
@@ -472,7 +530,7 @@ To purchase this item, please contact the company owner directly. You can provid
         ctx.reply(
           "⚠️ You've reached the maximum number of referral code generation attempts per minute. Please try again later."
         );
-        if (ctx.callbackQuery) return ctx.answerCbQuery();
+        return;
       }
 
       // Check if user is phone verified
@@ -483,7 +541,7 @@ To purchase this item, please contact the company owner directly. You can provid
         ctx.reply(
           "❌ Please verify your phone number first to become a referrer."
         );
-        if (ctx.callbackQuery) return ctx.answerCbQuery();
+        return;
       }
 
       const referralCode = await referralService.generateReferralCode(
@@ -526,15 +584,14 @@ Share your code and start earning! 💸
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard(buttons),
       });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error generating referral code:", error);
       ctx.reply("❌ Failed to generate referral code. Please try again.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
 
-  async handleMyReferrals(ctx) {
+  async handleMyReferrals(ctx, pageArg) {
+    if (ctx.callbackQuery) await ctx.answerCbQuery();
     ctx.session = {}; // Reset session state
     if (!ctx.from || !ctx.from.id) {
       ctx.reply("❌ Unable to get your referral stats: missing user ID.");
@@ -548,16 +605,34 @@ Share your code and start earning! 💸
     msg += `Pending Earnings: $${stats.pendingEarnings.toFixed(2)}\n`;
     msg += `This Month: $${stats.thisMonthEarnings.toFixed(2)}\n`;
     if (!stats.totalReferrals) {
-      return ctx.reply(
+      await ctx.reply(
         "🎯 You have no referrals yet. Share your referral code to start earning!"
       );
+      return;
     }
-    // Show companies as clickable buttons
+    // Pagination for company list
     const minPayout = parseFloat(process.env.MIN_PAYOUT_AMOUNT || "10");
     const companyStats = stats.companyStats || {};
-    let companyMsg = "\n\n*Your Companies:*\n";
+    const companyEntries = Object.entries(companyStats);
+    const ITEMS_PER_PAGE = 5;
+    let page = 1;
+    if (typeof pageArg === "number") page = pageArg;
+    else if (
+      ctx.callbackQuery &&
+      ctx.callbackQuery.data.startsWith("my_referrals_page_")
+    ) {
+      page =
+        parseInt(ctx.callbackQuery.data.replace("my_referrals_page_", "")) || 1;
+    }
+    const totalPages = Math.ceil(companyEntries.length / ITEMS_PER_PAGE) || 1;
+    if (page < 1) page = 1;
+    if (page > totalPages) page = totalPages;
+    const startIdx = (page - 1) * ITEMS_PER_PAGE;
+    const endIdx = startIdx + ITEMS_PER_PAGE;
+    const pageCompanies = companyEntries.slice(startIdx, endIdx);
+    let companyMsg = `\n\n*Your Companies:* (Page ${page}/${totalPages})\n`;
     const buttons = [];
-    for (const [companyId, data] of Object.entries(companyStats)) {
+    for (const [companyId, data] of pageCompanies) {
       companyMsg += `• ${
         data.companyName || companyId
       }: $${data.earnings.toFixed(2)} (${data.count} referrals)\n`;
@@ -578,6 +653,23 @@ Share your code and start earning! 💸
         ]);
       }
     }
+    // Pagination controls
+    const navButtons = [];
+    if (page > 1)
+      navButtons.push(
+        require("telegraf").Markup.button.callback(
+          "⬅️ Previous",
+          `my_referrals_page_${page - 1}`
+        )
+      );
+    if (page < totalPages)
+      navButtons.push(
+        require("telegraf").Markup.button.callback(
+          "Next ➡️",
+          `my_referrals_page_${page + 1}`
+        )
+      );
+    if (navButtons.length) buttons.push(navButtons);
     buttons.push([
       require("telegraf").Markup.button.callback(
         "🔙 Back to Main Menu",
@@ -590,56 +682,88 @@ Share your code and start earning! 💸
     });
   }
 
-  async handleLeaderboard(ctx) {
+  async handleLeaderboard(ctx, pageArg) {
+    if (ctx.callbackQuery) await ctx.answerCbQuery();
     try {
-      const topReferrers = await referralService.getTopReferrers(10); // [{telegramId, firstName, totalReferrals}]
-      let message = "🏆 *Top Referrers Leaderboard*\n\n";
+      const topReferrers = await referralService.getTopReferrers(100); // Fetch enough for pagination
+      const ITEMS_PER_PAGE = 5;
+      let page = 1;
+      if (typeof pageArg === "number") page = pageArg;
+      else if (
+        ctx.callbackQuery &&
+        ctx.callbackQuery.data.startsWith("leaderboard_page_")
+      ) {
+        page =
+          parseInt(ctx.callbackQuery.data.replace("leaderboard_page_", "")) ||
+          1;
+      }
+      const totalPages = Math.ceil(topReferrers.length / ITEMS_PER_PAGE) || 1;
+      if (page < 1) page = 1;
+      if (page > totalPages) page = totalPages;
+      const startIdx = (page - 1) * ITEMS_PER_PAGE;
+      const endIdx = startIdx + ITEMS_PER_PAGE;
+      const pageReferrers = topReferrers.slice(startIdx, endIdx);
+      let message = `🏆 *Top Referrers Leaderboard* (Page ${page}/${totalPages})\n\n`;
       if (!topReferrers || topReferrers.length === 0) {
         message += "No referral activity yet.";
       } else {
-        topReferrers.forEach((user, i) => {
+        pageReferrers.forEach((user, i) => {
           const displayName = user.username
             ? `@${user.username}`
             : user.firstName || "User";
-          message += `${i + 1}. ${displayName} (${user.telegramId}): ${
+          message += `${startIdx + i + 1}. ${displayName}: ${
             user.totalReferrals
           } referrals\n`;
         });
       }
-      const buttons = [
-        [Markup.button.callback("🔙 Back to Menu", "main_menu")],
-      ];
+      const buttons = [];
+      const navButtons = [];
+      if (page > 1)
+        navButtons.push(
+          Markup.button.callback("⬅️ Previous", `leaderboard_page_${page - 1}`)
+        );
+      if (page < totalPages)
+        navButtons.push(
+          Markup.button.callback("Next ➡️", `leaderboard_page_${page + 1}`)
+        );
+      if (navButtons.length) buttons.push(navButtons);
+      buttons.push([Markup.button.callback("🔙 Back to Menu", "main_menu")]);
       ctx.reply(message, {
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard(buttons),
       });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error showing leaderboard:", error);
       ctx.reply("❌ Failed to load leaderboard. Please try again.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
 
   async handleRequestPayout(ctx) {
+    if (ctx.callbackQuery) await ctx.answerCbQuery();
     try {
       ctx.session = {}; // Reset session state
       const telegramId = ctx.from.id;
       const user = await userService.userService.getUserByTelegramId(
         telegramId
       );
+      const referralService = require("../services/referralService");
+      const stats = await referralService.getUserReferralStats(telegramId);
+      if (!stats.totalReferrals) {
+        await ctx.reply(
+          "🎯 You have no referrals yet. Share your referral code to start earning!"
+        );
+        return;
+      }
       const balance = user.referralBalance || 0;
       const minPayout = parseFloat(process.env.MIN_PAYOUT_AMOUNT || "10");
-
       if (balance < minPayout) {
         ctx.reply(
           `❌ Minimum payout amount is $${minPayout}. Your current balance: $${balance.toFixed(
             2
           )}`
         );
-        if (ctx.callbackQuery) return ctx.answerCbQuery();
+        return;
       }
-
       const message = `
 💸 *Request Payout*
 
@@ -674,11 +798,9 @@ How much would you like to withdraw?
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard(buttons),
       });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error requesting payout:", error);
       ctx.reply("❌ Failed to load payout options. Please try again.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
 
@@ -724,11 +846,9 @@ How much would you like to withdraw?
           details: JSON.stringify(details),
         }
       );
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error processing payout:", error);
       ctx.reply(`❌ Payout failed: ${error.message}`);
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
 
@@ -736,10 +856,8 @@ How much would you like to withdraw?
     try {
       ctx.session.waitingForPayoutAmount = true;
       ctx.reply("💸 Please enter the amount you want to withdraw:");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error handling custom payout:", error);
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
 
@@ -828,11 +946,9 @@ How much would you like to withdraw?
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard(buttons),
       });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error showing payout history:", error);
       ctx.reply("❌ Failed to load payout history. Please try again.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
 
@@ -923,7 +1039,6 @@ How much would you like to withdraw?
       const buttons = [
         [
           Markup.button.callback("✏️ Edit Profile", "edit_profile"),
-          Markup.button.callback("💳 Payment Settings", "payment_settings"),
         ],
         [Markup.button.callback("🔙 Main Menu", "main_menu")],
       ];
@@ -931,11 +1046,9 @@ How much would you like to withdraw?
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard(buttons),
       });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error showing user profile:", error);
       ctx.reply("❌ Failed to load profile. Please try again.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
 
@@ -979,11 +1092,9 @@ How much would you like to withdraw?
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard(buttons),
       });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error showing order history:", error);
       ctx.reply("❌ Failed to load order history. Please try again.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
 
@@ -1007,11 +1118,9 @@ Start shopping now! 🛍️
       ctx.reply("📤 Share this message with your friends:\n\n" + shareMessage, {
         parse_mode: "Markdown",
       });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error sharing code:", error);
       ctx.reply("❌ Failed to generate share message.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
 
@@ -1051,11 +1160,9 @@ For more info, contact @Nife777online
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard(buttons),
       });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error showing help:", error);
       ctx.reply("❌ Failed to load help information.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
 
@@ -1098,68 +1205,15 @@ What would you like to do?
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard(buttons),
       });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error showing main menu:", error);
       ctx.reply("❌ Failed to load menu.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
 
   async handleBalance(ctx) {
-    try {
-      ctx.session = {}; // Reset session state
-      const telegramId = ctx.from.id;
-      const user = await userService.userService.getUserByTelegramId(
-        telegramId
-      );
-      if (!user) {
-        return ctx.reply(t("error_user_not_found"));
-      }
-      // Get per-company referral stats
-      const stats =
-        await require("../services/referralService").getUserReferralStats(
-          telegramId
-        );
-      let balanceMsg = "💰 *Your Referral Balances:*\n";
-      const eligibleCompanies = [];
-      const minPayout = parseFloat(process.env.MIN_PAYOUT_AMOUNT || "10");
-      if (stats.companyStats) {
-        for (const [companyId, data] of Object.entries(stats.companyStats)) {
-          balanceMsg += `• ${data.code || companyId}: $${data.earnings.toFixed(
-            2
-          )}\n`;
-          if (data.earnings >= minPayout) {
-            eligibleCompanies.push({
-              companyId,
-              code: data.code,
-              earnings: data.earnings,
-            });
-          }
-        }
-      }
-      if (eligibleCompanies.length === 0) {
-        balanceMsg += "\nNo company balances eligible for withdrawal yet.";
-      } else {
-        balanceMsg += "\nSelect a company below to request withdrawal:";
-      }
-      const buttons = eligibleCompanies.map((c) => [
-        require("telegraf").Markup.button.callback(
-          `Withdraw from ${c.code || c.companyId} ($${c.earnings.toFixed(2)})`,
-          `withdraw_company_${c.companyId}`
-        ),
-      ]);
-      buttons.push([
-        require("telegraf").Markup.button.callback("🔙 Back", "main_menu"),
-      ]);
-      ctx.reply(balanceMsg, {
-        parse_mode: "Markdown",
-        ...require("telegraf").Markup.inlineKeyboard(buttons),
-      });
-    } catch (error) {
-      logger.error("Error in balance command:", error);
-      ctx.reply("❌ Failed to load balance. Please try again.");
-    }
+    // Call handleMyReferrals with the same context
+    return this.handleMyReferrals(ctx);
   }
 
   async handlePrivacy(ctx) {
@@ -1249,11 +1303,9 @@ Choose your preferred payout method:
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard(buttons),
       });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error showing payment settings:", error);
       ctx.reply("❌ Failed to load payment settings.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
 
@@ -1286,11 +1338,9 @@ Choose your preferred payout method:
       }
 
       ctx.reply(message, { parse_mode: "Markdown" });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error setting payment method:", error);
       ctx.reply("❌ Failed to set payment method.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
 
@@ -1392,11 +1442,9 @@ Toggle notifications:
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard(buttons),
       });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error showing notification settings:", error);
       ctx.reply("❌ Failed to load notification settings.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
 
@@ -1417,12 +1465,9 @@ Toggle notifications:
       setTimeout(() => {
         this.handleNotificationSettings(ctx);
       }, 1000);
-
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error toggling notification:", error);
       ctx.reply("❌ Failed to update notification setting.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
 
@@ -1471,11 +1516,9 @@ Toggle notifications:
         message += "No recent referral activity.";
       }
       ctx.reply(message, { parse_mode: "Markdown" });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error showing detailed referral stats:", error);
       ctx.reply("❌ Failed to load detailed stats. Please try again.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
 
@@ -1705,7 +1748,6 @@ Toggle notifications:
         parse_mode: "Markdown",
         ...require("telegraf").Markup.inlineKeyboard(buttons),
       });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error in handleCompanyActionMenu:", error);
       ctx.reply("❌ Failed to load company actions.");
@@ -1786,7 +1828,6 @@ Toggle notifications:
       ctx.reply("Select the field you want to edit:", {
         ...require("telegraf").Markup.inlineKeyboard(buttons),
       });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error in handleEditCompanyField:", error);
       ctx.reply("❌ Failed to load edit options.");
@@ -1906,7 +1947,7 @@ Toggle notifications:
     const telegramId = ctx.from.id;
     const productId = ctx.callbackQuery.data.split("_")[2];
     await userService.userService.addFavorite(telegramId, productId);
-    ctx.answerCbQuery("Favorite updated!");
+    ctx.reply("Favorite updated!");
     ctx.reply("⭐ Product favorite status updated.");
   }
 
@@ -1914,7 +1955,7 @@ Toggle notifications:
     const telegramId = ctx.from.id;
     const productId = ctx.callbackQuery.data.split("_")[2];
     await userService.userService.addToCart(telegramId, productId);
-    ctx.answerCbQuery("Added to cart!");
+    ctx.reply("Added to cart!");
     ctx.reply("🛒 Product added to your cart.");
   }
 
@@ -1922,7 +1963,7 @@ Toggle notifications:
     const telegramId = ctx.from.id;
     const productId = ctx.callbackQuery.data.split("_")[2];
     await userService.userService.removeFromCart(telegramId, productId);
-    ctx.answerCbQuery("Removed from cart!");
+    ctx.reply("Removed from cart!");
     ctx.reply("🗑️ Product removed from your cart.");
   }
 
@@ -2042,7 +2083,7 @@ Toggle notifications:
     }
   }
 
-  async handleMyReferralCodes(ctx) {
+  async handleMyReferralCodes(ctx, pageArg) {
     try {
       const referralService = require("../services/referralService");
       const codes = await referralService.getUserReferralCodes(ctx.from.id);
@@ -2050,9 +2091,28 @@ Toggle notifications:
         return ctx.reply(
           "❌ You have no referral codes yet. Make a purchase to get your first code!"
         );
-      let msg = "🎯 *Your Referral Codes*\n\n";
+      // Pagination
+      const ITEMS_PER_PAGE = 5;
+      let page = 1;
+      if (typeof pageArg === "number") page = pageArg;
+      else if (
+        ctx.callbackQuery &&
+        ctx.callbackQuery.data.startsWith("my_referral_codes_page_")
+      ) {
+        page =
+          parseInt(
+            ctx.callbackQuery.data.replace("my_referral_codes_page_", "")
+          ) || 1;
+      }
+      const totalPages = Math.ceil(codes.length / ITEMS_PER_PAGE) || 1;
+      if (page < 1) page = 1;
+      if (page > totalPages) page = totalPages;
+      const startIdx = (page - 1) * ITEMS_PER_PAGE;
+      const endIdx = startIdx + ITEMS_PER_PAGE;
+      const pageCodes = codes.slice(startIdx, endIdx);
+      let msg = `🎯 *Your Referral Codes* (Page ${page}/${totalPages})\n\n`;
       const buttons = [];
-      codes.forEach((code) => {
+      pageCodes.forEach((code) => {
         msg += `• ${code.code} (Company: ${
           code.company_name || code.companyId
         })\n`;
@@ -2063,6 +2123,23 @@ Toggle notifications:
           ),
         ]);
       });
+      // Pagination controls
+      const navButtons = [];
+      if (page > 1)
+        navButtons.push(
+          require("telegraf").Markup.button.callback(
+            "⬅️ Previous",
+            `my_referral_codes_page_${page - 1}`
+          )
+        );
+      if (page < totalPages)
+        navButtons.push(
+          require("telegraf").Markup.button.callback(
+            "Next ➡️",
+            `my_referral_codes_page_${page + 1}`
+          )
+        );
+      if (navButtons.length) buttons.push(navButtons);
       ctx.reply(msg, {
         parse_mode: "Markdown",
         ...require("telegraf").Markup.inlineKeyboard(buttons),
@@ -2073,7 +2150,8 @@ Toggle notifications:
     }
   }
 
-  async handleMyProducts(ctx) {
+  async handleMyProducts(ctx, pageArg) {
+    if (ctx.callbackQuery) await ctx.answerCbQuery();
     try {
       const telegramId = ctx.from.id;
       // Get companies owned by the user
@@ -2111,24 +2189,57 @@ Toggle notifications:
           ]),
         });
       }
+      // Pagination
+      const ITEMS_PER_PAGE = 5;
+      let page = 1;
+      if (typeof pageArg === "number") page = pageArg;
+      else if (
+        ctx.callbackQuery &&
+        ctx.callbackQuery.data.startsWith("my_products_page_")
+      ) {
+        page =
+          parseInt(ctx.callbackQuery.data.replace("my_products_page_", "")) ||
+          1;
+      }
+      const totalPages = Math.ceil(allProducts.length / ITEMS_PER_PAGE);
+      if (page < 1) page = 1;
+      if (page > totalPages) page = totalPages;
+      const startIdx = (page - 1) * ITEMS_PER_PAGE;
+      const endIdx = startIdx + ITEMS_PER_PAGE;
+      const pageProducts = allProducts.slice(startIdx, endIdx);
       // Show each product as a single clickable button
-      const productButtons = allProducts.map((product) => [
+      const productButtons = pageProducts.map((product) => [
         require("telegraf").Markup.button.callback(
-          `${product.title} ($${product.price}) | ${product.companyName}`,
-          `product_action_${product.id}`
+          `🛒 View ${product.title}`,
+          `view_product_${product.id}`
         ),
       ]);
-      ctx.reply("📦 *Your Products*", {
+      // Pagination controls
+      const navButtons = [];
+      if (page > 1)
+        navButtons.push(
+          require("telegraf").Markup.button.callback(
+            "⬅️ Previous",
+            `my_products_page_${page - 1}`
+          )
+        );
+      if (page < totalPages)
+        navButtons.push(
+          require("telegraf").Markup.button.callback(
+            "Next ➡️",
+            `my_products_page_${page + 1}`
+          )
+        );
+      if (navButtons.length) productButtons.push(navButtons);
+      productButtons.push([
+        require("telegraf").Markup.button.callback(
+          "🔙 Back to Main Menu",
+          "main_menu"
+        ),
+      ]);
+      ctx.reply(`📦 *Your Products* (Page ${page}/${totalPages})`, {
         parse_mode: "Markdown",
-        ...require("telegraf").Markup.inlineKeyboard([
-          ...productButtons,
-          [
-            require("telegraf").Markup.button.callback(
-              "🔙 Back to Main Menu",
-              "main_menu"
-            ),
-          ],
-        ]),
+        ...require("telegraf").Markup.inlineKeyboard(productButtons),
       });
     } catch (error) {
       logger.error("Error in handleMyProducts:", error);
@@ -2182,7 +2293,6 @@ Toggle notifications:
         parse_mode: "Markdown",
         ...require("telegraf").Markup.inlineKeyboard(buttons),
       });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error in handleProductActionMenu:", error);
       ctx.reply("❌ Failed to load product actions.");
@@ -2666,7 +2776,6 @@ Toggle notifications:
         `📝 *Edit Product*\n\nCurrent Title: ${product.title}\n\nEnter new title or type 'skip' to keep unchanged:`,
         { parse_mode: "Markdown" }
       );
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error in handleEditProduct:", error);
       ctx.reply("❌ Failed to load product for editing.");
@@ -2693,7 +2802,6 @@ Toggle notifications:
       );
       // Refresh product list
       await this.handleMyProducts(ctx);
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error in handleDeleteProduct:", error);
       ctx.reply("❌ Failed to delete product.");
@@ -2713,7 +2821,6 @@ Toggle notifications:
         `📝 *Edit Company*\n\nCurrent Name: ${company.name}\n\nEnter new name or type 'skip' to keep unchanged:`,
         { parse_mode: "Markdown" }
       );
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error in handleEditCompany:", error);
       ctx.reply("❌ Failed to load company for editing.");
@@ -2728,45 +2835,77 @@ Toggle notifications:
       ctx.reply("🗑️ Company deleted successfully.");
       // Refresh company list
       await this.handleMyCompanies(ctx);
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error in handleDeleteCompany:", error);
       ctx.reply("❌ Failed to delete company.");
     }
   }
 
-  async handleMyCompanies(ctx) {
+  async handleMyCompanies(ctx, pageArg) {
+    if (ctx.callbackQuery) await ctx.answerCbQuery();
     try {
       const telegramId = ctx.from.id;
-      const companiesSnap =
+      const companies =
         await require("../services/companyService").getCompaniesByOwner(
           telegramId
         );
-      if (!companiesSnap || companiesSnap.length === 0) {
-        return ctx.reply(
-          '❌ You have not registered any companies yet. Use "Register Company" to add one.'
-        );
+      if (!companies || companies.length === 0) {
+        return ctx.reply("❌ You have no companies.");
       }
-      const buttons = companiesSnap.map((company) => [
+      // Pagination
+      const ITEMS_PER_PAGE = 5;
+      let page = 1;
+      if (typeof pageArg === "number") page = pageArg;
+      else if (
+        ctx.callbackQuery &&
+        ctx.callbackQuery.data.startsWith("my_companies_page_")
+      ) {
+        page =
+          parseInt(ctx.callbackQuery.data.replace("my_companies_page_", "")) ||
+          1;
+      }
+      const totalPages = Math.ceil(companies.length / ITEMS_PER_PAGE);
+      if (page < 1) page = 1;
+      if (page > totalPages) page = totalPages;
+      const startIdx = (page - 1) * ITEMS_PER_PAGE;
+      const endIdx = startIdx + ITEMS_PER_PAGE;
+      const pageCompanies = companies.slice(startIdx, endIdx);
+      // Show each company as a single clickable button
+      const companyButtons = pageCompanies.map((company) => [
         require("telegraf").Markup.button.callback(
-          `${company.name} (${company.status || ""})`,
+          `${company.name}`,
           `company_action_${company.id}`
         ),
       ]);
-      ctx.reply("🏢 *Your Companies*", {
+      // Pagination controls
+      const navButtons = [];
+      if (page > 1)
+        navButtons.push(
+          require("telegraf").Markup.button.callback(
+            "⬅️ Previous",
+            `my_companies_page_${page - 1}`
+          )
+        );
+      if (page < totalPages)
+        navButtons.push(
+          require("telegraf").Markup.button.callback(
+            "Next ➡️",
+            `my_companies_page_${page + 1}`
+          )
+        );
+      if (navButtons.length) companyButtons.push(navButtons);
+      companyButtons.push([
+        require("telegraf").Markup.button.callback(
+          "🔙 Back to Main Menu",
+          "main_menu"
+        ),
+      ]);
+      ctx.reply(`🏢 *My Companies* (Page ${page}/${totalPages})`, {
         parse_mode: "Markdown",
-        ...require("telegraf").Markup.inlineKeyboard([
-          ...buttons,
-          [
-            require("telegraf").Markup.button.callback(
-              "🔙 Back to Main Menu",
-              "main_menu"
-            ),
-          ],
-        ]),
+        ...require("telegraf").Markup.inlineKeyboard(companyButtons),
       });
     } catch (error) {
-      logger.error("Error showing my companies:", error);
+      logger.error("Error in handleMyCompanies:", error);
       ctx.reply("❌ Failed to load your companies.");
     }
   }
@@ -2827,7 +2966,6 @@ Toggle notifications:
       ctx.reply("Select the field you want to edit:", {
         ...require("telegraf").Markup.inlineKeyboard(buttons),
       });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error in handleEditProductField:", error);
       ctx.reply("❌ Failed to load edit options.");
@@ -3070,7 +3208,7 @@ Toggle notifications:
     }
   }
 
-  async handleCompanyReferralDetails(ctx, companyId) {
+  async handleCompanyReferralDetails(ctx, companyId, pageArg) {
     const referralService = require("../services/referralService");
     const stats = await referralService.getUserReferralStats(ctx.from.id);
     const data = stats.companyStats && stats.companyStats[companyId];
@@ -3080,11 +3218,28 @@ Toggle notifications:
     let msg = `🏢 *${data.companyName || companyId} Referral Details*\n\n`;
     msg += `Total Referrals: ${data.count}\n`;
     msg += `Total Earnings: $${data.earnings.toFixed(2)}\n`;
+    const ITEMS_PER_PAGE = 5;
+    let page = 1;
+    if (typeof pageArg === "number") page = pageArg;
+    else if (
+      ctx.callbackQuery &&
+      ctx.callbackQuery.data.startsWith("ref_company_") &&
+      ctx.callbackQuery.data.includes("_page_")
+    ) {
+      const parts = ctx.callbackQuery.data.split("_page_");
+      page = parseInt(parts[1]) || 1;
+    }
     if (!data.referrals || data.referrals.length === 0) {
       msg += "No detailed referral history.";
     } else {
-      msg += `\n*Referrals:*\n`;
-      data.referrals.forEach((ref, i) => {
+      const totalPages = Math.ceil(data.referrals.length / ITEMS_PER_PAGE) || 1;
+      if (page < 1) page = 1;
+      if (page > totalPages) page = totalPages;
+      msg += `\n*Referrals (Page ${page}/${totalPages}):*\n`;
+      const startIdx = (page - 1) * ITEMS_PER_PAGE;
+      const endIdx = startIdx + ITEMS_PER_PAGE;
+      const pageReferrals = data.referrals.slice(startIdx, endIdx);
+      pageReferrals.forEach((ref, i) => {
         let createdAt = ref.createdAt;
         if (createdAt && createdAt.toDate) {
           createdAt = createdAt.toDate();
@@ -3098,12 +3253,43 @@ Toggle notifications:
         if (createdAt instanceof Date && !isNaN(createdAt)) {
           dateStr = `${createdAt.toLocaleDateString()} (${createdAt.toLocaleTimeString()})`;
         }
-        msg += `• $${ref.amount.toFixed(2)} — ${
-          ref.product_title || "Product"
-        } — ${dateStr} (${ref.status})\n`;
+        // Human-friendly referral info: price, quantity, product, date/time, status (NO ID)
+        const price = ref.amount ? `$${ref.amount.toFixed(2)}` : "-";
+        const qty = ref.quantity ? `Qty: ${ref.quantity}` : "";
+        const product = ref.product_title || "Product";
+        // Patch: If product looks like a UUID, show 'Product' instead
+        const isUUID = /^[0-9a-fA-F-]{36}$/.test(product);
+        msg += `• ${price} ${qty} — ${isUUID ? "Product" : product} — ${dateStr} ${ref.status ? `Status: ${ref.status}` : ""}\n`;
+      });
+      // Pagination buttons
+      const navButtons = [];
+      if (page > 1)
+        navButtons.push(
+          require("telegraf").Markup.button.callback(
+            "⬅️ Previous",
+            `ref_company_${companyId}_page_${page - 1}`
+          )
+        );
+      if (page < totalPages)
+        navButtons.push(
+          require("telegraf").Markup.button.callback(
+            "➡️ Next",
+            `ref_company_${companyId}_page_${page + 1}`
+          )
+        );
+      const buttons = [];
+      if (navButtons.length) buttons.push(navButtons);
+      buttons.push([
+        require("telegraf").Markup.button.callback(
+          "🔙 Back to Referrals",
+          "my_referrals"
+        ),
+      ]);
+      return ctx.reply(msg, {
+        parse_mode: "Markdown",
+        ...require("telegraf").Markup.inlineKeyboard(buttons),
       });
     }
-    msg += `\n`;
     msg += `\nUse the Withdraw button in the previous menu if eligible.`;
     ctx.reply(msg, {
       parse_mode: "Markdown",

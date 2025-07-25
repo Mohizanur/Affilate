@@ -69,7 +69,7 @@ class CallbackHandlers {
         case "my_referrals":
           return userHandlers.handleMyReferrals(ctx);
         case "balance_withdraw":
-          return userHandlers.handleRequestPayout(ctx);
+          return userHandlers.handleBalance(ctx);
         case "leaderboard":
           return userHandlers.handleLeaderboard(ctx);
         case "request_payout":
@@ -142,6 +142,14 @@ class CallbackHandlers {
           return adminHandlers.handleAdminListUsers(ctx);
         case "platform_analytics_dashboard":
           return adminHandlers.handlePlatformAnalyticsDashboard(ctx);
+          // Pagination for platform analytics dashboard
+          if (callbackData.startsWith("platform_analytics_dashboard_")) {
+            const page =
+              parseInt(
+                callbackData.replace("platform_analytics_dashboard_", "")
+              ) || 1;
+            return adminHandlers.handlePlatformAnalyticsDashboard(ctx, page);
+          }
         case "error_logs":
           return adminHandlers.handleErrorLogs(ctx);
         case "warning_logs":
@@ -239,7 +247,8 @@ class CallbackHandlers {
             return userHandlers.handleAddProductStart(ctx, companyId);
           }
           if (callbackData.startsWith("view_product_")) {
-            return userHandlers.handleViewProduct(ctx);
+            const productId = callbackData.replace("view_product_", "");
+            return userHandlers.handleViewProduct(ctx, productId);
           }
           if (callbackData.startsWith("buy_product_")) {
             return userHandlers.handleBuyProduct(ctx);
@@ -254,8 +263,18 @@ class CallbackHandlers {
             return userHandlers.handleAddToCart(ctx);
           }
           if (callbackData.startsWith("ref_company_")) {
-            const companyId = callbackData.replace("ref_company_", "");
-            return userHandlers.handleCompanyReferralDetails(ctx, companyId);
+            let companyId = callbackData.replace("ref_company_", "");
+            let page = 1;
+            if (companyId.includes("_page_")) {
+              const parts = companyId.split("_page_");
+              companyId = parts[0];
+              page = parseInt(parts[1]) || 1;
+            }
+            return userHandlers.handleCompanyReferralDetails(
+              ctx,
+              companyId,
+              page
+            );
           }
           if (callbackData.startsWith("view_favorites")) {
             return userHandlers.handleViewFavorites(ctx);
@@ -387,7 +406,7 @@ class CallbackHandlers {
             const page = parseInt(
               callbackData.replace("all_companies_menu_", "")
             );
-            return adminHandlers.handleAllCompaniesMenu(ctx, page);
+            return adminHandlers.handleAdminListCompanies(ctx, page);
           }
           if (callbackData.startsWith("generate_new_code_")) {
             return userHandlers.handleGenerateNewCode(ctx);
@@ -482,6 +501,43 @@ class CallbackHandlers {
             );
           }
 
+          if (callbackData.startsWith("browse_products_page_")) {
+            const page =
+              parseInt(callbackData.replace("browse_products_page_", "")) || 1;
+            return userHandlers.handleBrowseProducts(ctx, page);
+          }
+
+          if (callbackData.startsWith("my_products_page_")) {
+            const page =
+              parseInt(callbackData.replace("my_products_page_", "")) || 1;
+            return userHandlers.handleMyProducts(ctx, page);
+          }
+
+          if (callbackData.startsWith("my_companies_page_")) {
+            const page =
+              parseInt(callbackData.replace("my_companies_page_", "")) || 1;
+            return userHandlers.handleMyCompanies(ctx, page);
+          }
+
+          if (callbackData.startsWith("my_referrals_page_")) {
+            const page =
+              parseInt(callbackData.replace("my_referrals_page_", "")) || 1;
+            return userHandlers.handleMyReferrals(ctx, page);
+          }
+
+          if (callbackData.startsWith("leaderboard_page_")) {
+            const page =
+              parseInt(callbackData.replace("leaderboard_page_", "")) || 1;
+            return userHandlers.handleLeaderboard(ctx, page);
+          }
+
+          if (callbackData.startsWith("my_referral_codes_page_")) {
+            const page =
+              parseInt(callbackData.replace("my_referral_codes_page_", "")) ||
+              1;
+            return userHandlers.handleMyReferralCodes(ctx, page);
+          }
+
           ctx.reply("❌ Unknown action. Please try again.");
       }
       // Text input routing for admin add/remove company steps
@@ -512,201 +568,13 @@ class CallbackHandlers {
         return ctx.reply("❌ User not found.");
       }
 
-      const profileMessage = `👤 *Your Profile*
-
-📝 *Name:* ${user.firstName} ${user.lastName || ""}
-🆔 *Telegram ID:* ${user.telegramId}
-💰 *Balance:* $${(user.coinBalance || 0).toFixed(2)}
-🏆 *Role:* ${user.role || "User"}
-📅 *Member Since:* ${new Date(user.createdAt.toDate()).toLocaleDateString()}
-🔗 *Referral Code:* \`${user.referralCode || "N/A"}\`
-
-${user.referredBy ? `👥 *Referred By:* ${user.referredBy}` : ""}
-      `;
-
-      const buttons = [
-        [Markup.button.callback("🔙 Back to Menu", "main_menu")],
-      ];
-
-      ctx.editMessageText(profileMessage, {
-        parse_mode: "Markdown",
-        ...Markup.inlineKeyboard(buttons),
-      });
+      const profileMessage = `
+`;
     } catch (error) {
-      logger.error("Error in handleProfile:", error);
-      ctx.reply("❌ Failed to load profile. Please try again.");
+      logger.error("Error in profile handler:", error);
+      ctx.reply("❌ Something went wrong. Please try again.");
     }
-  }
-
-  async handleApproveWithdrawal(ctx, callbackData) {
-    try {
-      const telegramId = ctx.from.id;
-      const withdrawalId = callbackData.replace("approve_withdrawal_", "");
-      const withdrawalDoc = await require("../config/database")
-        .withdrawals()
-        .doc(withdrawalId)
-        .get();
-      if (!withdrawalDoc.exists) return ctx.reply("❌ Withdrawal not found.");
-      const withdrawal = withdrawalDoc.data();
-      // Get company info
-      const company =
-        await require("../services/companyService").getCompanyById(
-          withdrawal.companyId
-        );
-      const user = await userService.userService.getUserByTelegramId(
-        telegramId
-      );
-      // Allow if admin or company owner
-      if (
-        !user ||
-        !(
-          user.role === "admin" ||
-          user.isAdmin ||
-          (company && company.telegramId === telegramId)
-        )
-      ) {
-        return ctx.reply("❌ Access denied.");
-      }
-      await userService.userService.approveWithdrawal(withdrawalId, telegramId);
-      ctx.reply("✅ Withdrawal approved successfully!");
-    } catch (error) {
-      logger.error("Error approving withdrawal:", error);
-      ctx.reply("❌ Failed to approve withdrawal. Please try again.");
-    }
-  }
-
-  async handleRejectWithdrawal(ctx, callbackData) {
-    try {
-      const telegramId = ctx.from.id;
-      const withdrawalId = callbackData.replace("reject_withdrawal_", "");
-      const withdrawalDoc = await require("../config/database")
-        .withdrawals()
-        .doc(withdrawalId)
-        .get();
-      if (!withdrawalDoc.exists) return ctx.reply("❌ Withdrawal not found.");
-      const withdrawal = withdrawalDoc.data();
-      // Get company info
-      const company =
-        await require("../services/companyService").getCompanyById(
-          withdrawal.companyId
-        );
-      const user = await userService.userService.getUserByTelegramId(
-        telegramId
-      );
-      // Allow if admin or company owner
-      if (
-        !user ||
-        !(
-          user.role === "admin" ||
-          user.isAdmin ||
-          (company && company.telegramId === telegramId)
-        )
-      ) {
-        return ctx.reply("❌ Access denied.");
-      }
-      await userService.userService.declineWithdrawal(withdrawalId, telegramId);
-      ctx.reply("❌ Withdrawal rejected. Funds returned to user.");
-    } catch (error) {
-      logger.error("Error rejecting withdrawal:", error);
-      ctx.reply("❌ Failed to reject withdrawal. Please try again.");
-    }
-  }
-
-  // Add placeholder methods for other handlers
-  async handleCompanies(ctx) {
-    const buttons = [
-      [
-        Markup.button.callback("➕ Register Company", "register_company"),
-        Markup.button.callback("🏢 My Companies", "my_companies"),
-      ],
-      [Markup.button.callback("🔙 Back to Menu", "main_menu")],
-    ];
-
-    ctx.editMessageText("🏢 *Company Management*\n\nChoose an option:", {
-      parse_mode: "Markdown",
-      ...Markup.inlineKeyboard(buttons),
-    });
-  }
-
-  async handleOrders(ctx) {
-    const buttons = [
-      [Markup.button.callback("📦 My Orders", "my_orders")],
-      [Markup.button.callback("🔙 Back to Menu", "main_menu")],
-    ];
-
-    ctx.editMessageText("📦 *Order Management*\n\nChoose an option:", {
-      parse_mode: "Markdown",
-      ...Markup.inlineKeyboard(buttons),
-    });
-  }
-
-  async handleWithdraw(ctx) {
-    const buttons = [
-      [
-        Markup.button.callback("💸 Request Withdrawal", "request_withdrawal"),
-        Markup.button.callback("📋 History", "withdrawal_history"),
-      ],
-      [Markup.button.callback("🔙 Back to Menu", "main_menu")],
-    ];
-
-    ctx.editMessageText("💸 *Withdrawal Management*\n\nChoose an option:", {
-      parse_mode: "Markdown",
-      ...Markup.inlineKeyboard(buttons),
-    });
-  }
-
-  // Placeholder methods for other handlers
-  async handleRegisterCompany(ctx) {
-    console.log("[DEBUG] handleRegisterCompany called");
-    return userHandlers.handleRegisterCompany(ctx);
-  }
-
-  async handleMyCompanies(ctx) {
-    ctx.reply("📋 My companies feature coming soon!");
-  }
-
-  async handleCreateOrder(ctx) {
-    ctx.reply("➕ Create order feature coming soon!");
-  }
-
-  async handleMyOrders(ctx) {
-    ctx.reply("📦 My orders feature coming soon!");
-  }
-
-  async handleRequestWithdrawal(ctx) {
-    ctx.reply("💸 Request withdrawal feature coming soon!");
-  }
-
-  async handleWithdrawalHistory(ctx) {
-    ctx.reply("📋 Withdrawal history feature coming soon!");
-  }
-
-  async handleCompanyAction(ctx, callbackData) {
-    if (callbackData.startsWith("company_action_")) {
-      return userHandlers.handleCompanyActionMenu(ctx);
-    }
-  }
-
-  async handleOrderAction(ctx, callbackData) {
-    ctx.reply("📦 Order action feature coming soon!");
-  }
-
-  async handleText(ctx) {
-    if (ctx.session && ctx.session.awaitingPlatformFee) {
-      return adminHandlers.handlePlatformFeeInput(ctx);
-    }
-    if (ctx.session && ctx.session.sellStep) {
-      return userHandlers.handleSellProductStep(ctx);
-    }
-    // fallback: do nothing or pass to other handlers
-  }
-
-  setupHandlers(bot) {
-    bot.on("callback_query", (ctx) => this.handleCallback(ctx));
-    // bot.on("text", (ctx) => this.handleText(ctx)); // Removed to avoid handler conflict
-    logger.info("Callback handlers setup completed");
   }
 }
 
 module.exports = new CallbackHandlers();
-console.log("Exiting handlers/callbackHandlers.js");
