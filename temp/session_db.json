@@ -1,15 +1,6 @@
 {
   "sessions": [
     {
-      "id": "5186537254:5186537254",
-      "data": {
-        "adminRemoveCompanyStep": "search",
-        "searchType": "user",
-        "waitingForSearch": true,
-        "state": null
-      }
-    },
-    {
       "id": "1311279699:1311279699",
       "data": {
         "sellProductId": null,
@@ -17,6 +8,15 @@
         "sellBuyerId": null,
         "buyerUsername": "omafesrun2",
         "sellQuantity": null
+      }
+    },
+    {
+      "id": "5186537254:5186537254",
+      "data": {
+        "pendingWithdrawal": {
+          "companyId": "a55bfc77-3145-41c5-9d6c-da92cbd0a9a1",
+          "amount": 40
+        }
       }
     }
   ]

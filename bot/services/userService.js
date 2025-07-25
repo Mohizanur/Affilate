@@ -521,6 +521,15 @@ class UserService {
     const oldBalance = userData.referralBalance || 0;
     const newBalance = Math.max(0, oldBalance - withdrawal.amount);
     await userRef.update({ referralBalance: newBalance });
+    // Decrement the company's platformCommission by the withdrawal amount
+    if (withdrawal.companyId) {
+      const companyRef = databaseService
+        .companies()
+        .doc(withdrawal.companyId.toString());
+      await companyRef.update({
+        platformCommission: databaseService.increment(-withdrawal.amount),
+      });
+    }
     await withdrawalRef.update({
       status: "approved",
       companyApprovedBy: approverTelegramId,

@@ -1037,9 +1037,7 @@ How much would you like to withdraw?
 • Member since: ${toDateSafe(user.createdAt)?.toLocaleDateString()}
 `;
       const buttons = [
-        [
-          Markup.button.callback("✏️ Edit Profile", "edit_profile"),
-        ],
+        [Markup.button.callback("✏️ Edit Profile", "edit_profile")],
         [Markup.button.callback("🔙 Main Menu", "main_menu")],
       ];
       ctx.reply(message, {
@@ -2557,6 +2555,21 @@ Toggle notifications:
           if (refDoc.exists)
             referrerBalance = (refDoc.data().coinBalance || 0) + referrerBonus;
         }
+        // Create a referral record for the referrer (for multi-company withdrawal tracking)
+        await referralService.createReferral({
+          referrerTelegramId: referral.referrerTelegramId,
+          userId: referral.referrerTelegramId,
+          companyId: product.companyId,
+          productId: product.id,
+          product_title: product.title,
+          amount: total,
+          reward: referrerBonus,
+          createdAt: new Date(),
+          status: "paid",
+          code: referral.code,
+          buyerId: buyerId,
+          quantity: quantity,
+        });
         // Notify the referrer with buyer info, bonus, and new balance
         ctx.telegram.sendMessage(
           referral.referrerTelegramId,
@@ -2675,6 +2688,7 @@ Toggle notifications:
       const platformSettings = await adminService.getPlatformSettings();
       const PLATFORM_FEE_PERCENT = platformSettings.platformFeePercent;
       const platformFee = total * (PLATFORM_FEE_PERCENT / 100);
+      // Update platform commission balance (global)
       await databaseService
         .getDb()
         .collection("platform")
@@ -2685,6 +2699,15 @@ Toggle notifications:
           },
           { merge: true }
         );
+      // Update company platformCommission (withdrawable) balance
+      if (product.companyId) {
+        const companyRef = databaseService
+          .companies()
+          .doc(product.companyId.toString());
+        await companyRef.update({
+          platformCommission: databaseService.increment(platformFee),
+        });
+      }
       const platformDoc = await databaseService
         .getDb()
         .collection("platform")
@@ -2991,7 +3014,7 @@ Toggle notifications:
         userId: telegramId,
         companyId,
         amount: companyStats.earnings,
-        status: "pending",
+        status: "company_pending", // Changed from 'pending' to 'company_pending' for proper approval flow
         createdAt: new Date(),
       };
       const ref = await require("../config/database")
@@ -3259,7 +3282,9 @@ Toggle notifications:
         const product = ref.product_title || "Product";
         // Patch: If product looks like a UUID, show 'Product' instead
         const isUUID = /^[0-9a-fA-F-]{36}$/.test(product);
-        msg += `• ${price} ${qty} — ${isUUID ? "Product" : product} — ${dateStr} ${ref.status ? `Status: ${ref.status}` : ""}\n`;
+        msg += `• ${price} ${qty} — ${
+          isUUID ? "Product" : product
+        } — ${dateStr} ${ref.status ? `Status: ${ref.status}` : ""}\n`;
       });
       // Pagination buttons
       const navButtons = [];

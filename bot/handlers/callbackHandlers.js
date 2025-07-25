@@ -39,6 +39,13 @@ class CallbackHandlers {
         "| char codes:",
         Array.from(callbackData).map((c) => c.charCodeAt(0))
       );
+      // Pagination for platform analytics dashboard (must be before switch/case)
+      if (callbackData.startsWith("platform_analytics_dashboard_")) {
+        const page =
+          parseInt(callbackData.replace("platform_analytics_dashboard_", "")) ||
+          1;
+        return adminHandlers.handlePlatformAnalyticsDashboard(ctx, page);
+      }
       // Route to appropriate handler based on callback data
       console.log("CHECKING company_approve_withdrawal_");
       if (callbackData.startsWith("company_approve_withdrawal_")) {
@@ -142,7 +149,7 @@ class CallbackHandlers {
           return adminHandlers.handleAdminListUsers(ctx);
         case "platform_analytics_dashboard":
           return adminHandlers.handlePlatformAnalyticsDashboard(ctx);
-          // Pagination for platform analytics dashboard
+          // Pagination for platform analytics dashboard (move outside switch)
           if (callbackData.startsWith("platform_analytics_dashboard_")) {
             const page =
               parseInt(

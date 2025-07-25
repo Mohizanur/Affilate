@@ -250,6 +250,7 @@ Purchase Amount: $${amount.toFixed(2)}
       }
       const withdrawalId = await userService.requestWithdrawal(
         ctx.from.id,
+        ctx.session.withdrawalCompanyId, // companyId
         amount,
         ctx.session.withdrawalMethod,
         ctx.session.withdrawalDetails

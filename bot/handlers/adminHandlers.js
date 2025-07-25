@@ -52,7 +52,7 @@ class AdminHandlers {
       const companies = await adminService.getCompanySalesAndCommission();
       const company = companies.find((c) => c.id === companyId);
       if (!company) return ctx.reply("❌ Company not found.");
-      const amount = company.platformCommission;
+      const amount = company.platformCommissionCurrent ?? 0;
       const sales = company.totalSales;
       ctx.session.pendingWithdrawal = { companyId, amount };
       const message = `⚠️ *Request Withdrawal*\n\nCompany: ${
@@ -91,7 +91,7 @@ class AdminHandlers {
       const company = companies.find((c) => c.id === companyId);
       console.log("Selected company:", company, "for companyId:", companyId);
       if (!company) return ctx.reply("❌ Company not found.");
-      const amount = company.platformCommission;
+      const amount = company.platformCommissionCurrent ?? 0;
       // Create withdrawal record
       const db = require("../config/database");
       const withdrawal = {
@@ -967,7 +967,9 @@ class AdminHandlers {
       companies.slice(start, end).forEach((c, idx) => {
         try {
           if (!c || typeof c !== "object") {
-            companyStatsMsg += `• [Company ${start + idx + 1}] (data missing)\n`;
+            companyStatsMsg += `• [Company ${
+              start + idx + 1
+            }] (data missing)\n`;
             return;
           }
           const name = c.name || "Unknown";
@@ -983,7 +985,9 @@ class AdminHandlers {
             2
           )} lifetime, ${sales} sales, $${revenue.toFixed(2)} total)\n`;
         } catch (err) {
-          companyStatsMsg += `• [Company ${start + idx + 1}] (formatting error)\n`;
+          companyStatsMsg += `• [Company ${
+            start + idx + 1
+          }] (formatting error)\n`;
         }
       });
       message += `\nCompany Sales & Platform Commission:\n${companyStatsMsg}`;
