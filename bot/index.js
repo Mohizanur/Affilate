@@ -167,7 +167,8 @@ async function startBot(app) {
     // Webhook setup for production
     const isProduction =
       process.env.NODE_ENV === "production" || process.env.RENDER;
-    const isLocalDevelopment = !isProduction && process.env.NODE_ENV !== "production";
+    const isLocalDevelopment =
+      !isProduction && process.env.NODE_ENV !== "production";
     const webhookPath = `/webhook/${token}`;
 
     if (isProduction) {
@@ -176,8 +177,16 @@ async function startBot(app) {
       // Delete any existing webhook
       await bot.telegram.deleteWebhook();
 
-      // Set up webhook endpoint
-      app.use(webhookPath, bot.webhookCallback());
+      // Set up webhook endpoint with debugging
+      app.use(
+        webhookPath,
+        (req, res, next) => {
+          console.log("🔔 Webhook request received:", req.method, req.url);
+          console.log("📦 Request body:", JSON.stringify(req.body, null, 2));
+          next();
+        },
+        bot.webhookCallback()
+      );
 
       // Set webhook URL (will be set after server starts)
       const webhookUrl = `${
@@ -195,19 +204,37 @@ async function startBot(app) {
           console.error("❌ Failed to set webhook:", error);
         }
       }, 2000);
-    } else if (isLocalDevelopment && process.env.ENABLE_LOCAL_POLLING === "true") {
+    } else if (
+      isLocalDevelopment &&
+      process.env.ENABLE_LOCAL_POLLING === "true"
+    ) {
       console.log("🔄 Using long polling for local development...");
       await bot.telegram.deleteWebhook();
       await bot.launch();
       isBotLaunched = true;
     } else {
       console.log("🌐 Using webhook mode (local development with webhook)...");
-      
+
       // Delete any existing webhook
       await bot.telegram.deleteWebhook();
 
-      // Set up webhook endpoint
-      app.use(webhookPath, bot.webhookCallback());
+      // Set up webhook endpoint with debugging
+      app.use(
+        webhookPath,
+        (req, res, next) => {
+          console.log(
+            "🔔 Local webhook request received:",
+            req.method,
+            req.url
+          );
+          console.log(
+            "📦 Local request body:",
+            JSON.stringify(req.body, null, 2)
+          );
+          next();
+        },
+        bot.webhookCallback()
+      );
 
       // For local development, we'll just set up the webhook endpoint
       // but won't set the webhook URL since we're running locally
