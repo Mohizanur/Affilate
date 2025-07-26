@@ -88,6 +88,13 @@ class CallbackHandlers {
         return adminHandlers.handleUpdateSetting(ctx);
       }
       switch (callbackData) {
+        // Language handlers
+        case "language_en":
+          return this.handleLanguageChange(ctx, "en");
+        case "language_am":
+          return this.handleLanguageChange(ctx, "am");
+        case "language":
+          return this.handleLanguageMenu(ctx);
         // Main menu handlers
         case "main_menu":
           return this.handleMainMenu(ctx);
@@ -601,6 +608,67 @@ class CallbackHandlers {
     } catch (error) {
       logger.error("Error in callback handler:", error);
       ctx.reply("❌ Something went wrong. Please try again.");
+    }
+  }
+
+  async handleLanguageChange(ctx, language) {
+    try {
+      const telegramId = ctx.from.id;
+      await userService.userService.updateUserLanguage(telegramId, language);
+
+      const successMessage =
+        language === "am"
+          ? "✅ ቋንቋዎ በተሳካኝ ሁኔታ ተለውጧል! አሁን አማርኛ ይጠቀማሉ።"
+          : "✅ Your language has been updated successfully! You are now using English.";
+
+      await ctx.reply(successMessage);
+
+      // Return to main menu
+      return this.handleMainMenu(ctx);
+    } catch (error) {
+      logger.error("Error in language change handler:", error);
+      const errorMessage =
+        language === "am"
+          ? "❌ ቋንቋ ለመለወጥ ስህተት ተከስቷል። እባክዎ እንደገና ይሞክሩ።"
+          : "❌ Error changing language. Please try again.";
+      await ctx.reply(errorMessage);
+    }
+  }
+
+  async handleLanguageMenu(ctx) {
+    try {
+      const telegramId = ctx.from.id;
+      const currentLanguage = await userService.userService.getUserLanguage(
+        telegramId
+      );
+
+      // Create language selection keyboard
+      const keyboard = Markup.inlineKeyboard([
+        [
+          Markup.button.callback(
+            currentLanguage === "en" ? "🇺🇸 English ✓" : "🇺🇸 English",
+            "language_en"
+          ),
+          Markup.button.callback(
+            currentLanguage === "am" ? "🇪🇹 አማርኛ ✓" : "🇪🇹 አማርኛ",
+            "language_am"
+          ),
+        ],
+        [Markup.button.callback("🔙 Back to Menu", "main_menu")],
+      ]);
+
+      const message =
+        currentLanguage === "am"
+          ? "🌐 *የቋንቋ ምርጫ*\n\nእባክዎ የሚፈልጉትን ቋንቋ ይምረጡ:"
+          : "🌐 *Language Selection*\n\nPlease choose your preferred language:";
+
+      await ctx.reply(message, {
+        parse_mode: "Markdown",
+        ...keyboard,
+      });
+    } catch (error) {
+      logger.error("Error in language menu handler:", error);
+      await ctx.reply("❌ Error loading language menu. Please try again.");
     }
   }
 

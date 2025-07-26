@@ -121,19 +121,14 @@ class UserHandlers {
       const isVerified = user.phoneVerified;
       const isAdmin = user.role === "admin" || user.isAdmin === true;
       const isCompany = user.isCompanyOwner === true || user.companyId;
-      const welcomeMessage = `
-🎉 Welcome to ReferralBot!
 
-1. Buy from any company and get a referral code
-2. Share your code (single-use, per company)
-3. When someone uses your code and buys, you get 2% reward, they get 1% discount
-4. Company must approve the purchase for rewards to be paid
-5. All rewards, discounts, and balances are automatic and visible in your profile
-6. Platform takes 5% fee, companies pay monthly
-7. Use /help for full details
+      // Get user's language preference
+      const userLanguage = user.language || "en";
 
-Let's get started! 👇
-      `;
+      const welcomeMessage =
+        t("welcome", {}, userLanguage) +
+        "\n\n" +
+        t("start_instructions", {}, userLanguage);
 
       let buttons = [];
       if (user.canRegisterCompany) {
@@ -178,8 +173,8 @@ Let's get started! 👇
         Markup.button.callback("👤 Profile", "user_profile"),
         Markup.button.callback("ℹ️ Help", "help"),
       ];
-      // Add Community button (URL button)
       const mainRow5 = [
+        Markup.button.callback("🌐 Language", "language"),
         Markup.button.url("🌐 Community", "https://t.me/birrpayofficial"),
       ];
       buttons.push(mainRow1, mainRow2, mainRow3, mainRow4, mainRow5);

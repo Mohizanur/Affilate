@@ -93,6 +93,7 @@ class UserService {
       await userRef.set({
         ...userData,
         username: username ? username.toLowerCase() : undefined,
+        language: "en", // Default language
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -614,6 +615,31 @@ class UserService {
     } catch (error) {
       logger.error("Error updating user:", error);
       throw error;
+    }
+  }
+
+  async updateUserLanguage(telegramId, language) {
+    try {
+      const userRef = databaseService.users().doc(telegramId.toString());
+      await userRef.update({
+        language: language,
+        updatedAt: new Date(),
+      });
+      logger.info(`User language updated: ${telegramId} to ${language}`);
+      return true;
+    } catch (error) {
+      logger.error("Error updating user language:", error);
+      throw error;
+    }
+  }
+
+  async getUserLanguage(telegramId) {
+    try {
+      const user = await this.getUserByTelegramId(telegramId);
+      return user.language || "en";
+    } catch (error) {
+      logger.error("Error getting user language:", error);
+      return "en"; // Default to English
     }
   }
 
