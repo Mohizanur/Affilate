@@ -167,6 +167,7 @@ async function startBot(app) {
     // Webhook setup for production
     const isProduction =
       process.env.NODE_ENV === "production" || process.env.RENDER;
+    const isLocalDevelopment = !isProduction && process.env.NODE_ENV !== "production";
     const webhookPath = `/webhook/${token}`;
 
     if (isProduction) {
@@ -194,11 +195,23 @@ async function startBot(app) {
           console.error("❌ Failed to set webhook:", error);
         }
       }, 2000);
-    } else {
-      console.log("🔄 Using long polling for development...");
+    } else if (isLocalDevelopment && process.env.ENABLE_LOCAL_POLLING === "true") {
+      console.log("🔄 Using long polling for local development...");
       await bot.telegram.deleteWebhook();
       await bot.launch();
       isBotLaunched = true;
+    } else {
+      console.log("🌐 Using webhook mode (local development with webhook)...");
+      
+      // Delete any existing webhook
+      await bot.telegram.deleteWebhook();
+
+      // Set up webhook endpoint
+      app.use(webhookPath, bot.webhookCallback());
+
+      // For local development, we'll just set up the webhook endpoint
+      // but won't set the webhook URL since we're running locally
+      console.log("✅ Webhook endpoint configured for local development");
     }
 
     console.log("🚀 Bot initialization complete");
