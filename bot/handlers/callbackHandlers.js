@@ -60,6 +60,33 @@ class CallbackHandlers {
         );
         return adminHandlers.handleCompanyApproveWithdrawal(ctx, withdrawalId);
       }
+      // Add to Favorites and Add to Cart handlers
+      if (callbackData.startsWith("add_favorite_")) {
+        const productId = callbackData.replace("add_favorite_", "");
+        return userHandlers.handleAddFavorite(ctx, productId);
+      }
+      if (callbackData.startsWith("add_cart_")) {
+        const productId = callbackData.replace("add_cart_", "");
+        return userHandlers.handleAddCart(ctx, productId);
+      }
+      // Remove from Favorites and Cart handlers
+      if (callbackData.startsWith("remove_favorite_")) {
+        const productId = callbackData.replace("remove_favorite_", "");
+        return userHandlers.handleRemoveFavorite(ctx, productId);
+      }
+      if (callbackData.startsWith("remove_cart_")) {
+        const productId = callbackData.replace("remove_cart_", "");
+        return userHandlers.handleRemoveCart(ctx, productId);
+      }
+      // At the top of handleCallback or before the switch/case
+      if (
+        ctx.session &&
+        ctx.session.editSetting &&
+        ctx.message &&
+        ctx.message.text
+      ) {
+        return adminHandlers.handleUpdateSetting(ctx);
+      }
       switch (callbackData) {
         // Main menu handlers
         case "main_menu":
@@ -169,6 +196,12 @@ class CallbackHandlers {
           return adminHandlers.handlePromotedUsers(ctx);
         case "set_platform_fee":
           return adminHandlers.handleSetPlatformFee(ctx);
+        case "edit_platform_fee":
+          return adminHandlers.handleEditPlatformFee(ctx);
+        case "edit_referral_bonus":
+          return adminHandlers.handleEditReferralBonus(ctx);
+        case "edit_buyer_bonus":
+          return adminHandlers.handleEditBuyerBonus(ctx);
         // Company handlers
         case "register_company":
           return userHandlers.handleRegisterCompany(ctx);
@@ -185,9 +218,9 @@ class CallbackHandlers {
         case "user_profile":
           return userHandlers.handleUserProfile(ctx);
         case "view_favorites":
-          return userHandlers.handleViewFavorites(ctx);
+          return userHandlers.handleFavorites(ctx);
         case "view_cart":
-          return userHandlers.handleViewCart(ctx);
+          return userHandlers.handleCart(ctx);
         case "help":
           return userHandlers.handleHelp(ctx);
         case "company_dashboard":
@@ -284,10 +317,10 @@ class CallbackHandlers {
             );
           }
           if (callbackData.startsWith("view_favorites")) {
-            return userHandlers.handleViewFavorites(ctx);
+            return userHandlers.handleFavorites(ctx);
           }
           if (callbackData === "view_cart") {
-            return userHandlers.handleViewCart(ctx);
+            return userHandlers.handleCart(ctx);
           }
           if (callbackData.startsWith("sell_product_")) {
             const productId = callbackData.replace("sell_product_", "");
@@ -543,6 +576,17 @@ class CallbackHandlers {
               parseInt(callbackData.replace("my_referral_codes_page_", "")) ||
               1;
             return userHandlers.handleMyReferralCodes(ctx, page);
+          }
+
+          if (callbackData.startsWith("favorites_page_")) {
+            const page =
+              parseInt(callbackData.replace("favorites_page_", ""), 10) || 1;
+            return userHandlers.handleFavorites(ctx, page);
+          }
+          if (callbackData.startsWith("cart_page_")) {
+            const page =
+              parseInt(callbackData.replace("cart_page_", ""), 10) || 1;
+            return userHandlers.handleCart(ctx, page);
           }
 
           ctx.reply("❌ Unknown action. Please try again.");

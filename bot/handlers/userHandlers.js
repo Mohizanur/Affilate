@@ -15,6 +15,7 @@ const {
   getNotificationServiceInstance,
 } = require("../services/notificationService");
 const { t } = require("../../utils/localize");
+const { getPlatformSettings } = require("../utils/helpers");
 
 const rateLimitMap = {};
 function isRateLimited(userId, action) {
@@ -177,7 +178,11 @@ Let's get started! 👇
         Markup.button.callback("👤 Profile", "user_profile"),
         Markup.button.callback("ℹ️ Help", "help"),
       ];
-      buttons.push(mainRow1, mainRow2, mainRow3, mainRow4);
+      // Add Community button (URL button)
+      const mainRow5 = [
+        Markup.button.url("🌐 Community", "https://t.me/birrpayofficial"),
+      ];
+      buttons.push(mainRow1, mainRow2, mainRow3, mainRow4, mainRow5);
       if (isAdmin) {
         buttons.push([Markup.button.callback("🔧 Admin Panel", "admin_panel")]);
       }
@@ -357,6 +362,14 @@ To purchase this item, please contact the company owner directly. You can provid
         buttons.push([
           Markup.button.callback("✏️ Edit", `edit_product_field_${product.id}`),
           Markup.button.callback("🗑️ Delete", `delete_product_${product.id}`),
+        ]);
+      } else {
+        buttons.push([
+          Markup.button.callback(
+            "⭐ Add to Favorites",
+            `add_favorite_${product.id}`
+          ),
+          Markup.button.callback("🛒 Add to Cart", `add_cart_${product.id}`),
         ]);
       }
       buttons.push([Markup.button.callback("🔙 Back to Menu", "main_menu")]);
@@ -1945,7 +1958,12 @@ Toggle notifications:
     const telegramId = ctx.from.id;
     const productId = ctx.callbackQuery.data.split("_")[2];
     await userService.userService.addFavorite(telegramId, productId);
-    ctx.reply("Favorite updated!");
+    if (ctx.callbackQuery) {
+      await ctx.answerCbQuery("Added to favorites.");
+      ctx.reply("⭐ Product added to your favorites!");
+    } else {
+      ctx.reply("Added to favorites.");
+    }
     ctx.reply("⭐ Product favorite status updated.");
   }
 
@@ -1953,7 +1971,12 @@ Toggle notifications:
     const telegramId = ctx.from.id;
     const productId = ctx.callbackQuery.data.split("_")[2];
     await userService.userService.addToCart(telegramId, productId);
-    ctx.reply("Added to cart!");
+    if (ctx.callbackQuery) {
+      await ctx.answerCbQuery("Added to cart.");
+      ctx.reply("🛒 Product added to your cart!");
+    } else {
+      ctx.reply("Added to cart.");
+    }
     ctx.reply("🛒 Product added to your cart.");
   }
 
@@ -2003,63 +2026,198 @@ Toggle notifications:
     ctx.reply(msg, { parse_mode: "Markdown" });
   }
 
-  async handleFavorites(ctx) {
+  async handleFavorites(ctx, pageArg) {
     const userService = require("../services/userService");
     const productService = require("../services/productService");
+    const { Markup } = require("telegraf");
+    const ITEMS_PER_PAGE = 5;
+    let page = 1;
+    if (typeof pageArg === "number") page = pageArg;
+    else if (
+      ctx.callbackQuery &&
+      ctx.callbackQuery.data.startsWith("favorites_page_")
+    ) {
+      page =
+        parseInt(ctx.callbackQuery.data.replace("favorites_page_", ""), 10) ||
+        1;
+    }
     const favorites = await userService.userService.getFavorites(ctx.from.id);
     if (!favorites.length)
       return ctx.reply("⭐ You have no favorite products.");
-    let msg = "⭐ Your Favorites:\n";
+
+    // Filter valid product IDs
+    const validFavorites = [];
     for (const pid of favorites) {
+      if (typeof pid !== "string" || pid.length < 10) continue;
       const product = await productService.getProductById(pid);
-      if (product) msg += `- ${product.title} ($${product.price})\n`;
+      if (product && product.title && product.price !== undefined) {
+        validFavorites.push({ pid, product });
+      }
     }
-    ctx.reply(msg);
+    if (!validFavorites.length) {
+      return ctx.reply("⭐ You have no valid favorite products.");
+    }
+    const totalPages = Math.ceil(validFavorites.length / ITEMS_PER_PAGE);
+    if (page < 1) page = 1;
+    if (page > totalPages) page = totalPages;
+    const startIdx = (page - 1) * ITEMS_PER_PAGE;
+    const endIdx = startIdx + ITEMS_PER_PAGE;
+    const pageFavorites = validFavorites.slice(startIdx, endIdx);
+
+    let msg = `⭐ *Your Favorite Products* (Page ${page}/${totalPages})\n\n`;
+    const buttons = [];
+    pageFavorites.forEach(({ pid, product }, idx) => {
+      msg += `${startIdx + idx + 1}. ${product.title} ($${product.price})\n`;
+      buttons.push([
+        Markup.button.callback(
+          `❌ Remove ${product.title}`,
+          `remove_favorite_${pid}`
+        ),
+      ]);
+    });
+    // Pagination buttons
+    const navButtons = [];
+    if (page > 1)
+      navButtons.push(
+        Markup.button.callback("⬅️ Prev", `favorites_page_${page - 1}`)
+      );
+    if (page < totalPages)
+      navButtons.push(
+        Markup.button.callback("Next ➡️", `favorites_page_${page + 1}`)
+      );
+    if (navButtons.length) buttons.push(navButtons);
+    buttons.push([Markup.button.callback("🔙 Back to Menu", "main_menu")]);
+    ctx.reply(msg, {
+      parse_mode: "Markdown",
+      ...Markup.inlineKeyboard(buttons),
+    });
   }
 
-  async handleAddFavorite(ctx) {
+  async handleAddFavorite(ctx, productId) {
     const userService = require("../services/userService");
-    const productId = ctx.message.text.split(" ")[1];
-    if (!productId) return ctx.reply("Usage: /addfavorite <productId>");
+    if (!productId) return ctx.reply("No product specified.");
     await userService.userService.addFavorite(ctx.from.id, productId);
-    ctx.reply("Added to favorites.");
+    if (ctx.callbackQuery) {
+      await ctx.answerCbQuery("⭐ Added to favorites!");
+      await ctx.reply("⭐ Product added to your favorites!");
+    } else {
+      ctx.reply("⭐ Product added to your favorites!");
+    }
   }
 
-  async handleRemoveFavorite(ctx) {
+  async handleRemoveFavorite(ctx, productId) {
     const userService = require("../services/userService");
-    const productId = ctx.message.text.split(" ")[1];
+    if (!productId) {
+      if (ctx.callbackQuery) {
+        productId = ctx.callbackQuery.data.replace("remove_favorite_", "");
+      } else {
+        productId = ctx.message.text.split(" ")[1];
+      }
+    }
     if (!productId) return ctx.reply("Usage: /removefavorite <productId>");
     await userService.userService.removeFavorite(ctx.from.id, productId);
-    ctx.reply("Removed from favorites.");
+    if (ctx.callbackQuery) {
+      await ctx.answerCbQuery("❌ Removed from favorites!");
+      await ctx.reply("❌ Product removed from your favorites!");
+    } else {
+      ctx.reply("❌ Product removed from your favorites!");
+    }
   }
 
-  async handleCart(ctx) {
+  async handleCart(ctx, pageArg) {
     const userService = require("../services/userService");
     const productService = require("../services/productService");
+    const { Markup } = require("telegraf");
+    const ITEMS_PER_PAGE = 5;
+    let page = 1;
+    if (typeof pageArg === "number") page = pageArg;
+    else if (
+      ctx.callbackQuery &&
+      ctx.callbackQuery.data.startsWith("cart_page_")
+    ) {
+      page =
+        parseInt(ctx.callbackQuery.data.replace("cart_page_", ""), 10) || 1;
+    }
     const cart = await userService.userService.getCart(ctx.from.id);
     if (!cart.length) return ctx.reply("🛒 Your cart is empty.");
-    let msg = "🛒 Your Cart:\n";
+    // Filter valid product IDs
+    const validCart = [];
     for (const pid of cart) {
+      if (typeof pid !== "string" || pid === "cart" || pid.length < 10)
+        continue;
       const product = await productService.getProductById(pid);
-      if (product) msg += `- ${product.title} ($${product.price})\n`;
+      if (product && product.title && product.price !== undefined) {
+        validCart.push({ pid, product });
+      }
     }
-    ctx.reply(msg);
+    if (!validCart.length) {
+      return ctx.reply("🛒 You have no valid products in your cart.");
+    }
+    const totalPages = Math.ceil(validCart.length / ITEMS_PER_PAGE);
+    if (page < 1) page = 1;
+    if (page > totalPages) page = totalPages;
+    const startIdx = (page - 1) * ITEMS_PER_PAGE;
+    const endIdx = startIdx + ITEMS_PER_PAGE;
+    const pageCart = validCart.slice(startIdx, endIdx);
+
+    let msg = `🛒 *Your Cart* (Page ${page}/${totalPages})\n\n`;
+    const buttons = [];
+    pageCart.forEach(({ pid, product }, idx) => {
+      msg += `${startIdx + idx + 1}. ${product.title} ($${product.price})\n`;
+      buttons.push([
+        Markup.button.callback(
+          `❌ Remove ${product.title}`,
+          `remove_cart_${pid}`
+        ),
+      ]);
+    });
+    // Pagination buttons
+    const navButtons = [];
+    if (page > 1)
+      navButtons.push(
+        Markup.button.callback("⬅️ Prev", `cart_page_${page - 1}`)
+      );
+    if (page < totalPages)
+      navButtons.push(
+        Markup.button.callback("Next ➡️", `cart_page_${page + 1}`)
+      );
+    if (navButtons.length) buttons.push(navButtons);
+    buttons.push([Markup.button.callback("🔙 Back to Menu", "main_menu")]);
+    ctx.reply(msg, {
+      parse_mode: "Markdown",
+      ...Markup.inlineKeyboard(buttons),
+    });
   }
 
-  async handleAddCart(ctx) {
+  async handleAddCart(ctx, productId) {
     const userService = require("../services/userService");
-    const productId = ctx.message.text.split(" ")[1];
-    if (!productId) return ctx.reply("Usage: /addcart <productId>");
+    if (!productId) return ctx.reply("No product specified.");
     await userService.userService.addToCart(ctx.from.id, productId);
-    ctx.reply("Added to cart.");
+    if (ctx.callbackQuery) {
+      await ctx.answerCbQuery("🛒 Added to cart!");
+      await ctx.reply("🛒 Product added to your cart!");
+    } else {
+      ctx.reply("🛒 Product added to your cart!");
+    }
   }
 
-  async handleRemoveCart(ctx) {
+  async handleRemoveCart(ctx, productId) {
     const userService = require("../services/userService");
-    const productId = ctx.message.text.split(" ")[1];
+    if (!productId) {
+      if (ctx.callbackQuery) {
+        productId = ctx.callbackQuery.data.replace("remove_cart_", "");
+      } else {
+        productId = ctx.message.text.split(" ")[1];
+      }
+    }
     if (!productId) return ctx.reply("Usage: /removecart <productId>");
     await userService.userService.removeFromCart(ctx.from.id, productId);
-    ctx.reply("Removed from cart.");
+    if (ctx.callbackQuery) {
+      await ctx.answerCbQuery("❌ Removed from cart!");
+      await ctx.reply("❌ Product removed from your cart!");
+    } else {
+      ctx.reply("❌ Product removed from your cart!");
+    }
   }
 
   async handleShowAgreement(ctx) {
@@ -2483,6 +2641,11 @@ Toggle notifications:
         quantity: product.quantity - quantity,
       });
       let total = product.price * quantity;
+      // Fetch dynamic platform settings
+      const settings = await getPlatformSettings();
+      const PLATFORM_FEE_PERCENT = settings.platformFeePercent;
+      const REFERRAL_BONUS_PERCENT = settings.referralBonusPercent;
+      const BUYER_BONUS_PERCENT = settings.buyerBonusPercent;
       let referrerBonus = 0,
         buyerBonus = 0,
         newCode = null;
@@ -2529,8 +2692,8 @@ Toggle notifications:
         referral.referrerTelegramId !== null &&
         referral.referrerTelegramId !== undefined
       ) {
-        referrerBonus = total * 0.02;
-        buyerBonus = total * 0.01;
+        referrerBonus = total * (REFERRAL_BONUS_PERCENT / 100);
+        buyerBonus = total * (BUYER_BONUS_PERCENT / 100);
         await referralService.addReferralEarnings(
           referral.referrerTelegramId,
           referrerBonus
@@ -2573,13 +2736,13 @@ Toggle notifications:
         // Notify the referrer with buyer info, bonus, and new balance
         ctx.telegram.sendMessage(
           referral.referrerTelegramId,
-          `🎉 Your referral code was used by @${
+          `🎉 Your referral code was used by @$${
             buyerUsername || buyerId
-          }!\nYou earned a 2% reward: $${referrerBonus.toFixed(
+          }!\nYou earned a ${REFERRAL_BONUS_PERCENT}% reward: $${referrerBonus.toFixed(
             2
           )}.\nYour new balance: $${referrerBalance.toFixed(2)}.`
         );
-        buyerMsg += `• Referral code used: ${referral.code} (by @${
+        buyerMsg += `• Referral code used: ${referral.code} (by @$${
           referrerUsername || referral.referrerTelegramId
         })\n`;
         buyerMsg += `• You received a $${buyerBonus.toFixed(
@@ -2633,124 +2796,21 @@ Toggle notifications:
           );
         }
       }
-      // Compose a business-like sale receipt for the seller
-      const saleDate =
-        new Date().toISOString().replace("T", " ").substring(0, 16) + " UTC";
-      let sellerReceipt = `🧾 Sale Receipt\n\n`;
-      sellerReceipt += `• Product: ${product.title}\n`;
-      sellerReceipt += `• Quantity: ${quantity}\n`;
-      sellerReceipt += `• Total: $${total.toFixed(2)}\n`;
-      sellerReceipt += `• Buyer: @${buyerUsername || buyerId}\n`;
-      if (
-        referral &&
-        referral.referrerTelegramId &&
-        referral.referrerTelegramId !== buyerId
-      ) {
-        sellerReceipt += `• Referral code used: ${referral.code} (by @${
-          referrerUsername || referral.referrerTelegramId
-        })\n`;
-        sellerReceipt += `• Buyer bonus: $${buyerBonus.toFixed(2)}\n`;
-        sellerReceipt += `• Referrer bonus: $${referrerBonus.toFixed(2)}\n`;
-      } else {
-        sellerReceipt += `• Referral code used: None\n`;
-      }
-      sellerReceipt += `• Date: ${saleDate}`;
-      ctx.telegram.sendMessage(ctx.from.id, sellerReceipt);
-      // Fetch buyer and owner usernames/names for admin notification
-      let buyerDisplay = buyerId;
-      let ownerDisplay = product.creatorTelegramId;
-      try {
-        const buyerDoc = await databaseService
-          .users()
-          .doc(buyerId.toString())
-          .get();
-        if (buyerDoc.exists) {
-          const b = buyerDoc.data();
-          buyerDisplay = b.username
-            ? `@${b.username}${b.firstName ? ` (${b.firstName})` : ""}`
-            : b.firstName || buyerId;
-        }
-        const ownerDoc = await databaseService
-          .users()
-          .doc(product.creatorTelegramId.toString())
-          .get();
-        if (ownerDoc.exists) {
-          const o = ownerDoc.data();
-          ownerDisplay = o.username
-            ? `@${o.username}${o.firstName ? ` (${o.firstName})` : ""}`
-            : o.firstName || product.creatorTelegramId;
-        }
-      } catch (e) {
-        /* ignore */
-      }
-      // Calculate platform fee and update platform balance before admin notification
-      const adminService = require("../services/adminService");
-      const platformSettings = await adminService.getPlatformSettings();
-      const PLATFORM_FEE_PERCENT = platformSettings.platformFeePercent;
-      const platformFee = total * (PLATFORM_FEE_PERCENT / 100);
-      // Update platform commission balance (global)
-      await databaseService
-        .getDb()
-        .collection("platform")
-        .doc("commission")
-        .set(
-          {
-            balance: databaseService.increment(platformFee),
-          },
-          { merge: true }
-        );
-      // Update company platformCommission (withdrawable) balance
-      if (product.companyId) {
-        const companyRef = databaseService
-          .companies()
-          .doc(product.companyId.toString());
-        await companyRef.update({
-          platformCommission: databaseService.increment(platformFee),
-        });
-      }
-      // Save sale to sales collection for revenue tracking
-      const saleData = {
-        companyId: product.companyId,
+      // Save sale to sales collection (for analytics)
+      await databaseService.getDb().collection("sales").add({
         productId: product.id,
-        amount: total,
-        quantity: quantity,
-        buyerId: buyerId,
+        companyId: product.companyId,
+        buyerId,
         sellerId: ctx.from.id,
+        quantity,
+        total,
+        referrerBonus,
+        buyerBonus,
         createdAt: new Date(),
-        status: "completed",
-        referralCode: referral ? referral.code : null,
-      };
-      await databaseService.getDb().collection("sales").add(saleData);
-      const platformDoc = await databaseService
-        .getDb()
-        .collection("platform")
-        .doc("commission")
-        .get();
-      const platformBalance = platformDoc.exists
-        ? platformDoc.data().balance
-        : 0;
-      await getNotificationServiceInstance().sendAdminActionNotification(
-        "Product Sold",
-        {
-          product: product.title,
-          quantity,
-          buyer: buyerDisplay,
-          company: product.companyName || product.companyId,
-          owner: ownerDisplay,
-          total: total.toFixed(2),
-          platformFee: platformFee,
-          platformBalance: platformBalance,
-          code:
-            referral && typeof referral.code === "string"
-              ? referral.code
-              : typeof newCode === "string"
-              ? newCode
-              : "",
-        }
-      );
+      });
     } catch (error) {
       logger.error("Error in processSale:", error);
-      ctx.reply("❌ Failed to complete sale.");
+      ctx.reply("❌ Failed to process sale. Please try again.");
     }
   }
 

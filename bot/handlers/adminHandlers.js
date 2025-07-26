@@ -231,15 +231,37 @@ class AdminHandlers {
       page = Number(page) || 1;
       const start = (page - 1) * perPage;
       const end = start + perPage;
-      let msg = `🏢 *All Companies:* (Page ${page}/${totalPages})\n`;
+      let msg = `🏢 *Company Directory*\n`;
+      msg += `📊 *Page ${page} of ${totalPages}*\n`;
+      msg += `📋 *Total Companies: ${companies.length}*\n\n`;
+
       const buttons = [];
-      companies.slice(start, end).forEach((company) => {
-        msg += `• ${company.name} ${company.statusBadge || ""} (${
-          company.id
-        })\n`;
+      companies.slice(start, end).forEach((company, index) => {
+        const ownerUsername =
+          company.ownerUsername || company.owner || "Unknown";
+        const status = company.status || "unknown";
+        const statusEmoji =
+          status === "approved"
+            ? "✅"
+            : status === "pending"
+            ? "⏳"
+            : status === "rejected"
+            ? "❌"
+            : "❓";
+
+        msg += `${index + 1}. ${statusEmoji} *${company.name}*\n`;
+        msg += `   👤 Owner: ${ownerUsername}\n`;
+        msg += `   📧 Email: ${company.email || "N/A"}\n`;
+        msg += `   📞 Phone: ${company.phone || "N/A"}\n`;
+        msg += `   📅 Created: ${
+          toDateSafe(company.createdAt)
+            ? toDateSafe(company.createdAt).toLocaleDateString()
+            : "N/A"
+        }\n\n`;
+
         buttons.push([
           Markup.button.callback(
-            `${company.name} ${company.statusBadge || ""}`,
+            `${statusEmoji} ${company.name}`,
             `admin_company_${company.id}`
           ),
         ]);
@@ -249,15 +271,25 @@ class AdminHandlers {
       if (page > 1)
         navButtons.push(
           Markup.button.callback(
-            "⬅️ Previous",
+            "⬅️ Previous Page",
             `admin_list_companies_${page - 1}`
           )
         );
       if (page < totalPages)
         navButtons.push(
-          Markup.button.callback("➡️ Next", `admin_list_companies_${page + 1}`)
+          Markup.button.callback(
+            "Next Page ➡️",
+            `admin_list_companies_${page + 1}`
+          )
         );
       if (navButtons.length) buttons.push(navButtons);
+
+      // Add action buttons
+      buttons.push([
+        Markup.button.callback("🔍 Search Company", "search_company"),
+        Markup.button.callback("📤 Export Companies", "export_companies"),
+      ]);
+      buttons.push([Markup.button.callback("🔙 Back to Admin", "admin_panel")]);
       ctx.reply(msg, {
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard(buttons),
@@ -892,33 +924,56 @@ class AdminHandlers {
   }
 
   async handleSystemSettings(ctx) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply("❌ Access denied.");
-      const settings = await adminService.getPlatformSettings();
-      let message = `⚙️ *System Settings*\n\n`;
-      message += `• Commission: ${settings.referralCommissionPercent || 0}%\n`;
-      message += `• Discount: ${settings.referralDiscountPercent || 0}%\n`;
-      message += `• Platform Fee: ${settings.platformFeePercent || 0}%\n`;
-      message += `• Min Withdrawal: $${settings.minWithdrawalAmount || 0}\n`;
-      message += `• Max Referral Uses: ${settings.maxReferralUses || 0}\n`;
-      message += `• Referral Expiry: ${
-        settings.referralExpiryDays || 0
-      } days\n`;
-      const buttons = [
-        [Markup.button.callback("Set Platform Fee", "set_platform_fee")],
-        [Markup.button.callback("🔙 Back", "admin_panel")],
-      ];
-      ctx.reply(message, {
-        parse_mode: "Markdown",
-        ...Markup.inlineKeyboard(buttons),
-      });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error in system settings:", error);
-      ctx.reply("❌ Failed to load system settings.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
+    if (!(await this.isAdminAsync(ctx.from.id)))
+      return ctx.reply("❌ Access denied.");
+    const db = require("../config/database");
+    const { Markup } = require("telegraf");
+    const settingsDoc = await db.getDb().collection("settings").doc("platform").get();
+    let settings = settingsDoc.exists ? settingsDoc.data() : {};
+    settings.platformFeePercent = settings.platformFeePercent ?? 1.5;
+    settings.referralBonusPercent = settings.referralBonusPercent ?? 2.5;
+    settings.buyerBonusPercent = settings.buyerBonusPercent ?? 1;
+    let msg = `⚙️ *Platform Settings*\n\n`;
+    msg += `• Platform Fee: *${settings.platformFeePercent}%*\n`;
+    msg += `• Referral Bonus: *${settings.referralBonusPercent}%*\n`;
+    msg += `• Buyer Bonus: *${settings.buyerBonusPercent}%*\n\n`;
+    msg += `You can update any value below:`;
+    const buttons = [
+      [Markup.button.callback("Edit Platform Fee", "edit_platform_fee")],
+      [Markup.button.callback("Edit Referral Bonus", "edit_referral_bonus")],
+      [Markup.button.callback("Edit Buyer Bonus", "edit_buyer_bonus")],
+      [Markup.button.callback("🔙 Back to Admin", "admin_panel")],
+    ];
+    ctx.reply(msg, { parse_mode: "Markdown", ...Markup.inlineKeyboard(buttons) });
+  }
+
+  async handleEditPlatformFee(ctx) {
+    ctx.session.editSetting = "platformFeePercent";
+    ctx.reply("Enter new platform fee percentage (e.g., 10 for 10%):");
+  }
+
+  async handleEditReferralBonus(ctx) {
+    ctx.session.editSetting = "referralBonusPercent";
+    ctx.reply("Enter new referral bonus percentage (e.g., 2.5 for 2.5%):");
+  }
+
+  async handleEditBuyerBonus(ctx) {
+    ctx.session.editSetting = "buyerBonusPercent";
+    ctx.reply("Enter new buyer bonus percentage (e.g., 1 for 1%):");
+  }
+
+  async handleUpdateSetting(ctx) {
+    if (!ctx.session.editSetting) return ctx.reply("❌ No setting selected.");
+    const value = parseFloat(ctx.message.text);
+    if (isNaN(value) || value < 0 || value > 100) {
+      return ctx.reply("❌ Please enter a valid percentage between 0 and 100.");
     }
+    const db = require("../config/database");
+    const settingsRef = db.getDb().collection("settings").doc("platform");
+    await settingsRef.set({ [ctx.session.editSetting]: value }, { merge: true });
+    ctx.reply(`✅ Setting updated: ${ctx.session.editSetting} = ${value}%`);
+    ctx.session.editSetting = null;
+    return this.handleSystemSettings(ctx);
   }
 
   async handleSetPlatformFee(ctx) {
@@ -1303,847 +1358,6 @@ What would you like to do?
     }
   }
 
-  // Helper to handle unban_user_{userId} callback
-  async handleUnbanUserCallback(ctx) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply("❌ Access denied.");
-      const callbackData = ctx.callbackQuery.data;
-      const match = callbackData.match(/^unban_user_(.+)$/);
-      if (!match) return ctx.reply("❌ Invalid unban action.");
-      const userId = match[1];
-      await this.handleUnbanUser(ctx, userId);
-      // Refresh banned users list
-      setTimeout(() => this.handleBannedUsers(ctx), 500);
-    } catch (error) {
-      logger.error("Error in unban user callback:", error);
-      ctx.reply("❌ Failed to unban user.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  // Helper to handle ban_user_{userId} callback
-  async handleBanUserCallback(ctx) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply("❌ Access denied.");
-      const callbackData = ctx.callbackQuery.data;
-      const match = callbackData.match(/^ban_user_(.+)$/);
-      if (!match) return ctx.reply("❌ Invalid ban action.");
-      const userId = match[1];
-      await this.handleBanUser(ctx, userId);
-      // Refresh banned users list if coming from banned users, else refresh search
-      if (ctx.session && ctx.session.state === "awaiting_user_search") {
-        ctx.reply("🔄 User banned. Please search again or go back.");
-      } else {
-        setTimeout(() => this.handleBannedUsers(ctx), 500);
-      }
-    } catch (error) {
-      logger.error("Error in ban user callback:", error);
-      ctx.reply("❌ Failed to ban user.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  // Helper to handle approve_company_{companyId} callback
-  async handleApproveCompanyCallback(ctx) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply("❌ Access denied.");
-      const callbackData = ctx.callbackQuery.data;
-      const match = callbackData.match(/^approve_company_(.+)$/);
-      if (!match) return ctx.reply("❌ Invalid approve action.");
-      const companyId = match[1];
-      await this.handleApproveCompany(ctx, companyId);
-      setTimeout(() => this.handlePendingCompanies(ctx), 500);
-    } catch (error) {
-      logger.error("Error in approve company callback:", error);
-      ctx.reply("❌ Failed to approve company.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  // Helper to handle reject_company_{companyId} callback
-  async handleRejectCompanyCallback(ctx) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply("❌ Access denied.");
-      const callbackData = ctx.callbackQuery.data;
-      const match = callbackData.match(/^reject_company_(.+)$/);
-      if (!match) return ctx.reply("❌ Invalid reject action.");
-      const companyId = match[1];
-      await this.handleRejectCompany(ctx, companyId);
-      setTimeout(() => this.handlePendingCompanies(ctx), 500);
-    } catch (error) {
-      logger.error("Error in reject company callback:", error);
-      ctx.reply("❌ Failed to reject company.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  // Helper to handle approve_payout_{payoutId} callback
-  async handleApprovePayoutCallback(ctx) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply("❌ Access denied.");
-      const callbackData = ctx.callbackQuery.data;
-      const match = callbackData.match(/^approve_payout_(.+)$/);
-      if (!match) return ctx.reply("❌ Invalid approve action.");
-      const payoutId = match[1];
-      await this.handleApprovePayout(ctx, payoutId);
-      setTimeout(() => this.handlePendingPayouts(ctx), 500);
-    } catch (error) {
-      logger.error("Error in approve payout callback:", error);
-      ctx.reply("❌ Failed to approve payout.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  // Helper to handle reject_payout_{payoutId} callback
-  async handleRejectPayoutCallback(ctx) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply("❌ Access denied.");
-      const callbackData = ctx.callbackQuery.data;
-      const match = callbackData.match(/^reject_payout_(.+)$/);
-      if (!match) return ctx.reply("❌ Invalid reject action.");
-      const payoutId = match[1];
-      await this.handleRejectPayout(ctx, payoutId);
-      setTimeout(() => this.handlePendingPayouts(ctx), 500);
-    } catch (error) {
-      logger.error("Error in reject payout callback:", error);
-      ctx.reply("❌ Failed to reject payout.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handleApproveProductCallback(ctx, productId) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply("❌ Access denied.");
-      const db = require("../config/database").getDb();
-      const productRef = db.collection("products").doc(productId);
-      const productDoc = await productRef.get();
-      if (!productDoc.exists) return ctx.reply("❌ Product not found.");
-      await productRef.update({ status: "approved", updatedAt: new Date() });
-      const product = productDoc.data();
-      // Notify creator
-      if (product.creatorTelegramId) {
-        await require("../services/notificationService")
-          .getNotificationServiceInstance()
-          .sendNotification(
-            product.creatorTelegramId,
-            `✅ Your product (${product.title}) has been approved and is now public!`,
-            { type: "product", action: "approved", productId }
-          );
-      }
-      ctx.reply("✅ Product approved successfully.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error approving product:", error);
-      ctx.reply("❌ Failed to approve product.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handleRejectProductCallback(ctx, productId) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply("❌ Access denied.");
-      const db = require("../config/database").getDb();
-      const productRef = db.collection("products").doc(productId);
-      const productDoc = await productRef.get();
-      if (!productDoc.exists) return ctx.reply("❌ Product not found.");
-      await productRef.update({ status: "rejected", updatedAt: new Date() });
-      const product = productDoc.data();
-      // Notify creator
-      if (product.creatorTelegramId) {
-        await require("../services/notificationService")
-          .getNotificationServiceInstance()
-          .sendNotification(
-            product.creatorTelegramId,
-            `❌ Your product (${product.title}) has been rejected. Please contact support for more information.`,
-            { type: "product", action: "rejected", productId }
-          );
-      }
-      ctx.reply("❌ Product rejected.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error rejecting product:", error);
-      ctx.reply("❌ Failed to reject product.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handleAdminListUsers(ctx, page = 1) {
-    if (!(await this.isAdminAsync(ctx.from.id)))
-      return ctx.reply("❌ Access denied.");
-    try {
-      const users = await userService.getAllUsers();
-      if (!users.length) return ctx.reply("No users found.");
-      const perPage = 10;
-      const totalPages = Math.ceil(users.length / perPage);
-      page = Number(page) || 1;
-      const start = (page - 1) * perPage;
-      const end = start + perPage;
-      let msg = `👤 *All Users:* (Page ${page}/${totalPages})\n`;
-      const buttons = [];
-      users.slice(start, end).forEach((user) => {
-        msg += `• ${
-          user.first_name || user.firstName || user.username || user.id
-        }\n`;
-        buttons.push([
-          Markup.button.callback(
-            user.first_name || user.firstName || user.username || user.id,
-            `admin_user_${user.id}`
-          ),
-        ]);
-      });
-      // Pagination buttons
-      const navButtons = [];
-      if (page > 1)
-        navButtons.push(
-          Markup.button.callback("⬅️ Previous", `admin_list_users_${page - 1}`)
-        );
-      if (page < totalPages)
-        navButtons.push(
-          Markup.button.callback("➡️ Next", `admin_list_users_${page + 1}`)
-        );
-      if (navButtons.length) buttons.push(navButtons);
-      ctx.reply(msg, {
-        parse_mode: "Markdown",
-        ...Markup.inlineKeyboard(buttons),
-      });
-    } catch (error) {
-      logger.error("Error listing users:", error);
-      ctx.reply("❌ Failed to list users.");
-    }
-  }
-
-  async handleAdminUserDetail(ctx, userId) {
-    if (!(await this.isAdminAsync(ctx.from.id)))
-      return ctx.reply("❌ Access denied.");
-    try {
-      const user = await userService.userService.getUserByTelegramId(userId);
-      if (!user) return ctx.reply("❌ User not found.");
-      let msg = `👤 *${
-        user.first_name || user.firstName || user.username || user.id
-      }*\n`;
-      msg += `ID: ${user.id}\n`;
-      msg += `Username: @${user.username || "N/A"}\n`;
-      msg += `Phone: ${user.phone_number || "N/A"}\n`;
-      msg += `Email: ${user.email || "N/A"}\n`;
-      msg += `Role: ${user.role || "user"}\n`;
-      msg += `Joined: ${
-        toDateSafe(user.created_at)
-          ? toDateSafe(user.created_at).toLocaleString()
-          : "N/A"
-      }\n`;
-      msg += `Verified: ${user.phone_verified ? "✅" : "❌"}\n`;
-      msg += `Companies Joined: ${(user.joinedCompanies || []).length}\n`;
-      msg += `Referral Codes: ${
-        user.referralCodes
-          ? Object.values(user.referralCodes).join(", ")
-          : "N/A"
-      }\n`;
-      msg += `Last Active: ${
-        toDateSafe(user.last_active)
-          ? toDateSafe(user.last_active).toLocaleString()
-          : "N/A"
-      }\n`;
-      msg += `\n*Company Registration Permission:*\n`;
-      msg += user.canRegisterCompany
-        ? "🟢 Eligible to register companies"
-        : "🔴 Not eligible to register companies";
-      // Purchase history
-      // Referral stats
-      const stats = await referralService.getReferralStats(userId);
-      msg += `\n*Referral Stats:*\n`;
-      msg += `Total Referrals: ${stats.totalReferrals}\n`;
-      msg += `Total Earnings: $${stats.totalEarnings.toFixed(2)}\n`;
-      msg += `Pending Earnings: $${stats.pendingEarnings.toFixed(2)}\n`;
-      msg += `This Month: $${stats.thisMonthEarnings.toFixed(2)}\n`;
-      // Companies joined and referral codes
-      if (user.joinedCompanies && user.joinedCompanies.length) {
-        msg += `\n*Companies Joined:*\n`;
-        for (const companyId of user.joinedCompanies) {
-          const company = await companyService.getCompanyById(companyId);
-          const code =
-            user.referralCodes && company && company.codePrefix
-              ? user.referralCodes[company.codePrefix]
-              : undefined;
-          msg += `• ${company ? company.name : companyId}`;
-          if (code) msg += ` (Referral: ${code})`;
-          msg += "\n";
-        }
-      }
-      // Ban/Unban and Promote/Demote buttons
-      const buttons = [];
-      if (user.banned) {
-        buttons.push([
-          Markup.button.callback("✅ Unban", `unban_user_${user.id}`),
-        ]);
-      } else {
-        buttons.push([Markup.button.callback("🚫 Ban", `ban_user_${user.id}`)]);
-      }
-      if (user.canRegisterCompany) {
-        buttons.push([
-          Markup.button.callback(
-            "❌ Demote (Remove Company Permission)",
-            `demote_company_${user.id}`
-          ),
-        ]);
-      } else {
-        buttons.push([
-          Markup.button.callback(
-            "✅ Promote (Allow Company Registration)",
-            `promote_company_${user.id}`
-          ),
-        ]);
-      }
-      // Back button to user list
-      buttons.push([
-        Markup.button.callback("🔙 Back to Users", "admin_list_users"),
-      ]);
-      ctx.reply(msg, {
-        parse_mode: "Markdown",
-        ...Markup.inlineKeyboard(buttons),
-      });
-    } catch (error) {
-      logger.error("Error showing user detail:", error);
-      ctx.reply("❌ Failed to load user details.");
-    }
-  }
-
-  async handlePromoteCompany(ctx, userId) {
-    if (!(await this.isAdminAsync(ctx.from.id)))
-      return ctx.reply("❌ Access denied.");
-    try {
-      await userService.userService.updateUser(userId, {
-        canRegisterCompany: true,
-      });
-      ctx.reply("✅ User promoted: can now register companies.");
-      this.handleAdminUserDetail(ctx, userId);
-    } catch (error) {
-      logger.error("Error promoting user:", error);
-      ctx.reply("❌ Failed to promote user.");
-    }
-  }
-
-  async handleDemoteCompany(ctx, userId) {
-    if (!(await this.isAdminAsync(ctx.from.id)))
-      return ctx.reply("❌ Access denied.");
-    try {
-      await userService.userService.updateUser(userId, {
-        canRegisterCompany: false,
-      });
-      ctx.reply("❌ User demoted: can no longer register companies.");
-      this.handleAdminUserDetail(ctx, userId);
-    } catch (error) {
-      logger.error("Error demoting user:", error);
-      ctx.reply("❌ Failed to demote user.");
-    }
-  }
-
-  async handleDemoteUserId(ctx, userId) {
-    if (!(await this.isAdminAsync(ctx.from.id)))
-      return ctx.reply("❌ Access denied.");
-    await userService.userService.updateUser(userId, {
-      canRegisterCompany: false,
-    });
-    ctx.reply("❌ User unpromoted!");
-    setTimeout(() => this.handlePromoteUserMenu(ctx, 1, ""), 500);
-  }
-
-  async handleAllUsersMenu(ctx, page = 1, search = "") {
-    if (!(await this.isAdminAsync(ctx.from.id)))
-      return ctx.reply("❌ Access denied.");
-    const PAGE_SIZE = 10;
-    let users = await userService.getAllUsers();
-    if (search) {
-      users = users.filter(
-        (u) =>
-          (u.username &&
-            u.username.toLowerCase().includes(search.toLowerCase())) ||
-          (u.phone_number &&
-            u.phone_number.toLowerCase().includes(search.toLowerCase())) ||
-          (u.first_name &&
-            u.first_name.toLowerCase().includes(search.toLowerCase())) ||
-          (u.last_name &&
-            u.last_name.toLowerCase().includes(search.toLowerCase()))
-      );
-    }
-    const totalPages = Math.ceil(users.length / PAGE_SIZE) || 1;
-    page = Math.max(1, Math.min(page, totalPages));
-    const start = (page - 1) * PAGE_SIZE;
-    const end = start + PAGE_SIZE;
-    const pageUsers = users.slice(start, end);
-    let message = `👥 *All Users* (Page ${page}/${totalPages})\n\n`;
-    pageUsers.forEach((u, i) => {
-      message += `${start + i + 1}. ${
-        u.first_name || u.firstName || "No name"
-      } (@${u.username || "-"})\n`;
-      message += `   📱 ${u.phone_number || u.phoneNumber || "No phone"}\n`;
-      message += `   ${u.banned ? "🚫 Banned" : "✅ Active"}\n`;
-    });
-    const buttons = [];
-    if (page > 1)
-      buttons.push([
-        Markup.button.callback("⬅️ Prev", `all_users_menu_${page - 1}`),
-      ]);
-    if (page < totalPages)
-      buttons.push([
-        Markup.button.callback("➡️ Next", `all_users_menu_${page + 1}`),
-      ]);
-    buttons.push([
-      Markup.button.callback("🔍 Search User", "all_users_search"),
-    ]);
-    buttons.push([Markup.button.callback("🔙 Back", "admin_users")]);
-    const userButtons = pageUsers.map((u) => [
-      Markup.button.callback(
-        `${u.first_name || u.firstName || "No name"} (@${u.username || "-"})`,
-        `admin_user_${u.id}`
-      ),
-    ]);
-    buttons.unshift(...userButtons);
-    ctx.reply(message, {
-      parse_mode: "Markdown",
-      ...Markup.inlineKeyboard(buttons),
-    });
-    ctx.session.state = null;
-  }
-
-  async handleBannedUsers(ctx) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply("❌ Access denied.");
-      const bannedUsers = await userService.getBannedUsers();
-      if (!bannedUsers.length) {
-        return ctx.reply("No banned users found.");
-      }
-      let message = `🚫 *Banned Users*\n\n`;
-      bannedUsers.forEach((user, i) => {
-        message += `${i + 1}. ${
-          user.first_name || user.firstName || user.username || user.id
-        } (@${user.username || "-"})\n`;
-        message += `   📱 ${
-          user.phone_number || user.phoneNumber || "No phone"
-        }\n`;
-        message += `   📅 Joined: ${
-          toDateSafe(user.created_at)
-            ? toDateSafe(user.created_at).toLocaleDateString()
-            : "-"
-        }\n`;
-      });
-      const buttons = [
-        [Markup.button.callback("🔙 Back to User Management", "admin_users")],
-      ];
-      ctx.reply(message, {
-        parse_mode: "Markdown",
-        ...Markup.inlineKeyboard(buttons),
-      });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error listing banned users:", error);
-      ctx.reply("❌ Failed to load banned users.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handleUnbanUser(ctx, userId) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply("❌ Access denied.");
-      await userService.unbanUser(userId);
-      ctx.reply("✅ User unbanned.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error unbanning user:", error);
-      ctx.reply("❌ Failed to unban user.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handleBanUser(ctx, userId) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply("❌ Access denied.");
-      await userService.banUser(userId);
-      ctx.reply("✅ User banned.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error banning user:", error);
-      ctx.reply("❌ Failed to ban user.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handleApproveCompany(ctx, companyId) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply("❌ Access denied.");
-      await companyService.approveCompany(companyId);
-      ctx.reply("✅ Company approved.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error approving company:", error);
-      ctx.reply("❌ Failed to approve company.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handleRejectCompany(ctx, companyId) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply("❌ Access denied.");
-      await companyService.rejectCompany(companyId);
-      ctx.reply("❌ Company rejected.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error rejecting company:", error);
-      ctx.reply("❌ Failed to reject company.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handlePendingCompanies(ctx) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply("❌ Access denied.");
-      const companies = await companyService.getPendingCompanies();
-      if (!companies.length) {
-        return ctx.reply("No pending companies.");
-      }
-      let message = `⚠️ *Pending Company Registrations*\n\n`;
-      companies.forEach((company, i) => {
-        message += `${i + 1}. ${company.name} (${company.id})\n`;
-        message += `   📧 ${company.email || "N/A"}\n`;
-        message += `   📞 ${company.phone || "N/A"}\n`;
-        message += `   👤 ${company.ownerName || company.owner || "N/A"}\n`;
-        message += `   📅 ${
-          toDateSafe(company.createdAt)
-            ? toDateSafe(company.createdAt).toLocaleDateString()
-            : "-"
-        }\n`;
-        message += `   🔗 ${company.referralCode || "N/A"}\n`;
-        message += `   👥 ${company.joinedUsers || 0} Users\n`;
-        message += `   💰 ${company.totalRevenue || 0} Revenue\n`;
-        message += `   ⚙️ ${company.status || "N/A"}\n`;
-      });
-      const buttons = [
-        [
-          Markup.button.callback(
-            "✅ Approve All",
-            "approve_all_pending_companies"
-          ),
-        ],
-        [
-          Markup.button.callback(
-            "❌ Reject All",
-            "reject_all_pending_companies"
-          ),
-        ],
-        [Markup.button.callback("🔙 Back to Companies", "admin_companies")],
-      ];
-      ctx.reply(message, {
-        parse_mode: "Markdown",
-        ...Markup.inlineKeyboard(buttons),
-      });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error listing pending companies:", error);
-      ctx.reply("❌ Failed to load pending companies.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handleApproveAllPendingCompanies(ctx) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply("❌ Access denied.");
-      const companies = await companyService.getPendingCompanies();
-      for (const company of companies) {
-        await this.handleApproveCompany(ctx, company.id);
-      }
-      ctx.reply("✅ All pending companies approved.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error approving all pending companies:", error);
-      ctx.reply("❌ Failed to approve all pending companies.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handleRejectAllPendingCompanies(ctx) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply("❌ Access denied.");
-      const companies = await companyService.getPendingCompanies();
-      for (const company of companies) {
-        await this.handleRejectCompany(ctx, company.id);
-      }
-      ctx.reply("❌ All pending companies rejected.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error rejecting all pending companies:", error);
-      ctx.reply("❌ Failed to reject all pending companies.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handlePendingPayouts(ctx) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply("❌ Access denied.");
-      const payouts = await adminService.getPayoutsByStatus("pending");
-      if (!payouts.length) {
-        return ctx.reply("No pending payouts.");
-      }
-      let message = `⏳ *Pending Payouts*\n\n`;
-      payouts.forEach((payout, i) => {
-        message += `${i + 1}. $${payout.amount} - ${
-          payout.userName || payout.user_name || "No user"
-        }\n`;
-        message += `   📅 ${
-          toDateSafe(payout.requestedAt)
-            ? toDateSafe(payout.requestedAt).toLocaleDateString()
-            : "-"
-        }\n`;
-        message += `   ⚙️ ${payout.status || "N/A"}\n`;
-      });
-      const buttons = [
-        [
-          Markup.button.callback(
-            "✅ Approve All",
-            "approve_all_pending_payouts"
-          ),
-        ],
-        [Markup.button.callback("❌ Reject All", "reject_all_pending_payouts")],
-        [Markup.button.callback("🔙 Back to Payouts", "admin_payouts")],
-      ];
-      ctx.reply(message, {
-        parse_mode: "Markdown",
-        ...Markup.inlineKeyboard(buttons),
-      });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error listing pending payouts:", error);
-      ctx.reply("❌ Failed to load pending payouts.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handleApproveAllPendingPayouts(ctx) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply("❌ Access denied.");
-      const payouts = await adminService.getPayoutsByStatus("pending");
-      for (const payout of payouts) {
-        await this.handleApprovePayout(ctx, payout.id);
-      }
-      ctx.reply("✅ All pending payouts approved.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error approving all pending payouts:", error);
-      ctx.reply("❌ Failed to approve all pending payouts.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handleRejectAllPendingPayouts(ctx) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply("❌ Access denied.");
-      const payouts = await adminService.getPayoutsByStatus("pending");
-      for (const payout of payouts) {
-        await this.handleRejectPayout(ctx, payout.id);
-      }
-      ctx.reply("❌ All pending payouts rejected.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error rejecting all pending payouts:", error);
-      ctx.reply("❌ Failed to reject all pending payouts.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handleMaintenanceMessage(ctx) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply("❌ Access denied.");
-      ctx.session.state = "awaiting_maintenance_message";
-      ctx.reply("📝 Please enter the message for the maintenance mode:");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error starting maintenance message:", error);
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handleMaintenanceMessageInput(ctx, messageText) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id))) return;
-      if (
-        !ctx.session ||
-        ctx.session.state !== "awaiting_maintenance_message"
-      ) {
-        return ctx.reply("❌ Invalid state for maintenance message input.");
-      }
-      const message = messageText.trim();
-      if (!message) {
-        return ctx.reply("❌ Message cannot be empty.");
-      }
-      await adminService.setMaintenanceMessage(message);
-      ctx.reply("✅ Maintenance message updated.");
-      delete ctx.session.state;
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error setting maintenance message:", error);
-      ctx.reply("❌ Failed to set maintenance message.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handleMaintenanceMode(ctx) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id))) return;
-
-      const currentMode = await adminService.getMaintenanceMode();
-
-      const message = `
-🔧 *Maintenance Mode*
-
-Current Status: ${currentMode ? "🔴 ENABLED" : "🟢 DISABLED"}
-
-${
-  currentMode
-    ? "The bot is currently in maintenance mode. Only admins can use the bot."
-    : "The bot is operating normally. All users can access features."
-}
-
-What would you like to do?
-      `;
-
-      const buttons = [
-        [
-          Markup.button.callback(
-            currentMode ? "🟢 Disable Maintenance" : "🔴 Enable Maintenance",
-            "toggle_maintenance"
-          ),
-        ],
-        [
-          Markup.button.callback(
-            "📢 Maintenance Message",
-            "maintenance_message"
-          ),
-        ],
-        [Markup.button.callback("🔙 Back to Settings", "admin_settings")],
-      ];
-
-      ctx.reply(message, {
-        parse_mode: "Markdown",
-        ...Markup.inlineKeyboard(buttons),
-      });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error showing maintenance mode:", error);
-      ctx.reply("❌ Failed to load maintenance settings.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handleToggleMaintenance(ctx) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id))) return;
-
-      const newMode = await adminService.toggleMaintenanceMode();
-
-      ctx.reply(`✅ Maintenance mode ${newMode ? "enabled" : "disabled"}.`);
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-
-      // Refresh maintenance settings
-      setTimeout(() => {
-        this.handleMaintenanceMode(ctx);
-      }, 1000);
-    } catch (error) {
-      logger.error("Error toggling maintenance mode:", error);
-      ctx.reply("❌ Failed to toggle maintenance mode.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handleExportData(ctx) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id))) return;
-
-      const exportType = ctx.callbackQuery.data.split("_")[1];
-
-      ctx.reply("📤 Generating export... This may take a moment.");
-
-      const exportData = await adminService.exportData(exportType);
-
-      // In a real implementation, you would send the file
-      // For now, we'll just show a summary
-      ctx.reply(
-        `✅ Export completed!\n\n📊 Summary:\n• Records: ${exportData.recordCount}\n• File size: ${exportData.fileSize}\n• Format: CSV\n\nFile would be sent here in production.`
-      );
-
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error exporting data:", error);
-      ctx.reply("❌ Export failed. Please try again.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handleCompanyAnalyticsSummary(ctx) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply("❌ Access denied.");
-      const stats = await adminService.getCompanyAnalytics();
-      let message = `📊 *Company Analytics Summary*\n\n`;
-      message += `• Total Companies: ${stats.total}\n`;
-      message += `• Approved: ${stats.approved}\n`;
-      message += `• Pending: ${stats.pending}\n`;
-      message += `• Rejected: ${stats.rejected}\n`;
-      ctx.reply(message, {
-        parse_mode: "Markdown",
-        ...Markup.inlineKeyboard([
-          [Markup.button.callback("🔙 Back", "admin_companies")],
-        ]),
-      });
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error in company analytics summary:", error);
-      ctx.reply("❌ Failed to load company analytics summary.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handleBackupSystem(ctx) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply("❌ Access denied.");
-      ctx.reply("💾 Creating system backup... Please wait.");
-      const backup = await adminService.createBackup();
-      let message = `✅ Backup created successfully!\n\n`;
-      message += `📦 ID: ${backup.id || "-"}\n`;
-      message += `📏 Size: ${backup.size || "-"}\n`;
-      message += `📋 Tables: ${backup.tables || "-"}\n`;
-      message += `📅 Created: ${
-        toDateSafe(backup.createdAt)
-          ? toDateSafe(backup.createdAt).toLocaleString()
-          : "-"
-      }`;
-      ctx.reply(message);
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error creating backup:", error);
-      ctx.reply("❌ Backup failed. Please try again.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
   // Handler for company approval of platform commission withdrawal
   async handleCompanyApproveWithdrawal(ctx, withdrawalId) {
     try {
@@ -2371,6 +1585,163 @@ What would you like to do?
       logger.error("Error in admin finalize withdrawal:", error);
       ctx.reply("❌ Failed to finalize withdrawal.");
       if (ctx.callbackQuery) ctx.answerCbQuery();
+    }
+  }
+
+  async handleExportUsers(ctx) {
+    if (!(await this.isAdminAsync(ctx.from.id)))
+      return ctx.reply("❌ Access denied.");
+    
+    try {
+      ctx.reply("📊 Generating user export... Please wait.");
+      
+      const users = await userService.getAllUsers();
+      if (!users.length) {
+        return ctx.reply("❌ No users found to export.");
+      }
+
+      const PDFDocument = require('pdfkit');
+      const fs = require('fs');
+      const path = require('path');
+      
+      // Create PDF
+      const doc = new PDFDocument();
+      const filename = `users_export_${Date.now()}.pdf`;
+      const filepath = path.join(__dirname, '..', '..', 'temp', filename);
+      
+      // Ensure temp directory exists
+      const tempDir = path.dirname(filepath);
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+      
+      const stream = fs.createWriteStream(filepath);
+      doc.pipe(stream);
+      
+      // Add title
+      doc.fontSize(20).text('User Export Report', { align: 'center' });
+      doc.moveDown();
+      doc.fontSize(12).text(`Generated on: ${new Date().toLocaleString()}`, { align: 'center' });
+      doc.moveDown();
+      doc.fontSize(10).text(`Total Users: ${users.length}`, { align: 'center' });
+      doc.moveDown(2);
+      
+      // Add user data
+      users.forEach((user, index) => {
+        doc.fontSize(12).text(`${index + 1}. ${user.firstName || user.first_name || 'Unknown'} ${user.lastName || user.last_name || ''}`);
+        doc.fontSize(10).text(`   ID: ${user.telegramId || user.id}`);
+        doc.fontSize(10).text(`   Username: @${user.username || 'N/A'}`);
+        doc.fontSize(10).text(`   Phone: ${user.phone_number || user.phone || 'N/A'}`);
+        doc.fontSize(10).text(`   Balance: $${(user.referralBalance || user.coinBalance || 0).toFixed(2)}`);
+        doc.fontSize(10).text(`   Role: ${user.role || 'user'}`);
+        doc.fontSize(10).text(`   Joined: ${toDateSafe(user.createdAt) ? toDateSafe(user.createdAt).toLocaleDateString() : 'N/A'}`);
+        doc.moveDown();
+      });
+      
+      doc.end();
+      
+      stream.on('finish', async () => {
+        try {
+          await ctx.replyWithDocument({ source: filepath }, { 
+            caption: `📊 *User Export Complete*\n\n📋 Total Users: ${users.length}\n📅 Generated: ${new Date().toLocaleString()}\n\nThis PDF contains all user data from the platform.`
+          });
+          
+          // Clean up file
+          setTimeout(() => {
+            if (fs.existsSync(filepath)) {
+              fs.unlinkSync(filepath);
+            }
+          }, 60000); // Delete after 1 minute
+          
+        } catch (error) {
+          logger.error("Error sending PDF:", error);
+          ctx.reply("❌ Failed to send PDF. Please try again.");
+        }
+      });
+      
+    } catch (error) {
+      logger.error("Error exporting users:", error);
+      ctx.reply("❌ Failed to export users. Please try again.");
+    }
+  }
+
+  async handleExportCompanies(ctx) {
+    if (!(await this.isAdminAsync(ctx.from.id)))
+      return ctx.reply("❌ Access denied.");
+    
+    try {
+      ctx.reply("📊 Generating company export... Please wait.");
+      
+      const companies = await companyService.getAllCompanies();
+      if (!companies.length) {
+        return ctx.reply("❌ No companies found to export.");
+      }
+
+      const PDFDocument = require('pdfkit');
+      const fs = require('fs');
+      const path = require('path');
+      
+      // Create PDF
+      const doc = new PDFDocument();
+      const filename = `companies_export_${Date.now()}.pdf`;
+      const filepath = path.join(__dirname, '..', '..', 'temp', filename);
+      
+      // Ensure temp directory exists
+      const tempDir = path.dirname(filepath);
+      if (!fs.existsSync(tempDir)) {
+        fs.mkdirSync(tempDir, { recursive: true });
+      }
+      
+      const stream = fs.createWriteStream(filepath);
+      doc.pipe(stream);
+      
+      // Add title
+      doc.fontSize(20).text('Company Export Report', { align: 'center' });
+      doc.moveDown();
+      doc.fontSize(12).text(`Generated on: ${new Date().toLocaleString()}`, { align: 'center' });
+      doc.moveDown();
+      doc.fontSize(10).text(`Total Companies: ${companies.length}`, { align: 'center' });
+      doc.moveDown(2);
+      
+      // Add company data
+      companies.forEach((company, index) => {
+        doc.fontSize(12).text(`${index + 1}. ${company.name}`);
+        doc.fontSize(10).text(`   ID: ${company.id}`);
+        doc.fontSize(10).text(`   Owner: ${company.ownerName || company.owner || 'N/A'}`);
+        doc.fontSize(10).text(`   Username: @${company.ownerUsername || 'N/A'}`);
+        doc.fontSize(10).text(`   Email: ${company.email || 'N/A'}`);
+        doc.fontSize(10).text(`   Phone: ${company.phone || 'N/A'}`);
+        doc.fontSize(10).text(`   Status: ${company.status || 'N/A'}`);
+        doc.fontSize(10).text(`   Address: ${company.address || 'N/A'}`);
+        doc.fontSize(10).text(`   Website: ${company.website || 'N/A'}`);
+        doc.fontSize(10).text(`   Created: ${toDateSafe(company.createdAt) ? toDateSafe(company.createdAt).toLocaleDateString() : 'N/A'}`);
+        doc.moveDown();
+      });
+      
+      doc.end();
+      
+      stream.on('finish', async () => {
+        try {
+          await ctx.replyWithDocument({ source: filepath }, { 
+            caption: `📊 *Company Export Complete*\n\n📋 Total Companies: ${companies.length}\n📅 Generated: ${new Date().toLocaleString()}\n\nThis PDF contains all company data from the platform.`
+          });
+          
+          // Clean up file
+          setTimeout(() => {
+            if (fs.existsSync(filepath)) {
+              fs.unlinkSync(filepath);
+            }
+          }, 60000); // Delete after 1 minute
+          
+        } catch (error) {
+          logger.error("Error sending PDF:", error);
+          ctx.reply("❌ Failed to send PDF. Please try again.");
+        }
+      });
+      
+    } catch (error) {
+      logger.error("Error exporting companies:", error);
+      ctx.reply("❌ Failed to export companies. Please try again.");
     }
   }
 }

@@ -4,6 +4,7 @@ const companyService = require("../services/companyService");
 const adminService = require("../services/adminService");
 const logger = require("../../utils/logger");
 const referralService = require("../services/referralService");
+const { getPlatformSettings } = require("../utils/helpers");
 
 const adminHandlers = require("./adminHandlers");
 const userHandlers = require("./userHandlers");
@@ -60,6 +61,10 @@ class MessageHandlers {
       if (ctx.session && ctx.session.addProductStep) {
         return userHandlers.handleAddProductStep(ctx);
       }
+      if (ctx.session && ctx.session.editSetting) {
+        return adminHandlers.handleUpdateSetting(ctx);
+      }
+
       if (ctx.session && ctx.session.state) {
         return this.handleSessionState(ctx, messageText);
       }
@@ -116,11 +121,13 @@ class MessageHandlers {
           if (isNaN(amount) || amount <= 0) {
             return ctx.reply("❌ Please enter a valid amount.");
           }
-          const PLATFORM_FEE_PERCENT = parseFloat(
-            process.env.PLATFORM_FEE_PERCENTAGE || "1.5"
-          );
-          const discount = amount * 0.01;
-          const referrerReward = amount * 0.025;
+          // Fetch dynamic settings
+          const settings = await getPlatformSettings();
+          const PLATFORM_FEE_PERCENT = settings.platformFeePercent;
+          const REFERRAL_BONUS_PERCENT = settings.referralBonusPercent;
+          const BUYER_BONUS_PERCENT = settings.buyerBonusPercent;
+          const discount = amount * (BUYER_BONUS_PERCENT / 100);
+          const referrerReward = amount * (REFERRAL_BONUS_PERCENT / 100);
           const platformFee = amount * (PLATFORM_FEE_PERCENT / 100);
           const companyPayout =
             amount - discount - referrerReward - platformFee;
@@ -128,8 +135,8 @@ class MessageHandlers {
 💰 *Fee & Reward Calculation*
 
 Purchase Amount: $${amount.toFixed(2)}
-- Buyer Discount (1%): $${discount.toFixed(2)}
-- Referrer Reward (2.5%): $${referrerReward.toFixed(2)}
+- Buyer Discount (${BUYER_BONUS_PERCENT}%): $${discount.toFixed(2)}
+- Referrer Reward (${REFERRAL_BONUS_PERCENT}%): $${referrerReward.toFixed(2)}
 - Platform Fee (${PLATFORM_FEE_PERCENT}%): $${platformFee.toFixed(2)}
 = Company Payout: $${companyPayout.toFixed(2)}
 `;

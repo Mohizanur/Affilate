@@ -1,5 +1,5 @@
-const userHandlers = require('../handlers/userHandlers');
+const userHandlers = require("../handlers/userHandlers");
 
 module.exports = (ctx) => {
-    return userHandlers.handleViewCart(ctx);
-}; 
+  return userHandlers.handleCart(ctx);
+};
