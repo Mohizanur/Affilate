@@ -169,7 +169,7 @@ async function startBot(app) {
       process.env.NODE_ENV === "production" || process.env.RENDER;
     const isLocalDevelopment =
       !isProduction && process.env.NODE_ENV !== "production";
-    const webhookPath = `/webhook/${token}`;
+    const webhookPath = `/webhook`;
 
     if (isProduction) {
       console.log("🌐 Setting up webhook for production...");
