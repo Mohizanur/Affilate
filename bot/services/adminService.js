@@ -1105,6 +1105,10 @@ class AdminService {
           ownerTelegramId: c.ownerTelegramId,
           telegramId: c.telegramId,
         };
+        // Also map by c.id if present and different from doc.id
+        if (c.id && c.id !== doc.id) {
+          companies[c.id] = companies[doc.id];
+        }
       });
       // Aggregate sales and revenue from sales collection
       const salesSnap = await databaseService
@@ -1112,14 +1116,52 @@ class AdminService {
         .collection("sales")
         .where("status", "==", "completed")
         .get();
+      // Debug: print all company keys and all sales companyIds
+      console.log("[DEBUG] Companies map keys:", Object.keys(companies));
+      console.log(
+        "[DEBUG] All companies with names:",
+        Object.entries(companies).map(([id, company]) => ({
+          id,
+          name: company.name,
+        }))
+      );
+      const allSalesCompanyIds = [];
       salesSnap.forEach((doc) => {
         const s = doc.data();
-        if (!s.companyId || !companies[s.companyId]) return;
+        allSalesCompanyIds.push(s.companyId);
+      });
+      console.log("[DEBUG] Sales companyIds:", allSalesCompanyIds);
+      salesSnap.forEach((doc) => {
+        const s = doc.data();
+        console.log("[DEBUG] Processing sale:", {
+          saleId: doc.id,
+          companyId: s.companyId,
+          status: s.status,
+          amount: s.amount,
+          fullSaleData: s,
+        });
+        if (!s.companyId || !companies[s.companyId]) {
+          console.log(
+            "[DEBUG] Sale skipped - no companyId or company not found"
+          );
+          return;
+        }
         const company = companies[s.companyId];
+        console.log("[DEBUG] Company before update:", {
+          name: company.name,
+          totalSales: company.totalSales,
+          totalRevenue: company.totalRevenue,
+        });
         company.totalSales += 1;
         company.totalRevenue += s.amount || 0;
         const commission = (s.amount || 0) * (PLATFORM_FEE_PERCENT / 100);
         company.platformCommissionLifetime += commission;
+        console.log("[DEBUG] Company after update:", {
+          name: company.name,
+          totalSales: company.totalSales,
+          totalRevenue: company.totalRevenue,
+          commissionAdded: commission,
+        });
       });
       return Object.values(companies);
     } catch (error) {

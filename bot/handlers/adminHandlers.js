@@ -947,73 +947,89 @@ class AdminHandlers {
         return ctx.reply("❌ Access denied.");
       const stats = await adminService.getPlatformStats();
       const companies = await adminService.getCompanySalesAndCommission();
-      const perPage = 10;
+      console.log(
+        "[DEBUG] All companies returned:",
+        companies.map((c) => ({
+          name: c.name,
+          revenue: c.totalRevenue,
+          id: c.id,
+        }))
+      );
+      const perPage = 5; // Reduced from 10 to 5
       const totalPages = Math.ceil(companies.length / perPage) || 1;
       page = Number(page) || 1;
       const start = (page - 1) * perPage;
       const end = start + perPage;
+      console.log(
+        "[DEBUG] Page:",
+        page,
+        "Total pages:",
+        totalPages,
+        "Start:",
+        start,
+        "End:",
+        end
+      );
+      console.log(
+        "[DEBUG] Companies being displayed:",
+        companies
+          .slice(start, end)
+          .map((c) => ({ name: c.name, revenue: c.totalRevenue }))
+      );
+
+      // Calculate total platform withdrawable balance
+      const totalPlatformWithdrawable = companies.reduce((sum, company) => {
+        const withdrawable = Number(
+          company.platformCommissionCurrent ?? company.platformCommission ?? 0
+        );
+        return sum + withdrawable;
+      }, 0);
+
       let message = `📊 *Platform Analytics Dashboard*\n\n`;
-      message += `👥 Users: ${stats.totalUsers}\n`;
-      message += `🏢 Companies: ${stats.totalCompanies}\n`;
-      message += `💰 Revenue: $${(stats.platformRevenue || 0).toFixed(2)}\n`;
+      message += `👥 *Users:* ${stats.totalUsers}\n`;
+      message += `🏢 *Companies:* ${stats.totalCompanies}\n`;
+      message += `💰 *Revenue:* \`$${(stats.platformRevenue || 0).toFixed(
+        2
+      )}\`\n`;
+      message += `💵 *Total Withdrawable:* \`$${totalPlatformWithdrawable.toFixed(
+        2
+      )}\`\n`;
       if (stats.growth) {
-        message += `\n📈 Growth (30d):\n`;
-        message += `• Users: +${stats.growth.users30d || 0}%\n`;
-        message += `• Revenue: +${stats.growth.revenue30d || 0}%\n`;
+        message += `\n📈 *Growth (30d):*\n`;
+        message += `• 👤 Users: +${stats.growth.users30d || 0}%\n`;
+        message += `• 💵 Revenue: +${stats.growth.revenue30d || 0}%\n`;
       }
-      message += `\n\n*Company Sales & Platform Commission (Page ${page}/${totalPages}):*\n`;
-      // Compose company sales & commission section
-      let companyStatsMsg = "";
+      message += `\n━━━━━━━━━━━━━━━━━━\n`;
+      message += `🏢 *Company Sales & Platform Commission (Page ${page}/${totalPages}):*\n`;
+      message += `\n━━━━━━━━━━━━━━━━━━\n`;
+      // Human-friendly list layout (more compact)
       companies.slice(start, end).forEach((c, idx) => {
-        try {
-          if (!c || typeof c !== "object") {
-            companyStatsMsg += `• [Company ${
-              start + idx + 1
-            }] (data missing)\n`;
-            return;
-          }
-          const name = c.name || "Unknown";
-          const withdrawable = Number(
-            c.platformCommissionCurrent ?? c.platformCommission ?? 0
-          );
-          const lifetime = Number(c.platformCommissionLifetime ?? 0);
-          const sales = Number(c.totalSales ?? 0);
-          const revenue = Number(c.totalRevenue ?? 0);
-          companyStatsMsg += `• ${name} ($${withdrawable.toFixed(
-            2
-          )} withdrawable, $${lifetime.toFixed(
-            2
-          )} lifetime, ${sales} sales, $${revenue.toFixed(2)} total)\n`;
-        } catch (err) {
-          companyStatsMsg += `• [Company ${
-            start + idx + 1
-          }] (formatting error)\n`;
-        }
+        const name = c.name || "Unknown";
+        const withdrawable = Number(
+          c.platformCommissionCurrent ?? c.platformCommission ?? 0
+        );
+        const lifetime = Number(c.platformCommissionLifetime ?? 0);
+        const revenue = Number(c.totalRevenue ?? 0);
+        message += `${idx + 1}. *${name}*\n`;
+        message += `   • 💵 Withdrawable: \`$${withdrawable.toFixed(2)}\`\n`;
+        message += `   • 🏆 Lifetime: \`$${lifetime.toFixed(2)}\`\n`;
+        message += `   • 💰 Total Revenue: \`$${revenue.toFixed(2)}\`\n`; // Removed extra newline
       });
-      message += `\nCompany Sales & Platform Commission:\n${companyStatsMsg}`;
+      message += `━━━━━━━━━━━━━━━━━━\n`;
+      // Only show withdrawal buttons for companies with positive withdrawable amount
       const buttons = [];
       companies.slice(start, end).forEach((c) => {
-        if (
-          c &&
-          typeof c === "object" &&
-          c.name &&
-          c.platformCommission !== undefined &&
-          c.totalSales !== undefined &&
-          c.totalRevenue !== undefined
-        ) {
-          const commission = Number(c.platformCommission ?? 0);
-          const totalSales = Number(c.totalSales ?? 0);
-          const totalRevenue = Number(c.totalRevenue ?? 0);
-          message += `• ${c.name} ($${commission.toFixed(
-            2
-          )} from ${totalSales} sales, $${totalRevenue.toFixed(2)} total)\n`;
+        const withdrawable = Number(
+          c.platformCommissionCurrent ?? c.platformCommission ?? 0
+        );
+        if (withdrawable > 0) {
+          buttons.push([
+            Markup.button.callback(
+              `Request Withdrawal: ${c.name} ($${withdrawable.toFixed(2)})`,
+              `request_withdrawal_${c.id}`
+            ),
+          ]);
         }
-        buttons.push([
-          Markup.button.callback(
-            `Request Withdrawal: ${c.name || "Unknown"}`,
-            `request_withdrawal_${c.id}`
-          ),
-        ]);
       });
       // Pagination buttons
       const navButtons = [];
@@ -2327,17 +2343,12 @@ What would you like to do?
         if (!companyDocTx.exists) throw new Error("Company not found");
         const data = companyDocTx.data();
         const oldCommission = data.platformCommission || 0;
+        if (withdrawal.amount > oldCommission) {
+          throw new Error("Withdrawal amount exceeds available commission.");
+        }
         const newCommission = oldCommission - withdrawal.amount;
-        console.log(
-          "[Withdrawal Debug] Transaction: oldCommission:",
-          oldCommission,
-          "withdrawal.amount:",
-          withdrawal.amount,
-          "newCommission:",
-          newCommission
-        );
         t.update(companyRef, {
-          platformCommission: Math.max(0, newCommission),
+          platformCommission: newCommission,
         });
         t.update(withdrawalRef, {
           status: "approved",

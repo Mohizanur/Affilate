@@ -2708,6 +2708,19 @@ Toggle notifications:
           platformCommission: databaseService.increment(platformFee),
         });
       }
+      // Save sale to sales collection for revenue tracking
+      const saleData = {
+        companyId: product.companyId,
+        productId: product.id,
+        amount: total,
+        quantity: quantity,
+        buyerId: buyerId,
+        sellerId: ctx.from.id,
+        createdAt: new Date(),
+        status: "completed",
+        referralCode: referral ? referral.code : null,
+      };
+      await databaseService.getDb().collection("sales").add(saleData);
       const platformDoc = await databaseService
         .getDb()
         .collection("platform")

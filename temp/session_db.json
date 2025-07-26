@@ -6,7 +6,7 @@
         "sellProductId": null,
         "sellStep": null,
         "sellBuyerId": null,
-        "buyerUsername": "omafesrun2",
+        "buyerUsername": "omafesrun",
         "sellQuantity": null
       }
     },
@@ -15,7 +15,7 @@
       "data": {
         "pendingWithdrawal": {
           "companyId": "a55bfc77-3145-41c5-9d6c-da92cbd0a9a1",
-          "amount": 40
+          "amount": 60
         }
       }
     }
