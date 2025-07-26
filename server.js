@@ -55,7 +55,15 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use("/api", apiRoutes);
 
 app.get("/", (req, res) => {
-  res.send("✅ API Running");
+  res.send("✅ Bot API Running");
+});
+
+app.get("/health", (req, res) => {
+  res.json({
+    status: "healthy",
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || "development",
+  });
 });
 
 // Error Handling
@@ -93,7 +101,13 @@ async function startServer() {
     }
 
     app.listen(PORT, () => {
-      console.log(`🚀 Server listening on http://localhost:${PORT}`);
+      console.log(`🚀 Server listening on port ${PORT}`);
+      if (process.env.RENDER) {
+        console.log(`🌐 Render deployment detected`);
+        console.log(
+          `🔗 External URL: https://${process.env.RENDER_EXTERNAL_HOSTNAME}`
+        );
+      }
     });
   } catch (err) {
     console.error("Fatal error in startServer:", err); // Added detailed error log

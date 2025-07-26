@@ -144,11 +144,7 @@ async function startBot(app) {
       `✅ Bot connected: @${botInfo.username} (${botInfo.first_name})`
     );
 
-    console.log("Before bot.telegram.deleteWebhook()");
-    await bot.telegram.deleteWebhook();
-    console.log("After bot.telegram.deleteWebhook()");
-
-    // Set bot commands before launching
+    // Set bot commands
     if (bot && bot.telegram && bot.telegram.setMyCommands) {
       const commands = [
         { command: "start", description: "Start or restart the bot" },
@@ -165,10 +161,38 @@ async function startBot(app) {
       await bot.telegram.setMyCommands(commands);
     }
 
-    // Launch bot
-    console.log("Before bot.launch()");
-    await bot.launch();
-    console.log("After bot.launch()");
+    // Webhook setup for production
+    const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER;
+    const webhookPath = `/webhook/${token}`;
+    
+    if (isProduction) {
+      console.log("🌐 Setting up webhook for production...");
+      
+      // Delete any existing webhook
+      await bot.telegram.deleteWebhook();
+      
+      // Set up webhook endpoint
+      app.use(webhookPath, bot.webhookCallback());
+      
+      // Set webhook URL (will be set after server starts)
+      const webhookUrl = `${process.env.WEBHOOK_URL || `https://${process.env.RENDER_EXTERNAL_HOSTNAME}`}${webhookPath}`;
+      console.log("🔗 Webhook URL:", webhookUrl);
+      
+      // Set webhook after a short delay to ensure server is running
+      setTimeout(async () => {
+        try {
+          await bot.telegram.setWebhook(webhookUrl);
+          console.log("✅ Webhook set successfully");
+        } catch (error) {
+          console.error("❌ Failed to set webhook:", error);
+        }
+      }, 2000);
+      
+    } else {
+      console.log("🔄 Using long polling for development...");
+      await bot.telegram.deleteWebhook();
+      await bot.launch();
+    }
 
     console.log("🚀 Bot initialization complete");
     return bot;
