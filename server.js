@@ -1,11 +1,5 @@
 // Top-level error handlers and startup log
-process.on("uncaughtException", (err) => {
-  console.error("Uncaught Exception (global):", err);
-});
-process.on("unhandledRejection", (reason, promise) => {
-  console.error("Unhandled Rejection (global):", reason);
-  // Optionally, add more sophisticated logging or alerting here
-});
+// Note: More specific error handlers are defined in bot/index.js
 console.log("=== server.js starting ===");
 
 require("dotenv").config();

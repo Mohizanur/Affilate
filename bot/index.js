@@ -155,29 +155,36 @@ async function startBot(app) {
         { command: "profile", description: "Your profile & settings" },
         { command: "leaderboard", description: "Top referrers" },
         { command: "help", description: "Help & support" },
-        { command: "feecalculator", description: "Calculate fee for a transaction" }
+        {
+          command: "feecalculator",
+          description: "Calculate fee for a transaction",
+        },
       ];
 
       await bot.telegram.setMyCommands(commands);
     }
 
     // Webhook setup for production
-    const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER;
+    const isProduction =
+      process.env.NODE_ENV === "production" || process.env.RENDER;
     const webhookPath = `/webhook/${token}`;
-    
+
     if (isProduction) {
       console.log("🌐 Setting up webhook for production...");
-      
+
       // Delete any existing webhook
       await bot.telegram.deleteWebhook();
-      
+
       // Set up webhook endpoint
       app.use(webhookPath, bot.webhookCallback());
-      
+
       // Set webhook URL (will be set after server starts)
-      const webhookUrl = `${process.env.WEBHOOK_URL || `https://${process.env.RENDER_EXTERNAL_HOSTNAME}`}${webhookPath}`;
+      const webhookUrl = `${
+        process.env.WEBHOOK_URL ||
+        `https://${process.env.RENDER_EXTERNAL_HOSTNAME}`
+      }${webhookPath}`;
       console.log("🔗 Webhook URL:", webhookUrl);
-      
+
       // Set webhook after a short delay to ensure server is running
       setTimeout(async () => {
         try {
@@ -187,11 +194,11 @@ async function startBot(app) {
           console.error("❌ Failed to set webhook:", error);
         }
       }, 2000);
-      
     } else {
       console.log("🔄 Using long polling for development...");
       await bot.telegram.deleteWebhook();
       await bot.launch();
+      isBotLaunched = true;
     }
 
     console.log("🚀 Bot initialization complete");
@@ -202,19 +209,55 @@ async function startBot(app) {
   }
 }
 
+// Track bot launch state
+let isBotLaunched = false;
+
+// Global error handler
+process.on("uncaughtException", (error) => {
+  console.error("❌ Uncaught Exception (global):", error);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("❌ Unhandled Rejection at:", promise, "reason:", reason);
+  process.exit(1);
+});
+
 // Graceful shutdown
-process.once("SIGINT", () => {
+process.once("SIGINT", async () => {
   console.log("🛑 Received SIGINT, stopping bot...");
   if (bot) {
-    bot.stop("SIGINT");
+    try {
+      if (isBotLaunched) {
+        await bot.stop("SIGINT");
+        console.log("✅ Bot stopped successfully (long polling mode)");
+      } else {
+        // In webhook mode, just delete the webhook
+        await bot.telegram.deleteWebhook();
+        console.log("✅ Webhook deleted successfully");
+      }
+    } catch (error) {
+      console.log("⚠️ Error during bot shutdown:", error.message);
+    }
   }
   process.exit(0);
 });
 
-process.once("SIGTERM", () => {
+process.once("SIGTERM", async () => {
   console.log("🛑 Received SIGTERM, stopping bot...");
   if (bot) {
-    bot.stop("SIGTERM");
+    try {
+      if (isBotLaunched) {
+        await bot.stop("SIGTERM");
+        console.log("✅ Bot stopped successfully (long polling mode)");
+      } else {
+        // In webhook mode, just delete the webhook
+        await bot.telegram.deleteWebhook();
+        console.log("✅ Webhook deleted successfully");
+      }
+    } catch (error) {
+      console.log("⚠️ Error during bot shutdown:", error.message);
+    }
   }
   process.exit(0);
 });
