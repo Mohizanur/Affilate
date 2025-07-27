@@ -1274,11 +1274,9 @@ class UserHandlers {
           "msg_profile_info",
           {
             name: `${user.firstName} ${user.lastName || ""}`,
-            username: user.username || t("msg_not_set", {}, userLanguage),
             phone: user.phoneVerified
               ? t("msg_phone_verified", {}, userLanguage)
               : t("msg_phone_not_verified", {}, userLanguage),
-            memberSince: toDateSafe(user.createdAt)?.toLocaleDateString(),
             companies: user.companies?.length || 0,
             balance: (user.referralBalance || 0).toFixed(2),
             referrals: user.totalReferrals || 0,
@@ -3605,14 +3603,22 @@ Toggle notifications:
   }
 
   async handleEditProfile(ctx) {
+    const telegramId = ctx.from.id;
+    const user = await userService.userService.getUserByTelegramId(telegramId);
+    const userLanguage = user.language || "en";
+
     ctx.session.editProfileStep = "first_name";
     ctx.session.editProfileData = {};
-    await ctx.reply("📝 Please enter your *first name*:", {
+    await ctx.reply(t("msg_enter_first_name", {}, userLanguage), {
       parse_mode: "Markdown",
     });
   }
 
   async handleEditProfileStep(ctx) {
+    const telegramId = ctx.from.id;
+    const user = await userService.userService.getUserByTelegramId(telegramId);
+    const userLanguage = user.language || "en";
+
     if (!ctx.session.editProfileStep) return;
     const step = ctx.session.editProfileStep;
     const value = ctx.message.text && ctx.message.text.trim();
@@ -3623,7 +3629,7 @@ Toggle notifications:
     if (step === "first_name") {
       ctx.session.editProfileData.firstName = value;
       ctx.session.editProfileStep = "last_name";
-      await ctx.reply("Please enter your *last name*:", {
+      await ctx.reply(t("msg_enter_last_name", {}, userLanguage), {
         parse_mode: "Markdown",
       });
       return;
@@ -3631,7 +3637,7 @@ Toggle notifications:
     if (step === "last_name") {
       ctx.session.editProfileData.lastName = value;
       ctx.session.editProfileStep = "username";
-      await ctx.reply("Please enter your *Telegram username* (without @):", {
+      await ctx.reply(t("msg_enter_username", {}, userLanguage), {
         parse_mode: "Markdown",
       });
       return;
@@ -3639,7 +3645,7 @@ Toggle notifications:
     if (step === "username") {
       ctx.session.editProfileData.username = value.replace(/^@/, "");
       ctx.session.editProfileStep = "phone";
-      await ctx.reply("Please enter your *phone number* (with country code):", {
+      await ctx.reply(t("msg_enter_phone", {}, userLanguage), {
         parse_mode: "Markdown",
       });
       return;

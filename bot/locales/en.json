@@ -74,6 +74,24 @@
   "msg_phone_not_verified": "❌ Not verified",
   "btn_edit_profile": "✏️ Edit Profile",
 
+  "msg_profile_title": "👤 *Your Profile*\n\n",
+  "msg_profile_info": "📛 *Name:* {{name}}\n📱 *Phone:* {{phone}}\n🏢 *Companies:* {{companies}}\n💰 *Balance:* {{balance}} coins\n📊 *Referrals:* {{referrals}}\n",
+
+  "msg_not_set": "Not set",
+
+  "msg_enter_valid_value": "❌ Please enter a valid value.",
+  "msg_profile_updated": "✅ Profile updated successfully!",
+  "msg_enter_first_name": "📝 Please enter your *first name*:",
+  "msg_enter_last_name": "Please enter your *last name*:",
+  "msg_enter_username": "Please enter your *Telegram username* (without @):",
+  "msg_enter_phone": "Please enter your *phone number* (with country code):",
+
+  "msg_failed_load_profile": "❌ Failed to load profile. Please try again.",
+
+  "msg_no_payment_details": "Not set",
+
+  "msg_enter_valid_amount": "❌ Please enter a valid amount.",
+
   "msg_order_history_title": "📋 *Order History*\n\n",
   "msg_no_orders_yet": "No orders yet. Start shopping! 🛍️ Use /browse to find products.",
   "msg_order_entry": "{{index}}. {{statusIcon}} [{{date}}] {{productTitle}} (${{price}})\n   Company: {{companyName}}\n   {{referralCode}}\n   {{rewardApplied}}\n   {{proofUploaded}}\n\n",
