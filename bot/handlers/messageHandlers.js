@@ -5,6 +5,7 @@ const adminService = require("../services/adminService");
 const logger = require("../../utils/logger");
 const referralService = require("../services/referralService");
 const { getPlatformSettings } = require("../utils/helpers");
+const { t } = require("../../utils/localize");
 
 const adminHandlers = require("./adminHandlers");
 const userHandlers = require("./userHandlers");
@@ -78,7 +79,7 @@ class MessageHandlers {
       }
 
       ctx.reply(
-        "❓ I didn't understand that. Use /start to see available options."
+        t(ctx, 'unknown_command')
       );
     } catch (error) {
       logger.error("Error in handleTextMessage:", error);
