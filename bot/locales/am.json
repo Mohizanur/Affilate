@@ -398,8 +398,6 @@
   "msg_payout_history": "📋 *የወጪ ታሪክ*\n\n",
   "msg_payout_entry": "• {{date}}: {{amount}} ሳንቲሞች - {{status}}\n",
 
-  "msg_profile_info": "📛 *ስም:* {{name}}\n📱 *ስልክ:* {{phone}}\n🏢 *ኩባንያዎች:* {{companies}}\n💰 *ቀሪ:* {{balance}} ሳንቲሞች\n📊 *ሪፈራልዎች:* {{referrals}}\n",
-
   "msg_company_registration": "🏢 *የኩባንያ ምዝገባ*\n\nእባክዎ የኩባንያዎንን መረጃ ያስገቡ። ይህ ሂደት በተለያዩ ደረጃዎች ይከናወናል።",
   "msg_company_agreement": "📋 *የኩባንያ ስምምነት*\n\nእባክዎ የኩባንያ ስምምነቱን ያንብቡ እና ያጽዱ።",
 
@@ -588,8 +586,6 @@
   "msg_payout_history": "📋 *የወጪ ታሪክ*\n\n",
   "msg_payout_entry": "• {{date}}: {{amount}} ሳንቲሞች - {{status}}\n",
 
-
-
   "msg_company_registration": "🏢 *የኩባንያ ምዝገባ*\n\nእባክዎ የኩባንያዎንን መረጃ ያስገቡ። ይህ ሂደት በተለያዩ ደረጃዎች ይከናወናል።",
   "msg_company_agreement": "📋 *የኩባንያ ስምምነት*\n\nእባክዎ የኩባንያ ስምምነቱን ያንብቡ እና ያጽዱ።",
 
@@ -777,8 +773,6 @@
   "msg_payout_success": "✅ የወጪ ጥያቄዎ በተሳካ ሁኔታ ተላክቷል! ወጪ 3-5 ቀናት ይወስዳሉ።",
   "msg_payout_history": "📋 *የወጪ ታሪክ*\n\n",
   "msg_payout_entry": "• {{date}}: {{amount}} ሳንቲሞች - {{status}}\n",
-
-
 
   "msg_company_registration": "🏢 *የኩባንያ ምዝገባ*\n\nእባክዎ የኩባንያዎንን መረጃ ያስገቡ። ይህ ሂደት በተለያዩ ደረጃዎች ይከናወናል።",
   "msg_company_agreement": "📋 *የኩባንያው ስምምነት*\n\nእባክዎ የኩባንያ ስምምነቱን ያንብቡ እና ይቀጥሉ።",
