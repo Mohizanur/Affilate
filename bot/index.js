@@ -1,3 +1,4 @@
+require('dotenv').config();
 console.log("Loaded bot/index.js");
 console.log(
   "Loaded BOT_TOKEN:",
@@ -389,4 +390,10 @@ if (typeof global !== "undefined") {
       );
     }
   };
+}
+
+// Start the bot if this file is run directly (not imported)
+if (require.main === module) {
+  // For local development, just call startBot with no app (polling mode)
+  startBot();
 }

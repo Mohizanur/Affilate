@@ -260,6 +260,9 @@ class UserHandlers {
   async handleBrowseProducts(ctx, pageArg) {
     if (ctx.callbackQuery) await ctx.answerCbQuery();
     ctx.session = {}; // Reset session state
+    // Fix: fetch user and define userLanguage
+    const user = await userService.userService.getUserByTelegramId(ctx.from.id);
+    const userLanguage = user?.language || "en";
     const products = await productService.getAllActiveProductsWithCompany();
     logger.info(`[BrowseProducts] Found ${products.length} active products.`);
 
@@ -3263,7 +3266,7 @@ Toggle notifications:
       const userLanguage = user?.language || "en";
 
       const companies =
-        await require("../services/companyService").getUserCompanies(
+        await require("../services/companyService").getCompaniesByOwner(
           telegramId
         );
       if (!companies || companies.length === 0) {

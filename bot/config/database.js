@@ -13,6 +13,33 @@ class DatabaseService {
         return this.db;
       }
 
+      // Debug: Print all relevant Firebase env variables
+      console.log(
+        "[DEBUG] FIREBASE_PROJECT_ID:",
+        process.env.FIREBASE_PROJECT_ID
+      );
+      console.log(
+        "[DEBUG] FIREBASE_PRIVATE_KEY_ID:",
+        process.env.FIREBASE_PRIVATE_KEY_ID
+      );
+      console.log(
+        "[DEBUG] FIREBASE_PRIVATE_KEY (first 40 chars):",
+        (process.env.FIREBASE_PRIVATE_KEY || "").slice(0, 40)
+      );
+      console.log(
+        "[DEBUG] FIREBASE_CLIENT_EMAIL:",
+        process.env.FIREBASE_CLIENT_EMAIL
+      );
+      console.log(
+        "[DEBUG] FIREBASE_CLIENT_ID:",
+        process.env.FIREBASE_CLIENT_ID
+      );
+      console.log("[DEBUG] FIREBASE_AUTH_URI:", process.env.FIREBASE_AUTH_URI);
+      console.log(
+        "[DEBUG] FIREBASE_TOKEN_URI:",
+        process.env.FIREBASE_TOKEN_URI
+      );
+
       // Initialize Firebase Admin
       const serviceAccount = {
         type: "service_account",
