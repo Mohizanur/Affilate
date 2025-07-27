@@ -63,7 +63,7 @@ class UserHandlers {
       const telegramId = ctx.from.id;
       // Use the already declared 'user' variable for all further logic
       if (user && user.banned) {
-        return ctx.reply("🚫 You are banned from using this bot.");
+        return ctx.reply(t("msg_you_are_banned", {}, userLanguage || "en"));
       }
       const userData = {
         telegramId,
@@ -121,74 +121,130 @@ class UserHandlers {
       const isVerified = user.phoneVerified;
       const isAdmin = user.role === "admin" || user.isAdmin === true;
       const isCompany = user.isCompanyOwner === true || user.companyId;
-      const welcomeMessage = `
-🎉 Welcome to ReferralBot!
 
-1. Buy from any company and get a referral code
-2. Share your code (single-use, per company)
-3. When someone uses your code and buys, you get 2% reward, they get 1% discount
-4. Company must approve the purchase for rewards to be paid
-5. All rewards, discounts, and balances are automatic and visible in your profile
-6. Platform takes 5% fee, companies pay monthly
-7. Use /help for full details
+      // Get user's language preference
+      const userLanguage = user.language || "en";
+      const { t } = require("../../utils/localize");
 
-Let's get started! 👇
-      `;
+      const welcomeMessage =
+        t("welcome", {}, userLanguage) +
+        "\n\n" +
+        t("start_instructions", {}, userLanguage);
 
       let buttons = [];
       if (user.canRegisterCompany) {
         buttons.push([
-          Markup.button.callback("🏢 Register Company", "register_company"),
+          Markup.button.callback(
+            t("btn_register_company", {}, userLanguage),
+            "register_company"
+          ),
         ]);
         buttons.push([
-          Markup.button.callback("🏢 My Companies", "my_companies"),
+          Markup.button.callback(
+            t("btn_my_companies", {}, userLanguage),
+            "my_companies"
+          ),
         ]);
-        buttons.push([Markup.button.callback("📦 My Products", "my_products")]);
+        buttons.push([
+          Markup.button.callback(
+            t("btn_my_products", {}, userLanguage),
+            "my_products"
+          ),
+        ]);
       } else if (user.companyId || user.isCompanyOwner) {
         buttons.push([
-          Markup.button.callback("🏢 My Companies", "my_companies"),
+          Markup.button.callback(
+            t("btn_my_companies", {}, userLanguage),
+            "my_companies"
+          ),
         ]);
-        buttons.push([Markup.button.callback("📦 My Products", "my_products")]);
+        buttons.push([
+          Markup.button.callback(
+            t("btn_my_products", {}, userLanguage),
+            "my_products"
+          ),
+        ]);
       }
       // Always show My Referral Codes
       buttons.push([
-        Markup.button.callback("🎯 My Referral Codes", "my_referral_codes"),
+        Markup.button.callback(
+          t("btn_my_referral_codes", {}, userLanguage),
+          "my_referral_codes"
+        ),
       ]);
       // 2-column layout for main menu
       const mainRow1 = [
-        Markup.button.callback("🛍️ Browse Products", "browse_products"),
-        Markup.button.callback("🔗 My Referrals", "my_referrals"),
+        Markup.button.callback(
+          t("btn_browse_products", {}, userLanguage),
+          "browse_products"
+        ),
+        Markup.button.callback(
+          t("btn_my_referrals", {}, userLanguage),
+          "my_referrals"
+        ),
       ];
       // Only show Balance & Withdraw if user has balance > 0
       const mainRow2 =
         user.coinBalance > 0
           ? [
               Markup.button.callback(
-                "💰 Balance & Withdraw",
+                t("btn_balance_withdraw", {}, userLanguage),
                 "balance_withdraw"
               ),
-              Markup.button.callback("🏆 Leaderboard", "leaderboard"),
+              Markup.button.callback(
+                t("btn_leaderboard", {}, userLanguage),
+                "leaderboard"
+              ),
             ]
-          : [Markup.button.callback("🏆 Leaderboard", "leaderboard")];
+          : [
+              Markup.button.callback(
+                t("btn_leaderboard", {}, userLanguage),
+                "leaderboard"
+              ),
+            ];
       const mainRow3 = [
-        Markup.button.callback("⭐ Favorites", "view_favorites"),
-        Markup.button.callback("🛒 Cart", "view_cart"),
+        Markup.button.callback(
+          t("btn_favorites", {}, userLanguage),
+          "view_favorites"
+        ),
+        Markup.button.callback(t("btn_cart", {}, userLanguage), "view_cart"),
       ];
       const mainRow4 = [
-        Markup.button.callback("👤 Profile", "user_profile"),
-        Markup.button.callback("ℹ️ Help", "help"),
+        Markup.button.callback(
+          t("btn_profile", {}, userLanguage),
+          "user_profile"
+        ),
+        Markup.button.callback(t("btn_help", {}, userLanguage), "help"),
+      ];
+      // Add Language button
+      const mainRow5 = [
+        Markup.button.callback(
+          t("btn_language", {}, userLanguage),
+          "language_settings"
+        ),
       ];
       // Add Community button (URL button)
-      const mainRow5 = [
-        Markup.button.url("🌐 Community", "https://t.me/birrpayofficial"),
+      const mainRow6 = [
+        Markup.button.url(
+          t("btn_community", {}, userLanguage),
+          "https://t.me/birrpayofficial"
+        ),
       ];
-      buttons.push(mainRow1, mainRow2, mainRow3, mainRow4, mainRow5);
+      buttons.push(mainRow1, mainRow2, mainRow3, mainRow4, mainRow5, mainRow6);
       if (isAdmin) {
-        buttons.push([Markup.button.callback("🔧 Admin Panel", "admin_panel")]);
+        buttons.push([
+          Markup.button.callback(
+            t("btn_admin_panel", {}, userLanguage),
+            "admin_panel"
+          ),
+        ]);
       }
       if (!isVerified) {
         buttons.push([
-          Markup.button.callback("📱 Verify Phone", "verify_phone"),
+          Markup.button.callback(
+            t("btn_verify_phone", {}, userLanguage),
+            "verify_phone"
+          ),
         ]);
       }
       ctx.reply(welcomeMessage, {
@@ -197,9 +253,7 @@ Let's get started! 👇
       });
     } catch (error) {
       logger.error("Error in start handler:", error);
-      ctx.reply(
-        "❌ Something went wrong. Please try again later or contact @Nife777online if the problem persists."
-      );
+      ctx.reply(t("error_generic", {}, userLanguage || "en"));
     }
   }
 
@@ -210,7 +264,7 @@ Let's get started! 👇
     logger.info(`[BrowseProducts] Found ${products.length} active products.`);
 
     if (products.length === 0) {
-      ctx.reply("📦 No products available at the moment. Check back later!");
+      ctx.reply(t("msg_no_products", {}, userLanguage || "en"));
       return;
     }
 
@@ -232,15 +286,25 @@ Let's get started! 👇
     const endIdx = startIdx + ITEMS_PER_PAGE;
     const pageProducts = products.slice(startIdx, endIdx);
 
-    let message = `🛍️ *Available Products* (Page ${page}/${totalPages})\n\n`;
+    let message = t(
+      "msg_available_products",
+      { page, totalPages },
+      userLanguage || "en"
+    );
     const buttons = [];
 
     pageProducts.forEach((product, index) => {
-      message += `${startIdx + index + 1}. **${product.title}**\n`;
-      message += `   💰 $${Number(product.price) || 0} | 🏢 ${
-        product.companyName || "Unknown"
-      }\n`;
-      message += `   📝 ${(product.description || "").substring(0, 50)}...\n\n`;
+      message += t(
+        "msg_product_info",
+        {
+          index: startIdx + index + 1,
+          title: product.title,
+          price: Number(product.price) || 0,
+          companyName: product.companyName || "Unknown",
+          description: (product.description || "").substring(0, 50),
+        },
+        userLanguage || "en"
+      );
       buttons.push([
         Markup.button.callback(
           `🛒 View ${product.title}`,
@@ -254,16 +318,24 @@ Let's get started! 👇
     if (page > 1)
       navButtons.push(
         Markup.button.callback(
-          "⬅️ Previous",
+          t("btn_previous_page", {}, userLanguage || "en"),
           `browse_products_page_${page - 1}`
         )
       );
     if (page < totalPages)
       navButtons.push(
-        Markup.button.callback("Next ➡️", `browse_products_page_${page + 1}`)
+        Markup.button.callback(
+          t("btn_next_page", {}, userLanguage || "en"),
+          `browse_products_page_${page + 1}`
+        )
       );
     if (navButtons.length) buttons.push(navButtons);
-    buttons.push([Markup.button.callback("🔙 Back to Menu", "main_menu")]);
+    buttons.push([
+      Markup.button.callback(
+        t("btn_back_to_menu", {}, userLanguage || "en"),
+        "main_menu"
+      ),
+    ]);
 
     ctx.reply(message, {
       parse_mode: "Markdown",
@@ -273,6 +345,11 @@ Let's get started! 👇
 
   async handleViewProduct(ctx, productIdArg) {
     try {
+      // Immediately answer callback query to prevent timeout
+      if (ctx.callbackQuery) {
+        await ctx.answerCbQuery();
+      }
+
       let productId = productIdArg;
       if (!productId) {
         productId = ctx.callbackQuery.data;
@@ -280,33 +357,39 @@ Let's get started! 👇
           productId = productId.replace("view_product_", "");
         }
       }
+
       logger.info(`[DEBUG] handleViewProduct: productId=${productId}`);
+
+      // Get user language for localization
+      const user = await userService.getUserByTelegramId(ctx.from.id);
+      const userLanguage = user?.language || "en";
+
       const product = await productService.getProductById(productId);
 
       if (!product) {
         logger.error(
           `[DEBUG] handleViewProduct: Product not found for ID ${productId}`
         );
-        ctx.reply("❌ Product not found.");
+        await ctx.reply(t("msg_product_not_found", {}, userLanguage));
         return;
       }
 
       // Use the companyStatus from the joined product data
       if (product.companyStatus !== "active") {
-        ctx.reply(
-          "⏳ This company is not active. You cannot interact with its products."
-        );
+        await ctx.reply(t("msg_company_inactive", {}, userLanguage));
         return;
       }
 
       // Human-friendly status label
       const statusLabels = {
-        instock: "In Stock",
-        out_of_stock: "Out of Stock",
-        low_stock: "Low Stock",
+        instock: t("msg_product_status_instock", {}, userLanguage),
+        out_of_stock: t("msg_product_status_out_of_stock", {}, userLanguage),
+        low_stock: t("msg_product_status_low_stock", {}, userLanguage),
       };
       const statusLabel =
-        statusLabels[product.status] || product.status || "Unknown";
+        statusLabels[product.status] ||
+        product.status ||
+        t("msg_product_status_unknown", {}, userLanguage);
 
       // Fetch company details for display
       let companyDetails = "";
@@ -329,18 +412,22 @@ Let's get started! 👇
         logger.error("Error fetching company details for product view:", e);
       }
 
-      const productMessage = `
- *${product.title}* ${product.statusBadge || ""}
-\n📝 Description: ${product.description}
-💰 Price: $${Number(product.price) || 0}
-🏷️ Category: ${product.category}
-📦 Quantity: ${
-        typeof product.quantity !== "undefined" ? product.quantity : "N/A"
-      }
-🔖 Status: ${statusLabel}
-${companyDetails}
-To purchase this item, please contact the company owner directly. You can provide them with a referral code if you have one.
-      `;
+      const productMessage =
+        t(
+          "msg_product_details",
+          {
+            title: product.title,
+            price: Number(product.price) || 0,
+            companyName: product.companyName || "Unknown",
+            description: product.description || "No description available",
+          },
+          userLanguage
+        ) +
+        `\n\n${companyDetails}\n\n${t(
+          "msg_product_contact_owner",
+          {},
+          userLanguage
+        )}`;
 
       // Fetch company to check ownership
       let isOwner = false;
@@ -357,30 +444,43 @@ To purchase this item, please contact the company owner directly. You can provid
       const buttons = [];
       if (isOwner) {
         buttons.push([
-          Markup.button.callback("💸 Sell", `sell_product_${product.id}`),
+          Markup.button.callback(
+            t("msg_product_sell", {}, userLanguage),
+            `sell_product_${product.id}`
+          ),
         ]);
         buttons.push([
-          Markup.button.callback("✏️ Edit", `edit_product_field_${product.id}`),
-          Markup.button.callback("🗑️ Delete", `delete_product_${product.id}`),
+          Markup.button.callback(
+            t("msg_product_edit", {}, userLanguage),
+            `edit_product_field_${product.id}`
+          ),
+          Markup.button.callback(
+            t("msg_product_delete", {}, userLanguage),
+            `delete_product_${product.id}`
+          ),
         ]);
       } else {
         buttons.push([
           Markup.button.callback(
-            "⭐ Add to Favorites",
+            t("msg_product_add_to_favorites", {}, userLanguage),
             `add_favorite_${product.id}`
           ),
-          Markup.button.callback("🛒 Add to Cart", `add_cart_${product.id}`),
+          Markup.button.callback(
+            t("msg_product_add_to_cart", {}, userLanguage),
+            `add_cart_${product.id}`
+          ),
         ]);
       }
       buttons.push([Markup.button.callback("🔙 Back to Menu", "main_menu")]);
 
-      ctx.reply(productMessage, {
+      await ctx.reply(productMessage, {
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard(buttons),
       });
     } catch (error) {
-      logger.error("Error browsing products:", error);
-      ctx.reply("❌ Failed to load products. Please try again.");
+      logger.error("Error in handleViewProduct:", error);
+      const userLanguage = "en"; // Fallback language
+      await ctx.reply(t("msg_failed_load_products", {}, userLanguage));
     }
   }
 
@@ -562,32 +662,37 @@ To purchase this item, please contact the company owner directly. You can provid
         companyId
       );
 
-      const message = `
-🎯 *Your Referral Code Generated!*
-
-�� Code: \`${referralCode}\`
-
-💰 How it works:
-• Share this code with friends
-• They get a discount on purchases
-• You earn commission on each sale
-• Track your earnings in "My Referrals"
-
-Share your code and start earning! 💸
-      `;
+      const message = t(
+        "msg_referral_code_generated",
+        {
+          code: referralCode,
+          companyName: company.name,
+        },
+        userLanguage || "en"
+      );
 
       const buttons = [
-        [Markup.button.callback("📊 My Referral Stats", "my_referrals")],
-        [Markup.button.callback("📤 Share Code", `share_code_${referralCode}`)],
         [
           Markup.button.callback(
-            "📤 Share Link",
+            t("btn_my_referral_stats", {}, userLanguage || "en"),
+            "my_referrals"
+          ),
+        ],
+        [
+          Markup.button.callback(
+            t("btn_share_code", {}, userLanguage || "en"),
+            `share_code_${referralCode}`
+          ),
+        ],
+        [
+          Markup.button.callback(
+            t("btn_share_link", {}, userLanguage || "en"),
             `share_link_${companyId}_${referralCode}`
           ),
         ],
         [
           Markup.button.callback(
-            "🔙 Back to Product",
+            t("btn_back_to_product", {}, userLanguage || "en"),
             `view_product_${ctx.session.lastProductId || "browse"}`
           ),
         ],
@@ -607,22 +712,32 @@ Share your code and start earning! 💸
     if (ctx.callbackQuery) await ctx.answerCbQuery();
     ctx.session = {}; // Reset session state
     if (!ctx.from || !ctx.from.id) {
-      ctx.reply("❌ Unable to get your referral stats: missing user ID.");
+      ctx.reply(t("msg_failed_load_stats", {}, userLanguage || "en"));
       return;
     }
+
+    const user = await userService.getUserByTelegramId(ctx.from.id);
+    const userLanguage = user.language || "en";
+
     const referralService = require("../services/referralService");
     const stats = await referralService.getUserReferralStats(ctx.from.id);
-    let msg = `📊 Your Referral Stats:\n`;
-    msg += `Total Referrals: ${stats.totalReferrals}\n`;
-    msg += `Total Earnings (recorded): $${stats.totalEarnings.toFixed(2)}\n`;
-    msg += `Pending Earnings: $${stats.pendingEarnings.toFixed(2)}\n`;
-    msg += `This Month: $${stats.thisMonthEarnings.toFixed(2)}\n`;
+
+    let msg = t(
+      "msg_referral_statistics",
+      {
+        totalReferrals: stats.totalReferrals,
+        verifiedReferrals: stats.verifiedReferrals || 0,
+        totalRewards: stats.totalEarnings.toFixed(2),
+        recentActivity: stats.recentActivity || "No recent activity",
+      },
+      userLanguage
+    );
+
     if (!stats.totalReferrals) {
-      await ctx.reply(
-        "🎯 You have no referrals yet. Share your referral code to start earning!"
-      );
+      await ctx.reply(t("msg_no_referrals_yet", {}, userLanguage));
       return;
     }
+
     // Pagination for company list
     const minPayout = parseFloat(process.env.MIN_PAYOUT_AMOUNT || "10");
     const companyStats = stats.companyStats || {};
@@ -643,49 +758,73 @@ Share your code and start earning! 💸
     const startIdx = (page - 1) * ITEMS_PER_PAGE;
     const endIdx = startIdx + ITEMS_PER_PAGE;
     const pageCompanies = companyEntries.slice(startIdx, endIdx);
-    let companyMsg = `\n\n*Your Companies:* (Page ${page}/${totalPages})\n`;
+
+    let companyMsg = t(
+      "msg_your_companies",
+      { page, totalPages },
+      userLanguage
+    );
     const buttons = [];
+
     for (const [companyId, data] of pageCompanies) {
-      companyMsg += `• ${
-        data.companyName || companyId
-      }: $${data.earnings.toFixed(2)} (${data.count} referrals)\n`;
+      companyMsg += t(
+        "msg_company_stats_entry",
+        {
+          companyName: data.companyName || companyId,
+          earnings: data.earnings.toFixed(2),
+          count: data.count,
+        },
+        userLanguage
+      );
+
       buttons.push([
         require("telegraf").Markup.button.callback(
-          `${data.companyName || companyId} Details`,
+          t(
+            "btn_company_details",
+            { companyName: data.companyName || companyId },
+            userLanguage
+          ),
           `ref_company_${companyId}`
         ),
       ]);
+
       if (data.earnings >= minPayout) {
         buttons.push([
           require("telegraf").Markup.button.callback(
-            `💸 Withdraw from ${
-              data.companyName || companyId
-            } ($${data.earnings.toFixed(2)})`,
+            t(
+              "btn_withdraw_from_company",
+              {
+                companyName: data.companyName || companyId,
+                earnings: data.earnings.toFixed(2),
+              },
+              userLanguage
+            ),
             `withdraw_company_${companyId}`
           ),
         ]);
       }
     }
+
     // Pagination controls
     const navButtons = [];
     if (page > 1)
       navButtons.push(
         require("telegraf").Markup.button.callback(
-          "⬅️ Previous",
+          t("btn_previous_page", {}, userLanguage),
           `my_referrals_page_${page - 1}`
         )
       );
     if (page < totalPages)
       navButtons.push(
         require("telegraf").Markup.button.callback(
-          "Next ➡️",
+          t("btn_next_page", {}, userLanguage),
           `my_referrals_page_${page + 1}`
         )
       );
     if (navButtons.length) buttons.push(navButtons);
     buttons.push([
       require("telegraf").Markup.button.callback(
-        "🔙 Back to Main Menu",
+        t("btn_back_to_menu", {}, userLanguage),
         "main_menu"
       ),
     ]);
@@ -698,6 +837,9 @@ Share your code and start earning! 💸
   async handleLeaderboard(ctx, pageArg) {
     if (ctx.callbackQuery) await ctx.answerCbQuery();
     try {
+      const user = await userService.getUserByTelegramId(ctx.from.id);
+      const userLanguage = user.language || "en";
+
       const topReferrers = await referralService.getTopReferrers(100); // Fetch enough for pagination
       const ITEMS_PER_PAGE = 5;
       let page = 1;
@@ -716,38 +858,63 @@ Share your code and start earning! 💸
       const startIdx = (page - 1) * ITEMS_PER_PAGE;
       const endIdx = startIdx + ITEMS_PER_PAGE;
       const pageReferrers = topReferrers.slice(startIdx, endIdx);
-      let message = `🏆 *Top Referrers Leaderboard* (Page ${page}/${totalPages})\n\n`;
+
+      let message = t(
+        "msg_leaderboard_title",
+        { page, totalPages },
+        userLanguage
+      );
+
       if (!topReferrers || topReferrers.length === 0) {
-        message += "No referral activity yet.";
+        message += t("msg_no_leaderboard_data", {}, userLanguage);
       } else {
         pageReferrers.forEach((user, i) => {
           const displayName = user.username
             ? `@${user.username}`
             : user.firstName || "User";
-          message += `${startIdx + i + 1}. ${displayName}: ${
-            user.totalReferrals
-          } referrals\n`;
+          message += t(
+            "msg_leaderboard_entry",
+            {
+              rank: startIdx + i + 1,
+              name: displayName,
+              score: user.totalReferrals,
+            },
+            userLanguage
+          );
         });
       }
+
       const buttons = [];
       const navButtons = [];
       if (page > 1)
         navButtons.push(
-          Markup.button.callback("⬅️ Previous", `leaderboard_page_${page - 1}`)
+          Markup.button.callback(
+            t("btn_previous_page", {}, userLanguage),
+            `leaderboard_page_${page - 1}`
+          )
         );
       if (page < totalPages)
         navButtons.push(
-          Markup.button.callback("Next ➡️", `leaderboard_page_${page + 1}`)
+          Markup.button.callback(
+            t("btn_next_page", {}, userLanguage),
+            `leaderboard_page_${page + 1}`
+          )
         );
       if (navButtons.length) buttons.push(navButtons);
-      buttons.push([Markup.button.callback("🔙 Back to Menu", "main_menu")]);
+      buttons.push([
+        Markup.button.callback(
+          t("btn_back_to_menu", {}, userLanguage),
+          "main_menu"
+        ),
+      ]);
+
       ctx.reply(message, {
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard(buttons),
       });
     } catch (error) {
       logger.error("Error showing leaderboard:", error);
-      ctx.reply("❌ Failed to load leaderboard. Please try again.");
+      ctx.reply(t("msg_failed_load_leaderboard", {}, userLanguage || "en"));
     }
   }
 
@@ -759,32 +926,38 @@ Share your code and start earning! 💸
       const user = await userService.userService.getUserByTelegramId(
         telegramId
       );
+      const userLanguage = user.language || "en";
+
       const referralService = require("../services/referralService");
       const stats = await referralService.getUserReferralStats(telegramId);
       if (!stats.totalReferrals) {
-        await ctx.reply(
-          "🎯 You have no referrals yet. Share your referral code to start earning!"
-        );
+        await ctx.reply(t("msg_no_referrals_yet", {}, userLanguage));
         return;
       }
       const balance = user.referralBalance || 0;
       const minPayout = parseFloat(process.env.MIN_PAYOUT_AMOUNT || "10");
       if (balance < minPayout) {
         ctx.reply(
-          `❌ Minimum payout amount is $${minPayout}. Your current balance: $${balance.toFixed(
-            2
-          )}`
+          t(
+            "msg_insufficient_balance",
+            {
+              minPayout,
+              balance: balance.toFixed(2),
+            },
+            userLanguage
+          )
         );
         return;
       }
-      const message = `
-💸 *Request Payout*
 
-💰 Available Balance: $${balance.toFixed(2)}
-💳 Payment Method: ${user.paymentMethod || "Not set"}
-
-How much would you like to withdraw?
-      `;
+      const message = t(
+        "msg_payout_options",
+        {
+          balance: balance.toFixed(2),
+          paymentMethod: user.paymentMethod || "Not set",
+        },
+        userLanguage
+      );
 
       const buttons = [
         [
@@ -796,7 +969,7 @@ How much would you like to withdraw?
         ],
         [
           Markup.button.callback(
-            `💸 All ($${balance.toFixed(2)})`,
+            t("btn_withdraw_all", { amount: balance.toFixed(2) }, userLanguage),
             `payout_${balance}`
           ),
           Markup.button.callback("💳 Custom Amount", "payout_custom"),
@@ -1011,22 +1184,35 @@ How much would you like to withdraw?
 
   async handleJoinCompany(ctx, companyId) {
     try {
-      logger.info(`[JoinCompany] Attempting to join company: ${companyId}`);
       const telegramId = ctx.from.id;
+      const user = await userService.getUserByTelegramId(telegramId);
+      const userLanguage = user.language || "en";
+
       // Fetch company info (assume companyService.getCompanyById exists)
       const company =
         await require("../services/companyService").getCompanyById(companyId);
       logger.info(`[JoinCompany] Company: ${JSON.stringify(company)}`);
-      if (!company) return ctx.reply("❌ Company not found.");
+      if (!company)
+        return ctx.reply(t("msg_company_not_found", {}, userLanguage));
+
       // Join company and get referral code
       const code = await userService.userService.joinCompany(
         telegramId,
         company
       );
-      ctx.reply(`✅ Joined ${company.name}! Your referral code: \`${code}\``);
+      ctx.reply(
+        t(
+          "msg_joined_company",
+          {
+            companyName: company.name,
+            code: code,
+          },
+          userLanguage
+        )
+      );
     } catch (error) {
       logger.error("Error joining company:", error);
-      ctx.reply("❌ Failed to join company. Please try again.");
+      ctx.reply(t("msg_failed_join_company", {}, userLanguage || "en"));
     }
   }
 
@@ -1037,29 +1223,51 @@ How much would you like to withdraw?
       const user = await userService.userService.getUserByTelegramId(
         telegramId
       );
+      const userLanguage = user.language || "en";
+
       if (user.phone_verified && !user.phoneVerified)
         user.phoneVerified = user.phone_verified;
-      // Remove orderService and order stats
-      const message = `
-👤 *Your Profile*
 
-📋 Personal Info:
-• Name: ${user.firstName} ${user.lastName || ""}
-• Username: @${user.username || "Not set"}
-• Phone: ${user.phoneVerified ? "✅ Verified" : "❌ Not verified"}
-• Member since: ${toDateSafe(user.createdAt)?.toLocaleDateString()}
-`;
+      const message =
+        t("msg_profile_title", {}, userLanguage) +
+        t(
+          "msg_profile_info",
+          {
+            name: `${user.firstName} ${user.lastName || ""}`,
+            username: user.username || "Not set",
+            phone: user.phoneVerified
+              ? t("msg_phone_verified", {}, userLanguage)
+              : t("msg_phone_not_verified", {}, userLanguage),
+            memberSince: toDateSafe(user.createdAt)?.toLocaleDateString(),
+            companies: user.companies?.length || 0,
+            balance: (user.referralBalance || 0).toFixed(2),
+            referrals: user.totalReferrals || 0,
+          },
+          userLanguage
+        );
+
       const buttons = [
-        [Markup.button.callback("✏️ Edit Profile", "edit_profile")],
-        [Markup.button.callback("🔙 Main Menu", "main_menu")],
+        [
+          Markup.button.callback(
+            t("btn_edit_profile", {}, userLanguage),
+            "edit_profile"
+          ),
+        ],
+        [
+          Markup.button.callback(
+            t("btn_back_to_menu", {}, userLanguage),
+            "main_menu"
+          ),
+        ],
       ];
+
       ctx.reply(message, {
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard(buttons),
       });
     } catch (error) {
       logger.error("Error showing user profile:", error);
-      ctx.reply("❌ Failed to load profile. Please try again.");
+      ctx.reply(t("msg_failed_load_profile", {}, userLanguage || "en"));
     }
   }
 
@@ -1067,13 +1275,15 @@ How much would you like to withdraw?
     try {
       ctx.session = {}; // Reset session state
       const telegramId = ctx.from.id;
+      const user = await userService.getUserByTelegramId(telegramId);
+      const userLanguage = user.language || "en";
+
       const orders = await orderService.getUserOrders(telegramId);
 
-      let message = "📋 *Order History*\n\n";
+      let message = t("msg_order_history_title", {}, userLanguage);
 
       if (orders.length === 0) {
-        message +=
-          "No orders yet. Start shopping! 🛍️ Use /browse to find products.";
+        message += t("msg_no_orders_yet", {}, userLanguage);
       } else {
         orders.forEach((order, index) => {
           const statusIcon =
@@ -1082,21 +1292,45 @@ How much would you like to withdraw?
               : order.status === "pending"
               ? "⏳"
               : "❌";
-          message += `${index + 1}. ${statusIcon} [${toDateSafe(
-            order.createdAt
-          )?.toLocaleDateString()}] ${order.productTitle} ($${
-            order.finalPrice || order.amount
-          })\n   Company: ${order.company_name || "-"}\n   ${
-            order.referralCode ? "🎯 Used code: " + order.referralCode : ""
-          }\n   ${
-            order.status === "approved" ? "🎉 Reward/Discount applied!" : ""
-          }\n   ${order.proofFileId ? "📄 Proof Uploaded" : ""}\n\n`;
+
+          message += t(
+            "msg_order_entry",
+            {
+              index: index + 1,
+              statusIcon,
+              date: toDateSafe(order.createdAt)?.toLocaleDateString(),
+              productTitle: order.productTitle,
+              price: order.finalPrice || order.amount,
+              companyName: order.company_name || "-",
+              referralCode: order.referralCode
+                ? t("msg_used_code", { code: order.referralCode }, userLanguage)
+                : "",
+              rewardApplied:
+                order.status === "approved"
+                  ? t("msg_reward_applied", {}, userLanguage)
+                  : "",
+              proofUploaded: order.proofFileId
+                ? t("msg_proof_uploaded", {}, userLanguage)
+                : "",
+            },
+            userLanguage
+          );
         });
       }
 
       const buttons = [
-        [Markup.button.callback("🛍️ Browse Products", "browse_products")],
-        [Markup.button.callback("🔙 Back to Profile", "user_profile")],
+        [
+          Markup.button.callback(
+            t("btn_browse_products", {}, userLanguage),
+            "browse_products"
+          ),
+        ],
+        [
+          Markup.button.callback(
+            t("btn_back_to_profile", {}, userLanguage),
+            "user_profile"
+          ),
+        ],
       ];
 
       ctx.reply(message, {
@@ -1105,75 +1339,74 @@ How much would you like to withdraw?
       });
     } catch (error) {
       logger.error("Error showing order history:", error);
-      ctx.reply("❌ Failed to load order history. Please try again.");
+      ctx.reply(t("msg_failed_load_orders", {}, userLanguage || "en"));
     }
   }
 
   async handleShareCode(ctx) {
     try {
       const referralCode = ctx.callbackQuery.data.split("_")[2];
+      const user = await userService.getUserByTelegramId(ctx.from.id);
+      const userLanguage = user.language || "en";
 
-      const shareMessage = `
-🎯 *Special Referral Code!*
+      const shareMessage = t(
+        "msg_share_code_message",
+        {
+          code: referralCode,
+        },
+        userLanguage
+      );
 
-Use my code \`${referralCode}\` and get a discount on your purchase!
-
-💰 Benefits:
-• Instant discount on checkout
-• Support a friend (me!)
-• Great products at better prices
-
-Start shopping now! 🛍️
-      `;
-
-      ctx.reply("📤 Share this message with your friends:\n\n" + shareMessage, {
-        parse_mode: "Markdown",
-      });
+      ctx.reply(
+        t("msg_share_code_instructions", {}, userLanguage) + shareMessage,
+        {
+          parse_mode: "Markdown",
+        }
+      );
     } catch (error) {
       logger.error("Error sharing code:", error);
-      ctx.reply("❌ Failed to generate share message.");
+      ctx.reply(t("msg_failed_generate_share", {}, userLanguage || "en"));
     }
   }
 
   async handleHelp(ctx) {
     try {
       ctx.session = {}; // Reset session state
-      const helpMessage = `
-🤖 *How ReferralBot Works:*
-
-1. Buy from any company to get a referral code (unique, single-use, per company)
-2. Share your code with friends
-3. When a friend uses your code and buys, you get 2% reward, they get 1% discount
-4. Company must approve the purchase for rewards to be paid
-5. All rewards, discounts, and balances are automatic and visible in your profile
-6. Platform takes 5% fee from each sale, companies pay 500-1000 birr/month
-7. Withdrawals take 3-5 days and may have a small fee
-8. No self-referral, codes expire after use
-
-*For Companies:*
-- Approve purchases to trigger rewards
-- See all referrals, stats, and payouts in your dashboard
-- All logic is automatic and transparent
-
-For more info, contact @Nife777online
-      `;
+      const user = await userService.getUserByTelegramId(ctx.from.id);
+      const userLanguage = user.language || "en";
 
       const buttons = [
         [
-          Markup.button.callback("🛍️ Start Shopping", "browse_products"),
-          Markup.button.callback("💰 My Referrals", "my_referrals"),
+          Markup.button.callback(
+            t("btn_start_shopping", {}, userLanguage),
+            "browse_products"
+          ),
+          Markup.button.callback(
+            t("btn_my_referrals", {}, userLanguage),
+            "my_referrals"
+          ),
         ],
-        [Markup.button.callback("💰 Fee Calculator", "fee_calculator")],
-        [Markup.button.callback("🔙 Main Menu", "main_menu")],
+        [
+          Markup.button.callback(
+            t("btn_fee_calculator", {}, userLanguage),
+            "fee_calculator"
+          ),
+        ],
+        [
+          Markup.button.callback(
+            t("btn_back_to_menu", {}, userLanguage),
+            "main_menu"
+          ),
+        ],
       ];
 
-      ctx.reply(t("help"), {
+      ctx.reply(t("help", {}, userLanguage), {
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard(buttons),
       });
     } catch (error) {
       logger.error("Error showing help:", error);
-      ctx.reply("❌ Failed to load help information.");
+      ctx.reply(t("msg_failed_load_help", {}, userLanguage || "en"));
     }
   }
 
@@ -1229,48 +1462,39 @@ What would you like to do?
 
   async handlePrivacy(ctx) {
     ctx.session = {}; // Reset session state
-    const message = `
-  🔒 *Privacy Policy*
-  
-  - We collect your Telegram ID, username, and phone number for account and referral management.
-  - Your data is used only for platform features (referrals, rewards, company management).
-  - We do not share your personal data with third parties except as required by law.
-  - You can request deletion of your data at any time by contacting @Nife777online
-  - The platform may update this policy at any time.
-  `;
-    ctx.reply(message, { parse_mode: "Markdown" });
+    const user = await userService.getUserByTelegramId(ctx.from.id);
+    const userLanguage = user.language || "en";
+
+    ctx.reply(t("msg_privacy_policy", {}, userLanguage), {
+      parse_mode: "Markdown",
+    });
   }
 
   async handleTerms(ctx) {
     ctx.session = {}; // Reset session state
-    const message = `
-  📜 *Terms of Service*
-  
-  By using this bot, you agree to:
-  - Provide accurate information
-  - Not abuse the referral system
-  - Only use one account per person
-  - Respect company and platform rules
-  - Understand that rewards and payouts are subject to approval and platform policy
-  - The platform may update these terms at any time
-  
-  For questions, contact @Nife777online
-  `;
-    ctx.reply(message, { parse_mode: "Markdown" });
+    const user = await userService.getUserByTelegramId(ctx.from.id);
+    const userLanguage = user.language || "en";
+
+    ctx.reply(t("msg_terms_of_service", {}, userLanguage), {
+      parse_mode: "Markdown",
+    });
   }
 
   async handleCancel(ctx) {
     try {
+      const user = await userService.getUserByTelegramId(ctx.from.id);
+      const userLanguage = user.language || "en";
+
       // Clear all session data
       ctx.session = {};
 
       ctx.reply(
-        "❌ Operation cancelled. Use /start to return to main menu.",
+        t("msg_operation_cancelled", {}, userLanguage),
         Markup.removeKeyboard()
       );
     } catch (error) {
       logger.error("Error in cancel handler:", error);
-      ctx.reply("Operation cancelled.");
+      ctx.reply(t("msg_operation_cancelled", {}, userLanguage || "en"));
     }
   }
 
@@ -1539,21 +1763,24 @@ Toggle notifications:
       const user = await userService.userService.getUserByTelegramId(
         telegramId
       );
+      const userLanguage = user.language || "en";
+
       if (!user.canRegisterCompany) {
         return ctx.reply(
-          "❌ You are not eligible to register a company. Please contact an admin to request access."
+          t("msg_not_eligible_register_company", {}, userLanguage)
         );
       }
+
       ctx.session.companyRegistrationStep = "name";
       ctx.session.companyRegistrationData = {};
-      ctx.reply(
-        '🏢 *Register New Company*\n\nBefore proceeding, please review and accept the company agreement:\n\n"By registering, you agree to the monthly fee (500-1000 birr), a 2% referral reward, and a 5% platform fee. All payments are handled outside the system. See full terms at any time with /agreement."\n\nType "I accept" to continue or "Cancel" to abort.',
-        { parse_mode: "Markdown" }
-      );
+
+      ctx.reply(t("msg_company_registration_agreement", {}, userLanguage), {
+        parse_mode: "Markdown",
+      });
       ctx.session.awaitingCompanyAgreement = true;
     } catch (error) {
       logger.error("Error starting company registration:", error);
-      ctx.reply("❌ Failed to start company registration.");
+      ctx.reply(t("msg_failed_start_registration", {}, userLanguage || "en"));
     }
   }
 
@@ -2307,17 +2534,21 @@ Toggle notifications:
   }
 
   async handleMyProducts(ctx, pageArg) {
-    if (ctx.callbackQuery) await ctx.answerCbQuery();
     try {
+      ctx.session = {}; // Reset session state
       const telegramId = ctx.from.id;
+      const user = await userService.getUserByTelegramId(telegramId);
+      const userLanguage = user.language || "en";
+
       // Get companies owned by the user
       const companies =
         await require("../services/companyService").getCompaniesByOwner(
           telegramId
         );
       if (!companies || companies.length === 0) {
-        return ctx.reply("❌ You do not own any companies or products.");
+        return ctx.reply(t("msg_no_companies_or_products", {}, userLanguage));
       }
+
       let allProducts = [];
       const productService = require("../services/productService");
       for (const company of companies) {
@@ -2332,74 +2563,80 @@ Toggle notifications:
           );
         }
       }
+
       if (allProducts.length === 0) {
-        return ctx.reply("❌ You have not added any products yet.", {
+        return ctx.reply(t("msg_no_products_yet", {}, userLanguage), {
           parse_mode: "Markdown",
-          ...require("telegraf").Markup.inlineKeyboard([
+          ...Markup.inlineKeyboard([
             [
-              require("telegraf").Markup.button.callback(
-                "🔙 Back to Main Menu",
+              Markup.button.callback(
+                t("btn_back_to_menu", {}, userLanguage),
                 "main_menu"
               ),
             ],
           ]),
         });
       }
+
       // Pagination
       const ITEMS_PER_PAGE = 5;
-      let page = 1;
-      if (typeof pageArg === "number") page = pageArg;
-      else if (
-        ctx.callbackQuery &&
-        ctx.callbackQuery.data.startsWith("my_products_page_")
-      ) {
-        page =
-          parseInt(ctx.callbackQuery.data.replace("my_products_page_", "")) ||
-          1;
-      }
+      let page = parseInt(pageArg) || 1;
       const totalPages = Math.ceil(allProducts.length / ITEMS_PER_PAGE);
       if (page < 1) page = 1;
       if (page > totalPages) page = totalPages;
       const startIdx = (page - 1) * ITEMS_PER_PAGE;
       const endIdx = startIdx + ITEMS_PER_PAGE;
       const pageProducts = allProducts.slice(startIdx, endIdx);
+
       // Show each product as a single clickable button
       const productButtons = pageProducts.map((product) => [
-        require("telegraf").Markup.button.callback(
-          `🛒 View ${product.title}`,
+        Markup.button.callback(
+          t("btn_view_product", { title: product.title }, userLanguage),
           `view_product_${product.id}`
         ),
       ]);
+
       // Pagination controls
       const navButtons = [];
       if (page > 1)
         navButtons.push(
-          require("telegraf").Markup.button.callback(
-            "⬅️ Previous",
+          Markup.button.callback(
+            t("btn_previous_page", {}, userLanguage),
             `my_products_page_${page - 1}`
           )
         );
       if (page < totalPages)
         navButtons.push(
-          require("telegraf").Markup.button.callback(
-            "Next ➡️",
+          Markup.button.callback(
+            t("btn_next_page", {}, userLanguage),
             `my_products_page_${page + 1}`
           )
         );
       if (navButtons.length) productButtons.push(navButtons);
       productButtons.push([
-        require("telegraf").Markup.button.callback(
-          "🔙 Back to Main Menu",
+        Markup.button.callback(
+          t("btn_back_to_menu", {}, userLanguage),
           "main_menu"
         ),
       ]);
-      ctx.reply(`📦 *Your Products* (Page ${page}/${totalPages})`, {
-        parse_mode: "Markdown",
-        ...require("telegraf").Markup.inlineKeyboard(productButtons),
-      });
+
+      ctx.reply(
+        t(
+          "msg_my_products_title",
+          {
+            page: page,
+            totalPages: totalPages,
+          },
+          userLanguage
+        ),
+        {
+          parse_mode: "Markdown",
+          ...Markup.inlineKeyboard(productButtons),
+        }
+      );
     } catch (error) {
       logger.error("Error in handleMyProducts:", error);
-      ctx.reply("❌ Failed to load your products.");
+      ctx.reply(t("msg_failed_load_products", {}, userLanguage || "en"));
     }
   }
 
@@ -2938,133 +3175,162 @@ Toggle notifications:
   }
 
   async handleMyCompanies(ctx, pageArg) {
-    if (ctx.callbackQuery) await ctx.answerCbQuery();
     try {
+      ctx.session = {}; // Reset session state
       const telegramId = ctx.from.id;
+      const user = await userService.getUserByTelegramId(telegramId);
+      const userLanguage = user.language || "en";
+
       const companies =
-        await require("../services/companyService").getCompaniesByOwner(
+        await require("../services/companyService").getUserCompanies(
           telegramId
         );
       if (!companies || companies.length === 0) {
-        return ctx.reply("❌ You have no companies.");
+        ctx.reply(t("msg_no_companies_yet", {}, userLanguage), {
+          ...Markup.inlineKeyboard([
+            [
+              Markup.button.callback(
+                t("btn_register_company", {}, userLanguage),
+                "register_company"
+              ),
+            ],
+            [
+              Markup.button.callback(
+                t("btn_back_to_menu", {}, userLanguage),
+                "main_menu"
+              ),
+            ],
+          ]),
+        });
+        return;
       }
-      // Pagination
       const ITEMS_PER_PAGE = 5;
-      let page = 1;
-      if (typeof pageArg === "number") page = pageArg;
-      else if (
-        ctx.callbackQuery &&
-        ctx.callbackQuery.data.startsWith("my_companies_page_")
-      ) {
-        page =
-          parseInt(ctx.callbackQuery.data.replace("my_companies_page_", "")) ||
-          1;
-      }
       const totalPages = Math.ceil(companies.length / ITEMS_PER_PAGE);
+      let page = parseInt(pageArg) || 1;
       if (page < 1) page = 1;
       if (page > totalPages) page = totalPages;
       const startIdx = (page - 1) * ITEMS_PER_PAGE;
       const endIdx = startIdx + ITEMS_PER_PAGE;
       const pageCompanies = companies.slice(startIdx, endIdx);
+
       // Show each company as a single clickable button
       const companyButtons = pageCompanies.map((company) => [
-        require("telegraf").Markup.button.callback(
+        Markup.button.callback(
           `${company.name}`,
           `company_action_${company.id}`
         ),
       ]);
+
       // Pagination controls
       const navButtons = [];
       if (page > 1)
         navButtons.push(
-          require("telegraf").Markup.button.callback(
-            "⬅️ Previous",
+          Markup.button.callback(
+            t("btn_previous_page", {}, userLanguage),
             `my_companies_page_${page - 1}`
           )
         );
       if (page < totalPages)
         navButtons.push(
-          require("telegraf").Markup.button.callback(
-            "Next ➡️",
+          Markup.button.callback(
+            t("btn_next_page", {}, userLanguage),
             `my_companies_page_${page + 1}`
           )
         );
       if (navButtons.length) companyButtons.push(navButtons);
       companyButtons.push([
-        require("telegraf").Markup.button.callback(
-          "🔙 Back to Main Menu",
+        Markup.button.callback(
+          t("btn_back_to_menu", {}, userLanguage),
           "main_menu"
         ),
       ]);
-      ctx.reply(`🏢 *My Companies* (Page ${page}/${totalPages})`, {
-        parse_mode: "Markdown",
-        ...require("telegraf").Markup.inlineKeyboard(companyButtons),
-      });
+
+      ctx.reply(
+        t(
+          "msg_my_companies_title",
+          {
+            page: page,
+            totalPages: totalPages,
+          },
+          userLanguage
+        ),
+        {
+          parse_mode: "Markdown",
+          ...Markup.inlineKeyboard(companyButtons),
+        }
+      );
     } catch (error) {
       logger.error("Error in handleMyCompanies:", error);
-      ctx.reply("❌ Failed to load your companies.");
+      ctx.reply(t("msg_failed_load_companies", {}, userLanguage || "en"));
     }
   }
 
   async handleEditProductField(ctx) {
     try {
       const productId = ctx.callbackQuery.data.split("_")[3];
+      const user = await userService.getUserByTelegramId(ctx.from.id);
+      const userLanguage = user.language || "en";
+
       const productService = require("../services/productService");
       const product = await productService.getProductById(productId);
-      if (!product) return ctx.reply("❌ Product not found.");
+      if (!product)
+        return ctx.reply(t("msg_product_not_found", {}, userLanguage));
+
       ctx.session.editProductId = productId;
       ctx.session.editProductStep = null;
       ctx.session.editProductData = { ...product };
+
       const buttons = [
         [
-          require("telegraf").Markup.button.callback(
-            "Title",
+          Markup.button.callback(
+            t("btn_edit_title", {}, userLanguage),
             "edit_field_title"
           ),
         ],
         [
-          require("telegraf").Markup.button.callback(
-            "Description",
+          Markup.button.callback(
+            t("btn_edit_description", {}, userLanguage),
             "edit_field_description"
           ),
         ],
         [
-          require("telegraf").Markup.button.callback(
-            "Price",
+          Markup.button.callback(
+            t("btn_edit_price", {}, userLanguage),
             "edit_field_price"
           ),
         ],
         [
-          require("telegraf").Markup.button.callback(
-            "Quantity",
+          Markup.button.callback(
+            t("btn_edit_quantity", {}, userLanguage),
             "edit_field_quantity"
           ),
         ],
         [
-          require("telegraf").Markup.button.callback(
-            "Category",
+          Markup.button.callback(
+            t("btn_edit_category", {}, userLanguage),
             "edit_field_category"
           ),
         ],
         [
-          require("telegraf").Markup.button.callback(
-            "Status",
+          Markup.button.callback(
+            t("btn_edit_status", {}, userLanguage),
             "edit_field_status"
           ),
         ],
         [
-          require("telegraf").Markup.button.callback(
-            "🔙 Back",
+          Markup.button.callback(
+            t("btn_back", {}, userLanguage),
             `product_action_${productId}`
           ),
         ],
       ];
-      ctx.reply("Select the field you want to edit:", {
-        ...require("telegraf").Markup.inlineKeyboard(buttons),
+
+      ctx.reply(t("msg_select_field_to_edit", {}, userLanguage), {
+        ...Markup.inlineKeyboard(buttons),
       });
     } catch (error) {
       logger.error("Error in handleEditProductField:", error);
-      ctx.reply("❌ Failed to load edit options.");
+      ctx.reply(t("msg_failed_load_product", {}, userLanguage || "en"));
     }
   }
 
@@ -3400,6 +3666,54 @@ Toggle notifications:
         ],
       ]),
     });
+  }
+
+  async handleLanguageSettings(ctx) {
+    try {
+      const { t } = require("../../utils/localize");
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
+      );
+      const currentLanguage = user.language || "en";
+
+      const message = t("msg_language_settings", {}, currentLanguage);
+      const buttons = [
+        [
+          Markup.button.callback("🇺🇸 English", "set_language_en"),
+          Markup.button.callback("🇪🇹 አማርኛ", "set_language_am"),
+        ],
+        [Markup.button.callback("🔙 Back to Menu", "main_menu")],
+      ];
+
+      ctx.reply(message, {
+        parse_mode: "Markdown",
+        ...Markup.inlineKeyboard(buttons),
+      });
+    } catch (error) {
+      logger.error("Error in handleLanguageSettings:", error);
+      ctx.reply("❌ Failed to load language settings. Please try again.");
+    }
+  }
+
+  async handleSetLanguage(ctx, language) {
+    try {
+      const telegramId = ctx.from.id;
+      await userService.userService.updateUser(telegramId, { language });
+
+      const { t } = require("../../utils/localize");
+      const message = t("msg_language_changed", {}, language);
+      const buttons = [
+        [Markup.button.callback("🔙 Back to Menu", "main_menu")],
+      ];
+
+      ctx.reply(message, {
+        parse_mode: "Markdown",
+        ...Markup.inlineKeyboard(buttons),
+      });
+    } catch (error) {
+      logger.error("Error in handleSetLanguage:", error);
+      ctx.reply("❌ Failed to change language. Please try again.");
+    }
   }
 }
 

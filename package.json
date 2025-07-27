@@ -8,7 +8,8 @@
     "dev": "nodemon --config nodemon.json --exec \"node --max-old-space-size=1024 server.js\"",
     "dev:bot": "nodemon --exec node --max-old-space-size=1024 bot/index.js",
     "test": "jest",
-    "lint": "echo 'No linting configured'"
+    "lint": "echo 'No linting configured'",
+    "keep-alive": "node scripts/keep-alive.js"
   },
   "keywords": [
     "affiliate",

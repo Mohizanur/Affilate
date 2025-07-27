@@ -280,7 +280,11 @@ process.once("SIGINT", async () => {
       console.log("⚠️ Error during bot shutdown:", error.message);
     }
   }
-  process.exit(0);
+  // Give some time for cleanup
+  setTimeout(() => {
+    console.log("🔄 Exiting process...");
+    process.exit(0);
+  }, 1000);
 });
 
 process.once("SIGTERM", async () => {
@@ -299,7 +303,11 @@ process.once("SIGTERM", async () => {
       console.log("⚠️ Error during bot shutdown:", error.message);
     }
   }
-  process.exit(0);
+  // Give some time for cleanup
+  setTimeout(() => {
+    console.log("🔄 Exiting process...");
+    process.exit(0);
+  }, 1000);
 });
 
 module.exports = { getBot, startBot };

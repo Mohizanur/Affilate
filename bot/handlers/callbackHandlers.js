@@ -22,15 +22,18 @@ class CallbackHandlers {
     try {
       console.log("TOP OF handleCallback");
       const telegramId = ctx.from.id;
+
+      // Immediately answer the callback to avoid Telegram timeout errors
+      await ctx.answerCbQuery();
+
       const user = await userService.userService.getUserByTelegramId(
         telegramId
       );
       if (user && user.banned) {
-        await ctx.answerCbQuery("🚫 You are banned from using this bot.");
-        return ctx.reply("🚫 You are banned from using this bot.");
+        await ctx.reply("🚫 You are banned from using this bot.");
+        return;
       }
-      // Immediately answer the callback to avoid Telegram timeout errors
-      await ctx.answerCbQuery();
+
       const callbackData = ctx.callbackQuery.data;
       // Log callbackData and its char codes
       console.log(
@@ -238,6 +241,14 @@ class CallbackHandlers {
         case "my_products":
           return userHandlers.handleMyProducts(ctx);
 
+        // Language handlers
+        case "language_settings":
+          return userHandlers.handleLanguageSettings(ctx);
+        case "set_language_en":
+          return userHandlers.handleSetLanguage(ctx, "en");
+        case "set_language_am":
+          return userHandlers.handleSetLanguage(ctx, "am");
+
         // Withdrawal handlers
         case "request_withdrawal":
           return this.handleRequestWithdrawal(ctx);
@@ -288,7 +299,13 @@ class CallbackHandlers {
           }
           if (callbackData.startsWith("view_product_")) {
             const productId = callbackData.replace("view_product_", "");
-            return userHandlers.handleViewProduct(ctx, productId);
+            try {
+              return await userHandlers.handleViewProduct(ctx, productId);
+            } catch (error) {
+              console.error("Error in view_product callback:", error);
+              await ctx.reply("❌ Failed to load product. Please try again.");
+              return;
+            }
           }
           if (callbackData.startsWith("buy_product_")) {
             return userHandlers.handleBuyProduct(ctx);

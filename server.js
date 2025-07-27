@@ -29,6 +29,15 @@ process.on("exit", (code) => {
 
 console.log("Top of server.js (diagnostic)");
 
+// Keep-alive mechanism for Render free tier
+let keepAliveInterval;
+if (process.env.RENDER) {
+  console.log("🌐 Render environment detected - setting up keep-alive");
+  keepAliveInterval = setInterval(() => {
+    console.log("💓 Keep-alive ping - preventing spin down");
+  }, 14 * 60 * 1000); // Ping every 14 minutes (Render spins down after 15 minutes)
+}
+
 // Middleware
 app.use(helmet());
 app.use(
@@ -57,6 +66,16 @@ app.get("/health", (req, res) => {
     status: "healthy",
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || "development",
+  });
+});
+
+// Keep-alive endpoint for Render
+app.get("/keep-alive", (req, res) => {
+  console.log("💓 Keep-alive request received");
+  res.json({
+    status: "alive",
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
   });
 });
 
@@ -101,6 +120,24 @@ async function startServer() {
         console.log(
           `🔗 External URL: https://${process.env.RENDER_EXTERNAL_HOSTNAME}`
         );
+
+        // Set up external keep-alive for Render
+        const keepAliveUrl = `https://${process.env.RENDER_EXTERNAL_HOSTNAME}/keep-alive`;
+        console.log(`💓 Setting up external keep-alive to: ${keepAliveUrl}`);
+
+        // Ping the keep-alive endpoint every 14 minutes
+        setInterval(async () => {
+          try {
+            const response = await fetch(keepAliveUrl);
+            if (response.ok) {
+              console.log("💓 External keep-alive successful");
+            } else {
+              console.log("⚠️ External keep-alive failed:", response.status);
+            }
+          } catch (error) {
+            console.log("⚠️ External keep-alive error:", error.message);
+          }
+        }, 14 * 60 * 1000);
       }
     });
   } catch (err) {
@@ -111,6 +148,28 @@ async function startServer() {
 
 startServer();
 console.log("After startServer() call");
+
+// Cleanup function for graceful shutdown
+function cleanup() {
+  console.log("🧹 Cleaning up resources...");
+  if (keepAliveInterval) {
+    clearInterval(keepAliveInterval);
+    console.log("✅ Keep-alive interval cleared");
+  }
+}
+
+// Graceful shutdown handlers
+process.on("SIGTERM", () => {
+  console.log("🛑 Received SIGTERM, cleaning up...");
+  cleanup();
+  process.exit(0);
+});
+
+process.on("SIGINT", () => {
+  console.log("🛑 Received SIGINT, cleaning up...");
+  cleanup();
+  process.exit(0);
+});
 
 // Scheduled reminders: every day at 9am
 cron.schedule("0 9 * * *", async () => {
