@@ -300,7 +300,7 @@ class UserHandlers {
           index: startIdx + index + 1,
           title: product.title,
           price: Number(product.price) || 0,
-          companyName: product.companyName || "Unknown",
+          companyName: product.companyName || t("msg_unknown", {}, userLanguage),
           description: (product.description || "").substring(0, 50),
         },
         userLanguage || "en"
@@ -399,12 +399,12 @@ class UserHandlers {
         const companyService = require("../services/companyService");
         const company = await companyService.getCompanyById(product.companyId);
         if (company) {
-          companyDetails = `\n🏢 Company: ${company.name || "-"}\n📍 Address: ${
-            company.address || "-"
-          }\n📞 Phone: ${company.phone || "-"}\n✉️ Email: ${
-            company.email || "-"
-          }\n🌐 Website: ${company.website || "-"}\n📌 Location: ${
-            company.location || "-"
+          companyDetails = `\n🏢 Company: ${company.name || t("msg_no_description", {}, userLanguage)}\n📍 Address: ${
+            company.address || t("msg_no_description", {}, userLanguage)
+          }\n📞 Phone: ${company.phone || t("msg_no_description", {}, userLanguage)}\n✉️ Email: ${
+            company.email || t("msg_no_description", {}, userLanguage)
+          }\n🌐 Website: ${company.website || t("msg_no_description", {}, userLanguage)}\n📌 Location: ${
+            company.location || t("msg_no_description", {}, userLanguage)
           }\n`;
           if (company.ownerUsername) {
             companyDetails += `👤 Telegram: @${company.ownerUsername}\n`;
@@ -420,8 +420,8 @@ class UserHandlers {
           {
             title: product.title,
             price: Number(product.price) || 0,
-            companyName: product.companyName || "Unknown",
-            description: product.description || "No description available",
+            companyName: product.companyName || t("msg_unknown", {}, userLanguage),
+            description: product.description || t("msg_no_description", {}, userLanguage),
           },
           userLanguage
         ) +
@@ -473,7 +473,7 @@ class UserHandlers {
           ),
         ]);
       }
-      buttons.push([Markup.button.callback("🔙 Back to Menu", "main_menu")]);
+      buttons.push([Markup.button.callback(t("btn_back_to_menu", {}, userLanguage), "main_menu")]);
 
       await ctx.reply(productMessage, {
         parse_mode: "Markdown",
@@ -527,7 +527,7 @@ class UserHandlers {
       // }
     } catch (error) {
       logger.error("Error processing purchase without referral:", error);
-      ctx.reply("❌ Failed to process purchase.");
+      ctx.reply(t("msg_failed_process_purchase", {}, userLanguage));
     }
   }
 
@@ -622,7 +622,7 @@ class UserHandlers {
         fileId = ctx.message.document.file_id;
       }
       if (!fileId) {
-        return ctx.reply("❌ Please upload an image or file as proof.");
+        return ctx.reply(t("msg_upload_proof", {}, userLanguage));
       }
       await orderService.attachProofToOrder(orderId, fileId);
       delete ctx.session.waitingForProofOrderId;
@@ -730,7 +730,7 @@ class UserHandlers {
         totalReferrals: stats.totalReferrals,
         verifiedReferrals: stats.verifiedReferrals || 0,
         totalRewards: stats.totalEarnings.toFixed(2),
-        recentActivity: stats.recentActivity || "No recent activity",
+        recentActivity: stats.recentActivity || t("msg_no_recent_activity", {}, userLanguage),
       },
       userLanguage
     );
@@ -875,7 +875,7 @@ class UserHandlers {
         pageReferrers.forEach((user, i) => {
           const displayName = user.username
             ? `@${user.username}`
-            : user.firstName || "User";
+            : user.firstName || t("msg_no_payment_details", {}, userLanguage);
           message += t(
             "msg_leaderboard_entry",
             {
@@ -958,7 +958,7 @@ class UserHandlers {
         "msg_payout_options",
         {
           balance: balance.toFixed(2),
-          paymentMethod: user.paymentMethod || "Not set",
+          paymentMethod: user.paymentMethod || t("msg_not_set", {}, userLanguage),
         },
         userLanguage
       );
@@ -1057,7 +1057,7 @@ class UserHandlers {
       const amount = parseFloat(ctx.message.text);
       const telegramId = ctx.from.id;
       if (isNaN(amount) || amount <= 0) {
-        return ctx.reply("❌ Please enter a valid amount:");
+        return ctx.reply(t("msg_enter_valid_amount", {}, userLanguage));
       }
       // Use withdrawalService for robust Firestore-powered logic
       const user = await userService.userService.getUserByTelegramId(
@@ -1129,8 +1129,8 @@ class UserHandlers {
         });
       }
       const buttons = [
-        [Markup.button.callback("💸 New Payout", "request_payout")],
-        [Markup.button.callback("🔙 Back to Referrals", "my_referrals")],
+        [Markup.button.callback(t("btn_new_payout", {}, userLanguage), "request_payout")],
+        [Markup.button.callback(t("btn_back_to_referrals", {}, userLanguage), "my_referrals")],
       ];
       ctx.reply(message, {
         parse_mode: "Markdown",
@@ -1145,9 +1145,9 @@ class UserHandlers {
   async handleVerifyPhone(ctx) {
     try {
       // Prompt for phone number with reply keyboard
-      await ctx.reply("Please share your phone number to verify:", {
+      await ctx.reply(t("msg_share_phone_number", {}, userLanguage), {
         reply_markup: {
-          keyboard: [[{ text: "Share Phone Number", request_contact: true }]],
+          keyboard: [[{ text: t("btn_share_phone", {}, userLanguage), request_contact: true }]],
           one_time_keyboard: true,
           resize_keyboard: true,
         },
@@ -1175,7 +1175,7 @@ class UserHandlers {
         return ctx.reply("❌ " + err.message);
       }
       // Remove the reply keyboard after verification
-      await ctx.reply("✅ Phone verified!", {
+      await ctx.reply(t("msg_phone_verified", {}, userLanguage), {
         reply_markup: { remove_keyboard: true },
       });
       // Show the main menu as an inline keyboard
@@ -1238,7 +1238,7 @@ class UserHandlers {
           "msg_profile_info",
           {
             name: `${user.firstName} ${user.lastName || ""}`,
-            username: user.username || "Not set",
+            username: user.username || t("msg_not_set", {}, userLanguage),
             phone: user.phoneVerified
               ? t("msg_phone_verified", {}, userLanguage)
               : t("msg_phone_not_verified", {}, userLanguage),
@@ -1305,7 +1305,7 @@ class UserHandlers {
               date: toDateSafe(order.createdAt)?.toLocaleDateString(),
               productTitle: order.productTitle,
               price: order.finalPrice || order.amount,
-              companyName: order.company_name || "-",
+              companyName: order.company_name || t("msg_no_description", {}, userLanguage),
               referralCode: order.referralCode
                 ? t("msg_used_code", { code: order.referralCode }, userLanguage)
                 : "",
@@ -1449,7 +1449,7 @@ What would you like to do?
         ],
         [
           Markup.button.callback("📱 Verify Phone", "verify_phone"),
-          Markup.button.callback("ℹ️ Help", "help"),
+          Markup.button.callback(t("btn_help", {}, userLanguage), "help"),
         ],
       ];
 
@@ -1518,15 +1518,15 @@ What would you like to do?
       const message = `
 💳 *Payment Settings*
 
-Current Method: ${user.paymentMethod || "Not set"}
+Current Method: ${user.paymentMethod || t("msg_not_set", {}, userLanguage)}
 ${
   user.paymentDetails
     ? `Details: ${
         user.paymentDetails.accountNumber
           ? "****" + user.paymentDetails.accountNumber.slice(-4)
-          : "Configured"
+          : t("msg_configured", {}, userLanguage)
       }`
-    : "No payment details set"
+    : t("msg_no_payment_details", {}, userLanguage)
 }
 
 Choose your preferred payout method:
@@ -1810,7 +1810,7 @@ Toggle notifications:
           return;
         }
         ctx.session.awaitingCompanyAgreement = null;
-        ctx.reply("Please enter your company name:");
+        ctx.reply(t(ctx, "msg_enter_company_name"));
         ctx.session.companyRegistrationStep = "name";
         return;
       }
@@ -1831,43 +1831,41 @@ Toggle notifications:
         case "name":
           ctx.session.companyRegistrationData.name = text;
           ctx.session.companyRegistrationStep = "description";
-          ctx.reply("Please enter a brief description of your company:");
+          ctx.reply(t(ctx, "msg_enter_company_description"));
           break;
         case "description":
           ctx.session.companyRegistrationData.description = text;
           ctx.session.companyRegistrationStep = "website";
-          ctx.reply('Please enter your company website (or type "skip"):');
+          ctx.reply(t(ctx, "msg_enter_company_website"));
           break;
         case "website":
           ctx.session.companyRegistrationData.website =
             text === "skip" ? null : text;
           ctx.session.companyRegistrationStep = "phone";
-          ctx.reply("Please enter your company phone number:");
+          ctx.reply(t(ctx, "msg_enter_company_phone"));
           break;
         case "phone":
           ctx.session.companyRegistrationData.phone = text;
           ctx.session.companyRegistrationStep = "email";
-          ctx.reply("Please enter your company email address:");
+          ctx.reply(t(ctx, "msg_enter_company_email"));
           break;
         case "email":
           if (!/^\S+@\S+\.\S+$/.test(text)) {
-            return ctx.reply("❌ Please enter a valid email address:");
+            return ctx.reply(t(ctx, "msg_enter_valid_email"));
           }
           ctx.session.companyRegistrationData.email = text;
           ctx.session.companyRegistrationStep = "address";
-          ctx.reply("Please enter your company address:");
+          ctx.reply(t(ctx, "msg_enter_company_address"));
           break;
         case "address":
           ctx.session.companyRegistrationData.address = text;
           ctx.session.companyRegistrationStep = "location";
-          ctx.reply(
-            "Please enter your company location (city, region, or GPS coordinates):"
-          );
+          ctx.reply(t(ctx, "msg_enter_company_location"));
           break;
         case "location":
           ctx.session.companyRegistrationData.location = text;
           ctx.session.companyRegistrationStep = "offer";
-          ctx.reply("Please describe your main offer, product, or service:");
+          ctx.reply(t(ctx, "msg_enter_company_offer"));
           break;
         case "offer":
           ctx.session.companyRegistrationData.offer = text;
@@ -1944,12 +1942,10 @@ Toggle notifications:
     if (ctx.message.text.trim().toLowerCase() === "i accept") {
       ctx.session.companyAgreementAccepted = true;
       ctx.session.companyAgreementStep = false;
-      ctx.reply("Agreement accepted. Continuing registration...");
+      ctx.reply(t("msg_agreement_accepted", {}, userLanguage));
       return this.handleCompanyRegistrationStep(ctx);
     } else {
-      ctx.reply(
-        'You must accept the agreement to register. Type "I accept" to proceed.'
-      );
+      ctx.reply(t("msg_must_accept_agreement", {}, userLanguage));
     }
   }
 
@@ -1962,14 +1958,14 @@ Toggle notifications:
       if (!company) return ctx.reply("❌ Company not found.");
       let msg = `🏢 *Manage Company*\n\n`;
       msg += `*Name:* ${company.name}\n`;
-      msg += `*Description:* ${company.description || "-"}\n`;
-      msg += `*Website:* ${company.website || "-"}\n`;
-      msg += `*Phone:* ${company.phone || "-"}\n`;
-      msg += `*Email:* ${company.email || "-"}\n`;
-      msg += `*Address:* ${company.address || "-"}\n`;
-      msg += `*Location:* ${company.location || "-"}\n`;
-      msg += `*Offer:* ${company.offer || "-"}\n`;
-      msg += `*Status:* ${company.status || "-"}\n`;
+      msg += `*Description:* ${company.description || t("msg_no_description", {}, userLanguage)}\n`;
+      msg += `*Website:* ${company.website || t("msg_no_description", {}, userLanguage)}\n`;
+      msg += `*Phone:* ${company.phone || t("msg_no_description", {}, userLanguage)}\n`;
+      msg += `*Email:* ${company.email || t("msg_no_description", {}, userLanguage)}\n`;
+      msg += `*Address:* ${company.address || t("msg_no_description", {}, userLanguage)}\n`;
+      msg += `*Location:* ${company.location || t("msg_no_description", {}, userLanguage)}\n`;
+      msg += `*Offer:* ${company.offer || t("msg_no_description", {}, userLanguage)}\n`;
+      msg += `*Status:* ${company.status || t("msg_no_description", {}, userLanguage)}\n`;
       const buttons = [
         [
           require("telegraf").Markup.button.callback(
@@ -2073,7 +2069,7 @@ Toggle notifications:
           ),
         ],
       ];
-      ctx.reply("Select the field you want to edit:", {
+      ctx.reply(t("msg_select_field_edit", {}, userLanguage), {
         ...require("telegraf").Markup.inlineKeyboard(buttons),
       });
     } catch (error) {
@@ -2097,7 +2093,7 @@ Toggle notifications:
       await this.handleCompanyActionMenu(ctx, companyId);
     } catch (error) {
       logger.error("Error in handleEditCompanyFieldInput:", error);
-      ctx.reply("❌ Failed to update company.");
+      ctx.reply(t("msg_failed_update_company", {}, userLanguage));
     }
   }
 
@@ -2112,7 +2108,7 @@ Toggle notifications:
       companyId = companyId.id;
     ctx.session.addProductStep = "title";
     ctx.session.addProductData = { companyId: String(companyId) };
-    ctx.reply("Enter product title:", {
+    ctx.reply(t("msg_enter_product_title", {}, userLanguage), {
       ...Markup.inlineKeyboard([
         [Markup.button.callback("🔙 Back to Main Menu", "main_menu")],
       ]),
@@ -2128,29 +2124,27 @@ Toggle notifications:
         case "title":
           ctx.session.addProductData.title = text;
           ctx.session.addProductStep = "description";
-          ctx.reply("Enter product description:");
+          ctx.reply(t("msg_enter_product_description", {}, userLanguage));
           break;
         case "description":
           ctx.session.addProductData.description = text;
           ctx.session.addProductStep = "price";
-          ctx.reply("Enter product price:");
+          ctx.reply(t("msg_enter_product_price", {}, userLanguage));
           break;
         case "price":
           ctx.session.addProductData.price = parseFloat(text);
           ctx.session.addProductStep = "quantity";
-          ctx.reply("Enter product quantity (number):");
+          ctx.reply(t("msg_enter_product_quantity", {}, userLanguage));
           break;
         case "quantity":
           const qty = parseInt(text);
           if (isNaN(qty) || qty < 0) {
-            ctx.reply(
-              "❌ Please enter a valid non-negative number for quantity:"
-            );
+            ctx.reply(t("msg_invalid_quantity", {}, userLanguage));
             return;
           }
           ctx.session.addProductData.quantity = qty;
           ctx.session.addProductStep = "category";
-          ctx.reply("Enter product category:");
+          ctx.reply(t("msg_enter_product_category", {}, userLanguage));
           break;
         case "category":
           ctx.session.addProductData.category = text;
@@ -2160,9 +2154,7 @@ Toggle notifications:
         case "status":
           const validStatuses = ["instock", "out_of_stock", "low_stock"];
           if (!validStatuses.includes(text.trim().toLowerCase())) {
-            ctx.reply(
-              "❌ Invalid status. Please enter one of: instock, out_of_stock, low_stock"
-            );
+            ctx.reply(t("msg_invalid_status", {}, userLanguage));
             return;
           }
           ctx.session.addProductData.status = text.trim().toLowerCase();
@@ -2175,18 +2167,18 @@ Toggle notifications:
             createdAt: new Date(),
           };
           await productService.createProduct(productData, ctx.from.id);
-          ctx.reply("✅ Product created and is now active!");
+          ctx.reply(t("msg_product_created", {}, userLanguage));
           ctx.session.addProductData = null;
           ctx.session.addProductStep = null;
           break;
         default:
-          ctx.reply("❌ Invalid product step. Please start again.");
+          ctx.reply(t("msg_invalid_product_step", {}, userLanguage));
           ctx.session.addProductStep = null;
           ctx.session.addProductData = null;
       }
     } catch (error) {
       logger.error("Error in handleAddProductStep:", error);
-      ctx.reply("❌ Failed to add product.");
+      ctx.reply(t("msg_failed_add_product", {}, userLanguage));
     }
   }
 
@@ -2196,10 +2188,10 @@ Toggle notifications:
     const productId = ctx.callbackQuery.data.split("_")[2];
     await userService.userService.addFavorite(telegramId, productId);
     if (ctx.callbackQuery) {
-      await ctx.answerCbQuery("Added to favorites.");
-      ctx.reply("⭐ Product added to your favorites!");
+      await ctx.answerCbQuery(t("msg_added_to_favorites", {}, userLanguage));
+      ctx.reply(t("msg_product_added_favorites", {}, userLanguage));
     } else {
-      ctx.reply("Added to favorites.");
+      ctx.reply(t("msg_added_to_favorites", {}, userLanguage));
     }
     ctx.reply("⭐ Product favorite status updated.");
   }
@@ -2209,20 +2201,20 @@ Toggle notifications:
     const productId = ctx.callbackQuery.data.split("_")[2];
     await userService.userService.addToCart(telegramId, productId);
     if (ctx.callbackQuery) {
-      await ctx.answerCbQuery("Added to cart.");
-      ctx.reply("🛒 Product added to your cart!");
+      await ctx.answerCbQuery(t("msg_added_to_cart", {}, userLanguage));
+      ctx.reply(t("msg_product_added_cart", {}, userLanguage));
     } else {
-      ctx.reply("Added to cart.");
+      ctx.reply(t("msg_added_to_cart", {}, userLanguage));
     }
-    ctx.reply("🛒 Product added to your cart.");
+    ctx.reply(t("msg_product_added_cart", {}, userLanguage));
   }
 
   async handleRemoveFromCart(ctx) {
     const telegramId = ctx.from.id;
     const productId = ctx.callbackQuery.data.split("_")[2];
     await userService.userService.removeFromCart(telegramId, productId);
-    ctx.reply("Removed from cart!");
-    ctx.reply("🗑️ Product removed from your cart.");
+    ctx.reply(t("msg_removed_from_cart", {}, userLanguage));
+    ctx.reply(t("msg_product_removed_cart", {}, userLanguage));
   }
 
   async handleViewFavorites(ctx) {
@@ -2235,7 +2227,7 @@ Toggle notifications:
     );
     if (!favorites.length)
       return ctx.reply(
-        "⭐ You have no favorite products yet. Browse products and tap ⭐ to add favorites!"
+        t("msg_no_favorites_yet", {}, userLanguage)
       );
     let msg = "⭐ *Your Favorite Products*\n\n";
     favorites.forEach((p, i) => {
@@ -2252,10 +2244,7 @@ Toggle notifications:
         .map((c) => c.title + " (" + c.id + ")")
         .join(", ")}`
     );
-    if (!cart.length)
-      return ctx.reply(
-        " Your cart is empty. Browse products and tap 🛒 to add items!"
-      );
+    if (!cart.length) return ctx.reply(t("msg_cart_empty", {}, userLanguage));
     let msg = "🛒 *Your Cart*\n\n";
     cart.forEach((p, i) => {
       msg += `${i + 1}. ${p.title} ($${p.price})\n`;
@@ -2323,7 +2312,7 @@ Toggle notifications:
         Markup.button.callback("Next ➡️", `favorites_page_${page + 1}`)
       );
     if (navButtons.length) buttons.push(navButtons);
-    buttons.push([Markup.button.callback("🔙 Back to Menu", "main_menu")]);
+    buttons.push([Markup.button.callback(t("btn_back_to_menu", {}, userLanguage), "main_menu")]);
     ctx.reply(msg, {
       parse_mode: "Markdown",
       ...Markup.inlineKeyboard(buttons),
@@ -2332,13 +2321,13 @@ Toggle notifications:
 
   async handleAddFavorite(ctx, productId) {
     const userService = require("../services/userService");
-    if (!productId) return ctx.reply("No product specified.");
+    if (!productId) return ctx.reply(t("msg_no_product_specified", {}, userLanguage));
     await userService.userService.addFavorite(ctx.from.id, productId);
     if (ctx.callbackQuery) {
       await ctx.answerCbQuery("⭐ Added to favorites!");
-      await ctx.reply("⭐ Product added to your favorites!");
+      await ctx.reply(t("msg_product_added_favorites", {}, userLanguage));
     } else {
-      ctx.reply("⭐ Product added to your favorites!");
+      ctx.reply(t("msg_product_added_favorites", {}, userLanguage));
     }
   }
 
@@ -2351,7 +2340,7 @@ Toggle notifications:
         productId = ctx.message.text.split(" ")[1];
       }
     }
-    if (!productId) return ctx.reply("Usage: /removefavorite <productId>");
+    if (!productId) return ctx.reply(t("msg_usage_removefavorite", {}, userLanguage));
     await userService.userService.removeFavorite(ctx.from.id, productId);
     if (ctx.callbackQuery) {
       await ctx.answerCbQuery("❌ Removed from favorites!");
@@ -2419,7 +2408,7 @@ Toggle notifications:
         Markup.button.callback("Next ➡️", `cart_page_${page + 1}`)
       );
     if (navButtons.length) buttons.push(navButtons);
-    buttons.push([Markup.button.callback("🔙 Back to Menu", "main_menu")]);
+    buttons.push([Markup.button.callback(t("btn_back_to_menu", {}, userLanguage), "main_menu")]);
     ctx.reply(msg, {
       parse_mode: "Markdown",
       ...Markup.inlineKeyboard(buttons),
@@ -2428,13 +2417,13 @@ Toggle notifications:
 
   async handleAddCart(ctx, productId) {
     const userService = require("../services/userService");
-    if (!productId) return ctx.reply("No product specified.");
+    if (!productId) return ctx.reply(t("msg_no_product_specified", {}, userLanguage));
     await userService.userService.addToCart(ctx.from.id, productId);
     if (ctx.callbackQuery) {
       await ctx.answerCbQuery("🛒 Added to cart!");
-      await ctx.reply("🛒 Product added to your cart!");
+      await ctx.reply(t("msg_product_added_cart", {}, userLanguage));
     } else {
-      ctx.reply("🛒 Product added to your cart!");
+      ctx.reply(t("msg_product_added_cart", {}, userLanguage));
     }
   }
 
@@ -2447,7 +2436,7 @@ Toggle notifications:
         productId = ctx.message.text.split(" ")[1];
       }
     }
-    if (!productId) return ctx.reply("Usage: /removecart <productId>");
+    if (!productId) return ctx.reply(t("msg_usage_removecart", {}, userLanguage));
     await userService.userService.removeFromCart(ctx.from.id, productId);
     if (ctx.callbackQuery) {
       await ctx.answerCbQuery("❌ Removed from cart!");
@@ -2662,13 +2651,13 @@ Toggle notifications:
         (ctx.callbackQuery && ctx.callbackQuery.data.split("_")[2]);
       const productService = require("../services/productService");
       const product = await productService.getProductById(productId);
-      if (!product) return ctx.reply("❌ Product not found.");
+      if (!product) return ctx.reply(t("msg_product_not_found", {}, userLanguage));
       let msg = `🛠️ *Manage Product*\n\n`;
       msg += `*Title:* ${product.title}\n`;
       msg += `*Price:* $${product.price}\n`;
-      msg += `*Description:* ${product.description || "-"}\n`;
+      msg += `*Description:* ${product.description || t("msg_no_description", {}, userLanguage)}\n`;
       msg += `*Quantity:* ${product.quantity}\n`;
-      msg += `*Category:* ${product.category || "-"}\n`;
+      msg += `*Category:* ${product.category || t("msg_no_description", {}, userLanguage)}\n`;
       // Human-friendly status label
       const statusLabels = {
         instock: "In Stock",
@@ -2676,9 +2665,9 @@ Toggle notifications:
         low_stock: "Low Stock",
       };
       const statusLabel =
-        statusLabels[product.status] || product.status || "Unknown";
+        statusLabels[product.status] || product.status || t("msg_unknown", {}, userLanguage);
       msg += `*Status:* ${statusLabel}\n`;
-      msg += `*Company:* ${product.companyName || "-"}\n`;
+      msg += `*Company:* ${product.companyName || t("msg_no_description", {}, userLanguage)}\n`;
       const buttons = [
         [
           require("telegraf").Markup.button.callback(
@@ -2703,7 +2692,7 @@ Toggle notifications:
       });
     } catch (error) {
       logger.error("Error in handleProductActionMenu:", error);
-      ctx.reply("❌ Failed to load product actions.");
+      ctx.reply(t("msg_failed_load_product_actions", {}, userLanguage));
     }
   }
 
@@ -2712,12 +2701,12 @@ Toggle notifications:
       const productId = ctx.callbackQuery.data.split("_")[2];
       const productService = require("../services/productService");
       const product = await productService.getProductById(productId);
-      if (!product) return ctx.reply("❌ Product not found.");
+      if (!product) return ctx.reply(t("msg_product_not_found", {}, userLanguage));
       if (product.quantity <= 0)
-        return ctx.reply("❌ No stock available to sell.");
+        return ctx.reply(t("msg_no_stock_available", {}, userLanguage));
       ctx.session.sellProductId = productId;
       ctx.session.sellStep = "buyer_username";
-      ctx.reply("Enter the buyer's Telegram username (without @):");
+      ctx.reply(t("msg_enter_buyer_username", {}, userLanguage));
     } catch (error) {
       logger.error("Error in handleSellProduct:", error);
       ctx.reply("❌ Failed to process sale.");
@@ -2732,9 +2721,9 @@ Toggle notifications:
       const referralService = require("../services/referralService");
       const userService = require("../services/userService").userService;
       const companyService = require("../services/companyService");
-      if (!productId) return ctx.reply("❌ No product selected for sale.");
+      if (!productId) return ctx.reply(t("msg_no_product_selected_for_sale", {}, userLanguage));
       const product = await productService.getProductById(productId);
-      if (!product) return ctx.reply("❌ Product not found.");
+      if (!product) return ctx.reply(t("msg_product_not_found", {}, userLanguage));
       if (step === "buyer_username") {
         let username = ctx.message.text.trim().replace(/^@/, "").toLowerCase();
         // Look up user by username
@@ -2758,19 +2747,19 @@ Toggle notifications:
       if (step === "quantity") {
         const qty = parseInt(ctx.message.text);
         if (isNaN(qty) || qty <= 0)
-          return ctx.reply("❌ Enter a valid quantity:");
+          return ctx.reply(t("msg_enter_valid_quantity", {}, userLanguage));
         if (qty > product.quantity)
-          return ctx.reply("❌ Not enough stock. Enter a lower quantity:");
+          return ctx.reply(t("msg_not_enough_stock", {}, userLanguage));
         ctx.session.sellQuantity = qty;
         ctx.session.sellStep = "referral";
-        ctx.reply("Does the buyer have a referral code? (yes/no)");
+        ctx.reply(t("msg_ask_referral_code", {}, userLanguage));
         return;
       }
       if (step === "referral") {
         const answer = ctx.message.text.trim().toLowerCase();
         if (answer === "yes") {
           ctx.session.sellStep = "referral_code";
-          ctx.reply("Enter referral code:");
+          ctx.reply(t("msg_enter_referral_code", {}, userLanguage));
           return;
         } else if (answer === "no") {
           // No referral, proceed to sale
@@ -2787,7 +2776,7 @@ Toggle notifications:
           ctx.session.sellBuyerId = null;
           return;
         } else {
-          ctx.reply("Please answer yes or no:");
+          ctx.reply(t("msg_answer_yes_no", {}, userLanguage));
           return;
         }
       }
@@ -3077,14 +3066,12 @@ Toggle notifications:
       if (field === "price") {
         const price = parseFloat(value);
         if (isNaN(price) || price <= 0)
-          return ctx.reply("❌ Please enter a valid price:");
+          return ctx.reply(t("msg_enter_valid_price", {}, userLanguage));
         update.price = price;
       } else if (field === "quantity") {
         const qty = parseInt(value);
         if (isNaN(qty) || qty < 0)
-          return ctx.reply(
-            "❌ Please enter a valid non-negative number for quantity:"
-          );
+          return ctx.reply(t("msg_invalid_quantity", {}, userLanguage));
         update.quantity = qty;
       } else {
         update[field] = value;
@@ -3116,7 +3103,7 @@ Toggle notifications:
       const productId = ctx.callbackQuery.data.split("_")[2];
       const productService = require("../services/productService");
       const product = await productService.getProductById(productId);
-      if (!product) return ctx.reply("❌ Product not found.");
+      if (!product) return ctx.reply(t("msg_product_not_found", {}, userLanguage));
       ctx.session.editProductId = productId;
       ctx.session.editProductStep = "title";
       ctx.session.editProductData = { ...product };
@@ -3388,7 +3375,7 @@ Toggle notifications:
         );
       const userDisplay = user.username
         ? `@${user.username}`
-        : `${user.first_name || user.firstName || "User"} ${
+        : `${user.first_name || user.firstName || t("msg_no_payment_details", {}, userLanguage)} ${
             user.last_name || user.lastName || ""
           }`;
       let historyMsg = `💸 *Withdrawal Request*\n\n👤 User: ${userDisplay}\n🏢 Company: ${
@@ -3408,7 +3395,7 @@ Toggle notifications:
           ) {
             createdAt = new Date(createdAt);
           }
-          let dateStr = "Unknown";
+          let dateStr = t("msg_unknown", {}, userLanguage);
           if (createdAt instanceof Date && !isNaN(createdAt)) {
             dateStr = `${createdAt.toLocaleDateString()} (${createdAt.toLocaleTimeString()})`;
           }
@@ -3417,7 +3404,7 @@ Toggle notifications:
           } — ${dateStr}\n`;
         });
       } else {
-        historyMsg += "No detailed referral history.";
+        historyMsg += t("msg_no_detailed_referral_history", {}, userLanguage);
       }
       historyMsg += `\nApprove or deny this request:`;
       const approveBtn = require("telegraf").Markup.button.callback(
@@ -3468,7 +3455,7 @@ Toggle notifications:
         );
       const userDisplay = user.username
         ? `@${user.username}`
-        : `${user.first_name || user.firstName || "User"} ${
+        : `${user.first_name || user.firstName || t("msg_no_payment_details", {}, userLanguage)} ${
             user.last_name || user.lastName || ""
           }`;
       ctx.telegram.sendMessage(
@@ -3512,7 +3499,7 @@ Toggle notifications:
         );
       const userDisplay = user.username
         ? `@${user.username}`
-        : `${user.first_name || user.firstName || "User"} ${
+        : `${user.first_name || user.firstName || t("msg_no_payment_details", {}, userLanguage)} ${
             user.last_name || user.lastName || ""
           }`;
       ctx.telegram.sendMessage(
@@ -3544,7 +3531,7 @@ Toggle notifications:
     const step = ctx.session.editProfileStep;
     const value = ctx.message.text && ctx.message.text.trim();
     if (!value) {
-      await ctx.reply("❌ Please enter a valid value.");
+      await ctx.reply(t("msg_enter_valid_value", {}, userLanguage));
       return;
     }
     if (step === "first_name") {
@@ -3582,7 +3569,7 @@ Toggle notifications:
         phoneNumber: ctx.session.editProfileData.phoneNumber,
       };
       await userService.userService.createOrUpdateUser(userData);
-      await ctx.reply("✅ Your profile has been updated!");
+      await ctx.reply(t("msg_profile_updated", {}, userLanguage));
       ctx.session.editProfileStep = null;
       ctx.session.editProfileData = null;
       // Optionally show updated profile
@@ -3595,7 +3582,7 @@ Toggle notifications:
     const stats = await referralService.getUserReferralStats(ctx.from.id);
     const data = stats.companyStats && stats.companyStats[companyId];
     if (!data) {
-      return ctx.reply("❌ No referral data found for this company.");
+      return ctx.reply(t("msg_no_referral_data", {}, userLanguage));
     }
     let msg = `🏢 *${data.companyName || companyId} Referral Details*\n\n`;
     msg += `Total Referrals: ${data.count}\n`;
@@ -3612,7 +3599,7 @@ Toggle notifications:
       page = parseInt(parts[1]) || 1;
     }
     if (!data.referrals || data.referrals.length === 0) {
-      msg += "No detailed referral history.";
+      msg += t("msg_no_detailed_referral_history", {}, userLanguage);
     } else {
       const totalPages = Math.ceil(data.referrals.length / ITEMS_PER_PAGE) || 1;
       if (page < 1) page = 1;
@@ -3631,12 +3618,12 @@ Toggle notifications:
         ) {
           createdAt = new Date(createdAt);
         }
-        let dateStr = "Unknown";
+        let dateStr = t("msg_unknown", {}, userLanguage);
         if (createdAt instanceof Date && !isNaN(createdAt)) {
           dateStr = `${createdAt.toLocaleDateString()} (${createdAt.toLocaleTimeString()})`;
         }
         // Human-friendly referral info: price, quantity, product, date/time, status (NO ID)
-        const price = ref.amount ? `$${ref.amount.toFixed(2)}` : "-";
+        const price = ref.amount ? `$${ref.amount.toFixed(2)}` : t("msg_no_description", {}, userLanguage);
         const qty = ref.quantity ? `Qty: ${ref.quantity}` : "";
         const product = ref.product_title || "Product";
         // Patch: If product looks like a UUID, show 'Product' instead
@@ -3665,7 +3652,7 @@ Toggle notifications:
       if (navButtons.length) buttons.push(navButtons);
       buttons.push([
         require("telegraf").Markup.button.callback(
-          "🔙 Back to Referrals",
+          t("btn_back_to_referrals", {}, userLanguage),
           "my_referrals"
         ),
       ]);
@@ -3680,7 +3667,7 @@ Toggle notifications:
       ...require("telegraf").Markup.inlineKeyboard([
         [
           require("telegraf").Markup.button.callback(
-            "🔙 Back to Referrals",
+            t("btn_back_to_referrals", {}, userLanguage),
             "my_referrals"
           ),
         ],
@@ -3702,7 +3689,7 @@ Toggle notifications:
           Markup.button.callback("🇺🇸 English", "set_language_en"),
           Markup.button.callback("🇪🇹 አማርኛ", "set_language_am"),
         ],
-        [Markup.button.callback("🔙 Back to Menu", "main_menu")],
+        [Markup.button.callback(t("btn_back_to_menu", {}, userLanguage), "main_menu")],
       ];
 
       ctx.reply(message, {
@@ -3723,7 +3710,7 @@ Toggle notifications:
       const { t } = require("../../utils/localize");
       const message = t("msg_language_changed", {}, language);
       const buttons = [
-        [Markup.button.callback("🔙 Back to Menu", "main_menu")],
+        [Markup.button.callback(t("btn_back_to_menu", {}, userLanguage), "main_menu")],
       ];
 
       ctx.reply(message, {

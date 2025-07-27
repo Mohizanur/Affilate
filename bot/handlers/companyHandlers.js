@@ -15,6 +15,7 @@ const notificationService = require("../services/notificationService");
 const {
   getNotificationServiceInstance,
 } = require("../services/notificationService");
+const { t } = require("../../utils/localize");
 
 function toDateSafe(x) {
   if (!x) return null;
