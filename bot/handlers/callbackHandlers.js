@@ -209,7 +209,7 @@ class CallbackHandlers {
         case "register_company":
           return userHandlers.handleRegisterCompany(ctx);
         case "my_companies":
-          return userHandlers.handleMyCompanies(ctx);
+          return await userHandlers.handleMyCompanies(ctx);
         case "browse_products":
           return userHandlers.handleBrowseProducts(ctx);
         case "my_referrals":
@@ -573,7 +573,7 @@ class CallbackHandlers {
           if (callbackData.startsWith("my_companies_page_")) {
             const page =
               parseInt(callbackData.replace("my_companies_page_", "")) || 1;
-            return userHandlers.handleMyCompanies(ctx, page);
+            return await userHandlers.handleMyCompanies(ctx, page);
           }
 
           if (callbackData.startsWith("my_referrals_page_")) {

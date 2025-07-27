@@ -361,7 +361,9 @@ class UserHandlers {
       logger.info(`[DEBUG] handleViewProduct: productId=${productId}`);
 
       // Get user language for localization
-      const user = await userService.getUserByTelegramId(ctx.from.id);
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
+      );
       const userLanguage = user?.language || "en";
 
       const product = await productService.getProductById(productId);
@@ -3178,15 +3180,17 @@ Toggle notifications:
     try {
       ctx.session = {}; // Reset session state
       const telegramId = ctx.from.id;
-      const user = await userService.getUserByTelegramId(telegramId);
-      const userLanguage = user.language || "en";
+      const user = await userService.userService.getUserByTelegramId(
+        telegramId
+      );
+      const userLanguage = user?.language || "en";
 
       const companies =
         await require("../services/companyService").getUserCompanies(
           telegramId
         );
       if (!companies || companies.length === 0) {
-        ctx.reply(t("msg_no_companies_yet", {}, userLanguage), {
+        await ctx.reply(t("msg_no_companies_yet", {}, userLanguage), {
           ...Markup.inlineKeyboard([
             [
               Markup.button.callback(
@@ -3245,7 +3249,7 @@ Toggle notifications:
         ),
       ]);
 
-      ctx.reply(
+      await ctx.reply(
         t(
           "msg_my_companies_title",
           {
@@ -3261,7 +3265,8 @@ Toggle notifications:
       );
     } catch (error) {
       logger.error("Error in handleMyCompanies:", error);
-      ctx.reply(t("msg_failed_load_companies", {}, userLanguage || "en"));
+      const userLanguage = "en"; // Fallback language
+      await ctx.reply(t("msg_failed_load_companies", {}, userLanguage));
     }
   }
 
