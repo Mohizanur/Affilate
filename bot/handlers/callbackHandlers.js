@@ -239,7 +239,7 @@ class CallbackHandlers {
         case "edit_profile":
           return userHandlers.handleEditProfile(ctx);
         case "my_products":
-          return userHandlers.handleMyProducts(ctx);
+          return await userHandlers.handleMyProducts(ctx);
 
         // Language handlers
         case "language_settings":

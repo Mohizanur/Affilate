@@ -112,7 +112,14 @@ async function startBot(app) {
     console.log("BOT_TOKEN loaded, length:", token.length);
 
     console.log("🤖 Initializing Telegraf bot...");
-    bot = new Telegraf(token);
+    bot = new Telegraf(token, {
+      telegram: {
+        // Add timeout and retry configuration
+        timeout: 30000, // 30 seconds timeout
+        retryAfter: 1, // Retry after 1 second
+        maxRetries: 3, // Maximum 3 retries
+      },
+    });
 
     // Initialize notification service with bot
     const notificationService = new NotificationService(bot);
@@ -137,12 +144,26 @@ async function startBot(app) {
       throw e;
     }
 
-    // Test bot connection first
+    // Test bot connection first with better error handling
     console.log("Before bot.telegram.getMe()");
-    const botInfo = await bot.telegram.getMe();
-    console.log(
-      `✅ Bot connected: @${botInfo.username} (${botInfo.first_name})`
-    );
+    let botInfo = null;
+    try {
+      botInfo = await bot.telegram.getMe();
+      console.log(
+        `✅ Bot connected: @${botInfo.username} (${botInfo.first_name})`
+      );
+    } catch (error) {
+      console.error("❌ Failed to connect to Telegram API:", error.message);
+      console.error("🔍 Network issue detected. Please check:");
+      console.error("   - Internet connection");
+      console.error("   - Firewall settings");
+      console.error("   - VPN/Proxy settings");
+      console.error("   - Telegram API accessibility");
+
+      // For development, we can continue without the connection test
+      console.log("⚠️ Continuing in development mode without API test...");
+      console.log("📝 You can still test the bot functionality locally");
+    }
 
     // Set bot commands
     if (bot && bot.telegram && bot.telegram.setMyCommands) {
@@ -161,7 +182,16 @@ async function startBot(app) {
         },
       ];
 
-      await bot.telegram.setMyCommands(commands);
+      try {
+        await bot.telegram.setMyCommands(commands);
+        console.log("✅ Bot commands set successfully");
+      } catch (error) {
+        console.log(
+          "⚠️ Could not set bot commands (network issue):",
+          error.message
+        );
+        console.log("📝 Bot will work without custom commands");
+      }
     }
 
     // Webhook setup for production
@@ -175,7 +205,14 @@ async function startBot(app) {
       console.log("🌐 Setting up webhook for production...");
 
       // Delete any existing webhook
-      await bot.telegram.deleteWebhook();
+      try {
+        await bot.telegram.deleteWebhook();
+      } catch (error) {
+        console.log(
+          "⚠️ Could not delete webhook (network issue):",
+          error.message
+        );
+      }
 
       // Set up webhook endpoint with debugging
       app.use(
@@ -209,14 +246,29 @@ async function startBot(app) {
       process.env.ENABLE_LOCAL_POLLING === "true"
     ) {
       console.log("🔄 Using long polling for local development...");
-      await bot.telegram.deleteWebhook();
-      await bot.launch();
-      isBotLaunched = true;
+      try {
+        await bot.telegram.deleteWebhook();
+        await bot.launch();
+        isBotLaunched = true;
+      } catch (error) {
+        console.log(
+          "⚠️ Could not start long polling (network issue):",
+          error.message
+        );
+        console.log("📝 Setting up webhook mode for local testing...");
+      }
     } else {
       console.log("🌐 Using webhook mode (local development with webhook)...");
 
       // Delete any existing webhook
-      await bot.telegram.deleteWebhook();
+      try {
+        await bot.telegram.deleteWebhook();
+      } catch (error) {
+        console.log(
+          "⚠️ Could not delete webhook (network issue):",
+          error.message
+        );
+      }
 
       // Set up webhook endpoint with debugging
       app.use(

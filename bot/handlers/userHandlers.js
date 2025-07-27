@@ -718,8 +718,8 @@ class UserHandlers {
       return;
     }
 
-    const user = await userService.getUserByTelegramId(ctx.from.id);
-    const userLanguage = user.language || "en";
+    const user = await userService.userService.getUserByTelegramId(ctx.from.id);
+    const userLanguage = user?.language || "en";
 
     const referralService = require("../services/referralService");
     const stats = await referralService.getUserReferralStats(ctx.from.id);
@@ -839,8 +839,10 @@ class UserHandlers {
   async handleLeaderboard(ctx, pageArg) {
     if (ctx.callbackQuery) await ctx.answerCbQuery();
     try {
-      const user = await userService.getUserByTelegramId(ctx.from.id);
-      const userLanguage = user.language || "en";
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
+      );
+      const userLanguage = user?.language || "en";
 
       const topReferrers = await referralService.getTopReferrers(100); // Fetch enough for pagination
       const ITEMS_PER_PAGE = 5;
@@ -1348,8 +1350,10 @@ class UserHandlers {
   async handleShareCode(ctx) {
     try {
       const referralCode = ctx.callbackQuery.data.split("_")[2];
-      const user = await userService.getUserByTelegramId(ctx.from.id);
-      const userLanguage = user.language || "en";
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
+      );
+      const userLanguage = user?.language || "en";
 
       const shareMessage = t(
         "msg_share_code_message",
@@ -1374,8 +1378,10 @@ class UserHandlers {
   async handleHelp(ctx) {
     try {
       ctx.session = {}; // Reset session state
-      const user = await userService.getUserByTelegramId(ctx.from.id);
-      const userLanguage = user.language || "en";
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
+      );
+      const userLanguage = user?.language || "en";
 
       const buttons = [
         [
@@ -1464,8 +1470,8 @@ What would you like to do?
 
   async handlePrivacy(ctx) {
     ctx.session = {}; // Reset session state
-    const user = await userService.getUserByTelegramId(ctx.from.id);
-    const userLanguage = user.language || "en";
+    const user = await userService.userService.getUserByTelegramId(ctx.from.id);
+    const userLanguage = user?.language || "en";
 
     ctx.reply(t("msg_privacy_policy", {}, userLanguage), {
       parse_mode: "Markdown",
@@ -1474,8 +1480,8 @@ What would you like to do?
 
   async handleTerms(ctx) {
     ctx.session = {}; // Reset session state
-    const user = await userService.getUserByTelegramId(ctx.from.id);
-    const userLanguage = user.language || "en";
+    const user = await userService.userService.getUserByTelegramId(ctx.from.id);
+    const userLanguage = user?.language || "en";
 
     ctx.reply(t("msg_terms_of_service", {}, userLanguage), {
       parse_mode: "Markdown",
@@ -1484,8 +1490,10 @@ What would you like to do?
 
   async handleCancel(ctx) {
     try {
-      const user = await userService.getUserByTelegramId(ctx.from.id);
-      const userLanguage = user.language || "en";
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
+      );
+      const userLanguage = user?.language || "en";
 
       // Clear all session data
       ctx.session = {};
@@ -2539,8 +2547,10 @@ Toggle notifications:
     try {
       ctx.session = {}; // Reset session state
       const telegramId = ctx.from.id;
-      const user = await userService.getUserByTelegramId(telegramId);
-      const userLanguage = user.language || "en";
+      const user = await userService.userService.getUserByTelegramId(
+        telegramId
+      );
+      const userLanguage = user?.language || "en";
 
       // Get companies owned by the user
       const companies =
@@ -2548,7 +2558,9 @@ Toggle notifications:
           telegramId
         );
       if (!companies || companies.length === 0) {
-        return ctx.reply(t("msg_no_companies_or_products", {}, userLanguage));
+        return await ctx.reply(
+          t("msg_no_companies_or_products", {}, userLanguage)
+        );
       }
 
       let allProducts = [];
@@ -2567,7 +2579,7 @@ Toggle notifications:
       }
 
       if (allProducts.length === 0) {
-        return ctx.reply(t("msg_no_products_yet", {}, userLanguage), {
+        return await ctx.reply(t("msg_no_products_yet", {}, userLanguage), {
           parse_mode: "Markdown",
           ...Markup.inlineKeyboard([
             [
@@ -2622,7 +2634,7 @@ Toggle notifications:
         ),
       ]);
 
-      ctx.reply(
+      await ctx.reply(
         t(
           "msg_my_products_title",
           {
@@ -2638,7 +2650,8 @@ Toggle notifications:
       );
     } catch (error) {
       logger.error("Error in handleMyProducts:", error);
-      ctx.reply(t("msg_failed_load_products", {}, userLanguage || "en"));
+      const userLanguage = "en"; // Fallback language
+      await ctx.reply(t("msg_failed_load_products", {}, userLanguage));
     }
   }
 
@@ -3273,8 +3286,10 @@ Toggle notifications:
   async handleEditProductField(ctx) {
     try {
       const productId = ctx.callbackQuery.data.split("_")[3];
-      const user = await userService.getUserByTelegramId(ctx.from.id);
-      const userLanguage = user.language || "en";
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
+      );
+      const userLanguage = user?.language || "en";
 
       const productService = require("../services/productService");
       const product = await productService.getProductById(productId);
