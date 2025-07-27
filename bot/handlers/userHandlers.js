@@ -223,10 +223,10 @@ class UserHandlers {
           "language_settings"
         ),
       ];
-      // Add Community button (URL button)
+      // Add Community & Tutorial button (URL button)
       const mainRow6 = [
         Markup.button.url(
-          t("btn_community", {}, userLanguage),
+          t("btn_community_tutorial", {}, userLanguage),
           "https://t.me/birrpayofficial"
         ),
       ];
