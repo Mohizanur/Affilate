@@ -300,7 +300,8 @@ class UserHandlers {
           index: startIdx + index + 1,
           title: product.title,
           price: Number(product.price) || 0,
-          companyName: product.companyName || t("msg_unknown", {}, userLanguage),
+          companyName:
+            product.companyName || t("msg_unknown", {}, userLanguage),
           description: (product.description || "").substring(0, 50),
         },
         userLanguage || "en"
@@ -399,11 +400,17 @@ class UserHandlers {
         const companyService = require("../services/companyService");
         const company = await companyService.getCompanyById(product.companyId);
         if (company) {
-          companyDetails = `\n🏢 Company: ${company.name || t("msg_no_description", {}, userLanguage)}\n📍 Address: ${
+          companyDetails = `\n🏢 Company: ${
+            company.name || t("msg_no_description", {}, userLanguage)
+          }\n📍 Address: ${
             company.address || t("msg_no_description", {}, userLanguage)
-          }\n📞 Phone: ${company.phone || t("msg_no_description", {}, userLanguage)}\n✉️ Email: ${
+          }\n📞 Phone: ${
+            company.phone || t("msg_no_description", {}, userLanguage)
+          }\n✉️ Email: ${
             company.email || t("msg_no_description", {}, userLanguage)
-          }\n🌐 Website: ${company.website || t("msg_no_description", {}, userLanguage)}\n📌 Location: ${
+          }\n🌐 Website: ${
+            company.website || t("msg_no_description", {}, userLanguage)
+          }\n📌 Location: ${
             company.location || t("msg_no_description", {}, userLanguage)
           }\n`;
           if (company.ownerUsername) {
@@ -420,8 +427,10 @@ class UserHandlers {
           {
             title: product.title,
             price: Number(product.price) || 0,
-            companyName: product.companyName || t("msg_unknown", {}, userLanguage),
-            description: product.description || t("msg_no_description", {}, userLanguage),
+            companyName:
+              product.companyName || t("msg_unknown", {}, userLanguage),
+            description:
+              product.description || t("msg_no_description", {}, userLanguage),
           },
           userLanguage
         ) +
@@ -473,7 +482,12 @@ class UserHandlers {
           ),
         ]);
       }
-      buttons.push([Markup.button.callback(t("btn_back_to_menu", {}, userLanguage), "main_menu")]);
+      buttons.push([
+        Markup.button.callback(
+          t("btn_back_to_menu", {}, userLanguage),
+          "main_menu"
+        ),
+      ]);
 
       await ctx.reply(productMessage, {
         parse_mode: "Markdown",
@@ -730,7 +744,8 @@ class UserHandlers {
         totalReferrals: stats.totalReferrals,
         verifiedReferrals: stats.verifiedReferrals || 0,
         totalRewards: stats.totalEarnings.toFixed(2),
-        recentActivity: stats.recentActivity || t("msg_no_recent_activity", {}, userLanguage),
+        recentActivity:
+          stats.recentActivity || t("msg_no_recent_activity", {}, userLanguage),
       },
       userLanguage
     );
@@ -958,7 +973,8 @@ class UserHandlers {
         "msg_payout_options",
         {
           balance: balance.toFixed(2),
-          paymentMethod: user.paymentMethod || t("msg_not_set", {}, userLanguage),
+          paymentMethod:
+            user.paymentMethod || t("msg_not_set", {}, userLanguage),
         },
         userLanguage
       );
@@ -1129,8 +1145,18 @@ class UserHandlers {
         });
       }
       const buttons = [
-        [Markup.button.callback(t("btn_new_payout", {}, userLanguage), "request_payout")],
-        [Markup.button.callback(t("btn_back_to_referrals", {}, userLanguage), "my_referrals")],
+        [
+          Markup.button.callback(
+            t("btn_new_payout", {}, userLanguage),
+            "request_payout"
+          ),
+        ],
+        [
+          Markup.button.callback(
+            t("btn_back_to_referrals", {}, userLanguage),
+            "my_referrals"
+          ),
+        ],
       ];
       ctx.reply(message, {
         parse_mode: "Markdown",
@@ -1147,7 +1173,14 @@ class UserHandlers {
       // Prompt for phone number with reply keyboard
       await ctx.reply(t("msg_share_phone_number", {}, userLanguage), {
         reply_markup: {
-          keyboard: [[{ text: t("btn_share_phone", {}, userLanguage), request_contact: true }]],
+          keyboard: [
+            [
+              {
+                text: t("btn_share_phone", {}, userLanguage),
+                request_contact: true,
+              },
+            ],
+          ],
           one_time_keyboard: true,
           resize_keyboard: true,
         },
@@ -1305,7 +1338,8 @@ class UserHandlers {
               date: toDateSafe(order.createdAt)?.toLocaleDateString(),
               productTitle: order.productTitle,
               price: order.finalPrice || order.amount,
-              companyName: order.company_name || t("msg_no_description", {}, userLanguage),
+              companyName:
+                order.company_name || t("msg_no_description", {}, userLanguage),
               referralCode: order.referralCode
                 ? t("msg_used_code", { code: order.referralCode }, userLanguage)
                 : "",
@@ -1958,14 +1992,30 @@ Toggle notifications:
       if (!company) return ctx.reply("❌ Company not found.");
       let msg = `🏢 *Manage Company*\n\n`;
       msg += `*Name:* ${company.name}\n`;
-      msg += `*Description:* ${company.description || t("msg_no_description", {}, userLanguage)}\n`;
-      msg += `*Website:* ${company.website || t("msg_no_description", {}, userLanguage)}\n`;
-      msg += `*Phone:* ${company.phone || t("msg_no_description", {}, userLanguage)}\n`;
-      msg += `*Email:* ${company.email || t("msg_no_description", {}, userLanguage)}\n`;
-      msg += `*Address:* ${company.address || t("msg_no_description", {}, userLanguage)}\n`;
-      msg += `*Location:* ${company.location || t("msg_no_description", {}, userLanguage)}\n`;
-      msg += `*Offer:* ${company.offer || t("msg_no_description", {}, userLanguage)}\n`;
-      msg += `*Status:* ${company.status || t("msg_no_description", {}, userLanguage)}\n`;
+      msg += `*Description:* ${
+        company.description || t("msg_no_description", {}, userLanguage)
+      }\n`;
+      msg += `*Website:* ${
+        company.website || t("msg_no_description", {}, userLanguage)
+      }\n`;
+      msg += `*Phone:* ${
+        company.phone || t("msg_no_description", {}, userLanguage)
+      }\n`;
+      msg += `*Email:* ${
+        company.email || t("msg_no_description", {}, userLanguage)
+      }\n`;
+      msg += `*Address:* ${
+        company.address || t("msg_no_description", {}, userLanguage)
+      }\n`;
+      msg += `*Location:* ${
+        company.location || t("msg_no_description", {}, userLanguage)
+      }\n`;
+      msg += `*Offer:* ${
+        company.offer || t("msg_no_description", {}, userLanguage)
+      }\n`;
+      msg += `*Status:* ${
+        company.status || t("msg_no_description", {}, userLanguage)
+      }\n`;
       const buttons = [
         [
           require("telegraf").Markup.button.callback(
@@ -2226,9 +2276,7 @@ Toggle notifications:
         .join(", ")}`
     );
     if (!favorites.length)
-      return ctx.reply(
-        t("msg_no_favorites_yet", {}, userLanguage)
-      );
+      return ctx.reply(t("msg_no_favorites_yet", {}, userLanguage));
     let msg = "⭐ *Your Favorite Products*\n\n";
     favorites.forEach((p, i) => {
       msg += `${i + 1}. ${p.title} ($${p.price})\n`;
@@ -2312,7 +2360,12 @@ Toggle notifications:
         Markup.button.callback("Next ➡️", `favorites_page_${page + 1}`)
       );
     if (navButtons.length) buttons.push(navButtons);
-    buttons.push([Markup.button.callback(t("btn_back_to_menu", {}, userLanguage), "main_menu")]);
+    buttons.push([
+      Markup.button.callback(
+        t("btn_back_to_menu", {}, userLanguage),
+        "main_menu"
+      ),
+    ]);
     ctx.reply(msg, {
       parse_mode: "Markdown",
       ...Markup.inlineKeyboard(buttons),
@@ -2321,7 +2374,8 @@ Toggle notifications:
 
   async handleAddFavorite(ctx, productId) {
     const userService = require("../services/userService");
-    if (!productId) return ctx.reply(t("msg_no_product_specified", {}, userLanguage));
+    if (!productId)
+      return ctx.reply(t("msg_no_product_specified", {}, userLanguage));
     await userService.userService.addFavorite(ctx.from.id, productId);
     if (ctx.callbackQuery) {
       await ctx.answerCbQuery("⭐ Added to favorites!");
@@ -2340,7 +2394,8 @@ Toggle notifications:
         productId = ctx.message.text.split(" ")[1];
       }
     }
-    if (!productId) return ctx.reply(t("msg_usage_removefavorite", {}, userLanguage));
+    if (!productId)
+      return ctx.reply(t("msg_usage_removefavorite", {}, userLanguage));
     await userService.userService.removeFavorite(ctx.from.id, productId);
     if (ctx.callbackQuery) {
       await ctx.answerCbQuery("❌ Removed from favorites!");
@@ -2408,7 +2463,12 @@ Toggle notifications:
         Markup.button.callback("Next ➡️", `cart_page_${page + 1}`)
       );
     if (navButtons.length) buttons.push(navButtons);
-    buttons.push([Markup.button.callback(t("btn_back_to_menu", {}, userLanguage), "main_menu")]);
+    buttons.push([
+      Markup.button.callback(
+        t("btn_back_to_menu", {}, userLanguage),
+        "main_menu"
+      ),
+    ]);
     ctx.reply(msg, {
       parse_mode: "Markdown",
       ...Markup.inlineKeyboard(buttons),
@@ -2417,7 +2477,8 @@ Toggle notifications:
 
   async handleAddCart(ctx, productId) {
     const userService = require("../services/userService");
-    if (!productId) return ctx.reply(t("msg_no_product_specified", {}, userLanguage));
+    if (!productId)
+      return ctx.reply(t("msg_no_product_specified", {}, userLanguage));
     await userService.userService.addToCart(ctx.from.id, productId);
     if (ctx.callbackQuery) {
       await ctx.answerCbQuery("🛒 Added to cart!");
@@ -2436,7 +2497,8 @@ Toggle notifications:
         productId = ctx.message.text.split(" ")[1];
       }
     }
-    if (!productId) return ctx.reply(t("msg_usage_removecart", {}, userLanguage));
+    if (!productId)
+      return ctx.reply(t("msg_usage_removecart", {}, userLanguage));
     await userService.userService.removeFromCart(ctx.from.id, productId);
     if (ctx.callbackQuery) {
       await ctx.answerCbQuery("❌ Removed from cart!");
@@ -2651,13 +2713,18 @@ Toggle notifications:
         (ctx.callbackQuery && ctx.callbackQuery.data.split("_")[2]);
       const productService = require("../services/productService");
       const product = await productService.getProductById(productId);
-      if (!product) return ctx.reply(t("msg_product_not_found", {}, userLanguage));
+      if (!product)
+        return ctx.reply(t("msg_product_not_found", {}, userLanguage));
       let msg = `🛠️ *Manage Product*\n\n`;
       msg += `*Title:* ${product.title}\n`;
       msg += `*Price:* $${product.price}\n`;
-      msg += `*Description:* ${product.description || t("msg_no_description", {}, userLanguage)}\n`;
+      msg += `*Description:* ${
+        product.description || t("msg_no_description", {}, userLanguage)
+      }\n`;
       msg += `*Quantity:* ${product.quantity}\n`;
-      msg += `*Category:* ${product.category || t("msg_no_description", {}, userLanguage)}\n`;
+      msg += `*Category:* ${
+        product.category || t("msg_no_description", {}, userLanguage)
+      }\n`;
       // Human-friendly status label
       const statusLabels = {
         instock: "In Stock",
@@ -2665,9 +2732,13 @@ Toggle notifications:
         low_stock: "Low Stock",
       };
       const statusLabel =
-        statusLabels[product.status] || product.status || t("msg_unknown", {}, userLanguage);
+        statusLabels[product.status] ||
+        product.status ||
+        t("msg_unknown", {}, userLanguage);
       msg += `*Status:* ${statusLabel}\n`;
-      msg += `*Company:* ${product.companyName || t("msg_no_description", {}, userLanguage)}\n`;
+      msg += `*Company:* ${
+        product.companyName || t("msg_no_description", {}, userLanguage)
+      }\n`;
       const buttons = [
         [
           require("telegraf").Markup.button.callback(
@@ -2701,7 +2772,8 @@ Toggle notifications:
       const productId = ctx.callbackQuery.data.split("_")[2];
       const productService = require("../services/productService");
       const product = await productService.getProductById(productId);
-      if (!product) return ctx.reply(t("msg_product_not_found", {}, userLanguage));
+      if (!product)
+        return ctx.reply(t("msg_product_not_found", {}, userLanguage));
       if (product.quantity <= 0)
         return ctx.reply(t("msg_no_stock_available", {}, userLanguage));
       ctx.session.sellProductId = productId;
@@ -2721,9 +2793,13 @@ Toggle notifications:
       const referralService = require("../services/referralService");
       const userService = require("../services/userService").userService;
       const companyService = require("../services/companyService");
-      if (!productId) return ctx.reply(t("msg_no_product_selected_for_sale", {}, userLanguage));
+      if (!productId)
+        return ctx.reply(
+          t("msg_no_product_selected_for_sale", {}, userLanguage)
+        );
       const product = await productService.getProductById(productId);
-      if (!product) return ctx.reply(t("msg_product_not_found", {}, userLanguage));
+      if (!product)
+        return ctx.reply(t("msg_product_not_found", {}, userLanguage));
       if (step === "buyer_username") {
         let username = ctx.message.text.trim().replace(/^@/, "").toLowerCase();
         // Look up user by username
@@ -3103,7 +3179,8 @@ Toggle notifications:
       const productId = ctx.callbackQuery.data.split("_")[2];
       const productService = require("../services/productService");
       const product = await productService.getProductById(productId);
-      if (!product) return ctx.reply(t("msg_product_not_found", {}, userLanguage));
+      if (!product)
+        return ctx.reply(t("msg_product_not_found", {}, userLanguage));
       ctx.session.editProductId = productId;
       ctx.session.editProductStep = "title";
       ctx.session.editProductData = { ...product };
@@ -3375,9 +3452,11 @@ Toggle notifications:
         );
       const userDisplay = user.username
         ? `@${user.username}`
-        : `${user.first_name || user.firstName || t("msg_no_payment_details", {}, userLanguage)} ${
-            user.last_name || user.lastName || ""
-          }`;
+        : `${
+            user.first_name ||
+            user.firstName ||
+            t("msg_no_payment_details", {}, userLanguage)
+          } ${user.last_name || user.lastName || ""}`;
       let historyMsg = `💸 *Withdrawal Request*\n\n👤 User: ${userDisplay}\n🏢 Company: ${
         company?.name || companyId
       }\n💰 Amount: $${companyStats.earnings.toFixed(
@@ -3455,9 +3534,11 @@ Toggle notifications:
         );
       const userDisplay = user.username
         ? `@${user.username}`
-        : `${user.first_name || user.firstName || t("msg_no_payment_details", {}, userLanguage)} ${
-            user.last_name || user.lastName || ""
-          }`;
+        : `${
+            user.first_name ||
+            user.firstName ||
+            t("msg_no_payment_details", {}, userLanguage)
+          } ${user.last_name || user.lastName || ""}`;
       ctx.telegram.sendMessage(
         withdrawal.userId,
         `✅ Your withdrawal request from *${
@@ -3499,9 +3580,11 @@ Toggle notifications:
         );
       const userDisplay = user.username
         ? `@${user.username}`
-        : `${user.first_name || user.firstName || t("msg_no_payment_details", {}, userLanguage)} ${
-            user.last_name || user.lastName || ""
-          }`;
+        : `${
+            user.first_name ||
+            user.firstName ||
+            t("msg_no_payment_details", {}, userLanguage)
+          } ${user.last_name || user.lastName || ""}`;
       ctx.telegram.sendMessage(
         withdrawal.userId,
         `❌ Your withdrawal request from *${
@@ -3623,7 +3706,9 @@ Toggle notifications:
           dateStr = `${createdAt.toLocaleDateString()} (${createdAt.toLocaleTimeString()})`;
         }
         // Human-friendly referral info: price, quantity, product, date/time, status (NO ID)
-        const price = ref.amount ? `$${ref.amount.toFixed(2)}` : t("msg_no_description", {}, userLanguage);
+        const price = ref.amount
+          ? `$${ref.amount.toFixed(2)}`
+          : t("msg_no_description", {}, userLanguage);
         const qty = ref.quantity ? `Qty: ${ref.quantity}` : "";
         const product = ref.product_title || "Product";
         // Patch: If product looks like a UUID, show 'Product' instead
@@ -3689,7 +3774,12 @@ Toggle notifications:
           Markup.button.callback("🇺🇸 English", "set_language_en"),
           Markup.button.callback("🇪🇹 አማርኛ", "set_language_am"),
         ],
-        [Markup.button.callback(t("btn_back_to_menu", {}, userLanguage), "main_menu")],
+        [
+          Markup.button.callback(
+            t("btn_back_to_menu", {}, currentLanguage),
+            "main_menu"
+          ),
+        ],
       ];
 
       ctx.reply(message, {
@@ -3710,7 +3800,12 @@ Toggle notifications:
       const { t } = require("../../utils/localize");
       const message = t("msg_language_changed", {}, language);
       const buttons = [
-        [Markup.button.callback(t("btn_back_to_menu", {}, userLanguage), "main_menu")],
+        [
+          Markup.button.callback(
+            t("btn_back_to_menu", {}, language),
+            "main_menu"
+          ),
+        ],
       ];
 
       ctx.reply(message, {
