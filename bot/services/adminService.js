@@ -102,12 +102,39 @@ class AdminService {
         const company = doc.data();
         const companyId = doc.id;
 
-        // Get company's products count
-        const productsSnap = await databaseService
-          .getDb()
-          .collection("products")
-          .where("companyId", "==", companyId)
-          .get();
+        // Get company's products count - check for different field names
+        let productsSnap;
+        try {
+          productsSnap = await databaseService
+            .getDb()
+            .collection("products")
+            .where("companyId", "==", companyId)
+            .get();
+        } catch (error) {
+          try {
+            productsSnap = await databaseService
+              .getDb()
+              .collection("products")
+              .where("company_id", "==", companyId)
+              .get();
+          } catch (error2) {
+            // If both fail, get all products and filter
+            productsSnap = await databaseService
+              .getDb()
+              .collection("products")
+              .get();
+          }
+        }
+
+        // Filter products that belong to this company
+        let productCount = 0;
+        for (const productDoc of productsSnap.docs) {
+          const product = productDoc.data();
+          const productCompanyId = product.companyId || product.company_id;
+          if (productCompanyId === companyId) {
+            productCount++;
+          }
+        }
 
         // Calculate actual platform fees and lifetime revenue
         const platformFees = await this.calculateCompanyPlatformFees(companyId);
@@ -123,11 +150,19 @@ class AdminService {
           platformFees,
           withdrawable,
           lifetimeRevenue,
-          productCount: productsSnap.size,
+          productCount,
           hasWithdrawable: withdrawable > 0,
           status: company.status || "pending",
           createdAt: company.createdAt,
         });
+
+        logger.info(
+          `Company ${
+            company.name
+          } (${companyId}): ${productCount} products, $${platformFees.toFixed(
+            2
+          )} platform fees, $${lifetimeRevenue.toFixed(2)} lifetime revenue`
+        );
       }
 
       return analytics;
@@ -1055,6 +1090,10 @@ class AdminService {
 
       const companyStats = [];
 
+      logger.info(
+        `Processing ${companiesSnap.size} companies for platform stats`
+      );
+
       for (const doc of companiesSnap.docs) {
         const company = doc.data();
         const companyId = doc.id;
@@ -1078,7 +1117,23 @@ class AdminService {
           lifetimeRevenue,
           hasWithdrawable: withdrawable > 0,
         });
+
+        logger.info(
+          `Company ${company.name}: Platform fees=$${platformFees.toFixed(
+            2
+          )}, Revenue=$${lifetimeRevenue.toFixed(
+            2
+          )}, Withdrawable=$${withdrawable.toFixed(2)}`
+        );
       }
+
+      logger.info(
+        `Total platform stats: Fees=$${totalPlatformFees.toFixed(
+          2
+        )}, Revenue=$${totalLifetimeRevenue.toFixed(
+          2
+        )}, Withdrawable=$${totalWithdrawable.toFixed(2)}`
+      );
 
       return {
         totalPlatformFees,
@@ -1102,20 +1157,47 @@ class AdminService {
   async calculateCompanyPlatformFees(companyId) {
     try {
       // Calculate platform fees from referrals for this company
-      const referralsSnap = await databaseService
-        .referrals()
-        .where("companyId", "==", companyId)
-        .get();
+      // Check for different possible field names
+      let referralsSnap;
+
+      try {
+        // First try with companyId field
+        referralsSnap = await databaseService
+          .referrals()
+          .where("companyId", "==", companyId)
+          .get();
+      } catch (error) {
+        try {
+          // Try with company_id field
+          referralsSnap = await databaseService
+            .referrals()
+            .where("company_id", "==", companyId)
+            .get();
+        } catch (error2) {
+          // If both fail, get all referrals and filter
+          referralsSnap = await databaseService.referrals().get();
+        }
+      }
 
       let totalPlatformFees = 0;
 
       for (const doc of referralsSnap.docs) {
         const referral = doc.data();
+
+        // Check if this referral belongs to the company
+        const referralCompanyId = referral.companyId || referral.company_id;
+        if (referralCompanyId !== companyId) continue;
+
         // Platform fee is typically 1.5% of the transaction amount
         const platformFee = (referral.amount || 0) * 0.015; // 1.5% platform fee
         totalPlatformFees += platformFee;
       }
 
+      logger.info(
+        `Calculated platform fees for company ${companyId}: $${totalPlatformFees.toFixed(
+          2
+        )}`
+      );
       return totalPlatformFees;
     } catch (error) {
       logger.error("Error calculating company platform fees:", error);
@@ -1126,21 +1208,74 @@ class AdminService {
   async calculateCompanyLifetimeRevenue(companyId) {
     try {
       // Calculate lifetime revenue from all referrals for this company
-      const referralsSnap = await databaseService
-        .referrals()
-        .where("companyId", "==", companyId)
-        .get();
+      // Check for different possible field names
+      let referralsSnap;
+
+      try {
+        // First try with companyId field
+        referralsSnap = await databaseService
+          .referrals()
+          .where("companyId", "==", companyId)
+          .get();
+      } catch (error) {
+        try {
+          // Try with company_id field
+          referralsSnap = await databaseService
+            .referrals()
+            .where("company_id", "==", companyId)
+            .get();
+        } catch (error2) {
+          // If both fail, get all referrals and filter
+          referralsSnap = await databaseService.referrals().get();
+        }
+      }
 
       let totalRevenue = 0;
 
       for (const doc of referralsSnap.docs) {
         const referral = doc.data();
+
+        // Check if this referral belongs to the company
+        const referralCompanyId = referral.companyId || referral.company_id;
+        if (referralCompanyId !== companyId) continue;
+
         totalRevenue += referral.amount || 0;
       }
 
+      logger.info(
+        `Calculated lifetime revenue for company ${companyId}: $${totalRevenue.toFixed(
+          2
+        )}`
+      );
       return totalRevenue;
     } catch (error) {
       logger.error("Error calculating company lifetime revenue:", error);
+      return 0;
+    }
+  }
+
+  async calculateTotalLifetimeWithdrawn() {
+    try {
+      // Get all company withdrawals
+      const withdrawalsSnap = await databaseService
+        .getDb()
+        .collection("company_withdrawals")
+        .where("status", "==", "processed")
+        .get();
+
+      let totalWithdrawn = 0;
+
+      for (const doc of withdrawalsSnap.docs) {
+        const withdrawal = doc.data();
+        totalWithdrawn += withdrawal.amount || 0;
+      }
+
+      logger.info(
+        `Total lifetime withdrawn from companies: $${totalWithdrawn.toFixed(2)}`
+      );
+      return totalWithdrawn;
+    } catch (error) {
+      logger.error("Error calculating total lifetime withdrawn:", error);
       return 0;
     }
   }

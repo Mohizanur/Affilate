@@ -1027,6 +1027,10 @@ class AdminHandlers {
       const { platformStats, companyAnalytics, recentUsers, systemAlerts } =
         dashboard;
 
+      // Calculate total lifetime withdrawn
+      const totalLifetimeWithdrawn =
+        await adminService.calculateTotalLifetimeWithdrawn();
+
       let msg = `📊 *Platform Analytics*
 
 `;
@@ -1041,6 +1045,7 @@ class AdminHandlers {
       msg += `📈 *Lifetime Revenue:* $${platformStats.totalLifetimeRevenue.toFixed(
         2
       )}\n`;
+      msg += `💸 *Lifetime Withdrawn:* $${totalLifetimeWithdrawn.toFixed(2)}\n`;
 
       // Show companies with detailed analytics
       if (companyAnalytics && companyAnalytics.length > 0) {
