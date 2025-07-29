@@ -1023,6 +1023,9 @@ class AdminHandlers {
           t("msg__access_denied", {}, ctx.session?.language || "en")
         );
 
+      // Debug data structure first
+      await adminService.debugDataStructure();
+
       const dashboard = await adminService.getDashboardData();
       const { platformStats, companyAnalytics, recentUsers, systemAlerts } =
         dashboard;

@@ -96,11 +96,16 @@ class AdminService {
   async getCompanyAnalytics() {
     try {
       const companiesSnap = await databaseService.companies().get();
+      logger.info(`Found ${companiesSnap.size} companies in database`);
+
       const analytics = [];
 
       for (const doc of companiesSnap.docs) {
         const company = doc.data();
         const companyId = doc.id;
+
+        logger.info(`Processing company: ${company.name} (ID: ${companyId})`);
+        logger.info(`Company data:`, company);
 
         // Get company's products count - check for different field names
         let productsSnap;
@@ -110,6 +115,9 @@ class AdminService {
             .collection("products")
             .where("companyId", "==", companyId)
             .get();
+          logger.info(
+            `Found ${productsSnap.size} products with companyId field`
+          );
         } catch (error) {
           try {
             productsSnap = await databaseService
@@ -117,12 +125,18 @@ class AdminService {
               .collection("products")
               .where("company_id", "==", companyId)
               .get();
+            logger.info(
+              `Found ${productsSnap.size} products with company_id field`
+            );
           } catch (error2) {
             // If both fail, get all products and filter
             productsSnap = await databaseService
               .getDb()
               .collection("products")
               .get();
+            logger.info(
+              `Got all ${productsSnap.size} products, will filter manually`
+            );
           }
         }
 
@@ -131,6 +145,13 @@ class AdminService {
         for (const productDoc of productsSnap.docs) {
           const product = productDoc.data();
           const productCompanyId = product.companyId || product.company_id;
+          logger.info(
+            `Product ${productDoc.id}: companyId=${
+              product.companyId
+            }, company_id=${product.company_id}, matches=${
+              productCompanyId === companyId
+            }`
+          );
           if (productCompanyId === companyId) {
             productCount++;
           }
@@ -142,6 +163,12 @@ class AdminService {
           companyId
         );
         const withdrawable = company.billingBalance || 0;
+
+        logger.info(`Company ${company.name} results:`);
+        logger.info(`- Product count: ${productCount}`);
+        logger.info(`- Platform fees: $${platformFees.toFixed(2)}`);
+        logger.info(`- Lifetime revenue: $${lifetimeRevenue.toFixed(2)}`);
+        logger.info(`- Withdrawable: $${withdrawable.toFixed(2)}`);
 
         analytics.push({
           id: companyId,
@@ -165,6 +192,7 @@ class AdminService {
         );
       }
 
+      logger.info(`Total companies processed: ${analytics.length}`);
       return analytics;
     } catch (error) {
       logger.error("Error getting company analytics:", error);
@@ -1156,26 +1184,40 @@ class AdminService {
 
   async calculateCompanyPlatformFees(companyId) {
     try {
+      logger.info(`Calculating platform fees for company ${companyId}...`);
+
       // Calculate platform fees from referrals for this company
       // Check for different possible field names
       let referralsSnap;
 
       try {
         // First try with companyId field
+        logger.info(`Trying to find referrals with companyId = ${companyId}`);
         referralsSnap = await databaseService
           .referrals()
           .where("companyId", "==", companyId)
           .get();
+        logger.info(
+          `Found ${referralsSnap.size} referrals with companyId field`
+        );
       } catch (error) {
         try {
           // Try with company_id field
+          logger.info(
+            `Trying to find referrals with company_id = ${companyId}`
+          );
           referralsSnap = await databaseService
             .referrals()
             .where("company_id", "==", companyId)
             .get();
+          logger.info(
+            `Found ${referralsSnap.size} referrals with company_id field`
+          );
         } catch (error2) {
           // If both fail, get all referrals and filter
+          logger.info(`Getting all referrals to filter manually`);
           referralsSnap = await databaseService.referrals().get();
+          logger.info(`Total referrals found: ${referralsSnap.size}`);
         }
       }
 
@@ -1183,14 +1225,32 @@ class AdminService {
 
       for (const doc of referralsSnap.docs) {
         const referral = doc.data();
+        logger.info(`Referral ${doc.id}:`, referral);
 
         // Check if this referral belongs to the company
         const referralCompanyId = referral.companyId || referral.company_id;
-        if (referralCompanyId !== companyId) continue;
+        logger.info(
+          `Referral companyId: ${referral.companyId}, company_id: ${
+            referral.company_id
+          }, matches: ${referralCompanyId === companyId}`
+        );
+
+        if (referralCompanyId !== companyId) {
+          logger.info(
+            `Skipping referral - doesn't belong to company ${companyId}`
+          );
+          continue;
+        }
 
         // Platform fee is typically 1.5% of the transaction amount
         const platformFee = (referral.amount || 0) * 0.015; // 1.5% platform fee
         totalPlatformFees += platformFee;
+
+        logger.info(
+          `Referral amount: $${
+            referral.amount || 0
+          }, platform fee: $${platformFee.toFixed(2)}`
+        );
       }
 
       logger.info(
@@ -1207,26 +1267,40 @@ class AdminService {
 
   async calculateCompanyLifetimeRevenue(companyId) {
     try {
+      logger.info(`Calculating lifetime revenue for company ${companyId}...`);
+
       // Calculate lifetime revenue from all referrals for this company
       // Check for different possible field names
       let referralsSnap;
 
       try {
         // First try with companyId field
+        logger.info(`Trying to find referrals with companyId = ${companyId}`);
         referralsSnap = await databaseService
           .referrals()
           .where("companyId", "==", companyId)
           .get();
+        logger.info(
+          `Found ${referralsSnap.size} referrals with companyId field`
+        );
       } catch (error) {
         try {
           // Try with company_id field
+          logger.info(
+            `Trying to find referrals with company_id = ${companyId}`
+          );
           referralsSnap = await databaseService
             .referrals()
             .where("company_id", "==", companyId)
             .get();
+          logger.info(
+            `Found ${referralsSnap.size} referrals with company_id field`
+          );
         } catch (error2) {
           // If both fail, get all referrals and filter
+          logger.info(`Getting all referrals to filter manually`);
           referralsSnap = await databaseService.referrals().get();
+          logger.info(`Total referrals found: ${referralsSnap.size}`);
         }
       }
 
@@ -1234,12 +1308,29 @@ class AdminService {
 
       for (const doc of referralsSnap.docs) {
         const referral = doc.data();
+        logger.info(`Referral ${doc.id}:`, referral);
 
         // Check if this referral belongs to the company
         const referralCompanyId = referral.companyId || referral.company_id;
-        if (referralCompanyId !== companyId) continue;
+        logger.info(
+          `Referral companyId: ${referral.companyId}, company_id: ${
+            referral.company_id
+          }, matches: ${referralCompanyId === companyId}`
+        );
+
+        if (referralCompanyId !== companyId) {
+          logger.info(
+            `Skipping referral - doesn't belong to company ${companyId}`
+          );
+          continue;
+        }
 
         totalRevenue += referral.amount || 0;
+        logger.info(
+          `Referral amount: $${
+            referral.amount || 0
+          }, total so far: $${totalRevenue.toFixed(2)}`
+        );
       }
 
       logger.info(
@@ -1460,6 +1551,48 @@ class AdminService {
     } catch (error) {
       logger.error("Error getting company sales and commission:", error);
       throw error;
+    }
+  }
+
+  async debugDataStructure() {
+    try {
+      logger.info("=== DEBUGGING DATA STRUCTURE ===");
+
+      // Check companies
+      const companiesSnap = await databaseService.companies().get();
+      logger.info(`Found ${companiesSnap.size} companies`);
+
+      for (const doc of companiesSnap.docs) {
+        const company = doc.data();
+        logger.info(`Company ${doc.id}:`, company);
+      }
+
+      // Check referrals
+      const referralsSnap = await databaseService.referrals().get();
+      logger.info(`Found ${referralsSnap.size} referrals`);
+
+      for (const doc of referralsSnap.docs.slice(0, 5)) {
+        // Show first 5
+        const referral = doc.data();
+        logger.info(`Referral ${doc.id}:`, referral);
+      }
+
+      // Check products
+      const productsSnap = await databaseService
+        .getDb()
+        .collection("products")
+        .get();
+      logger.info(`Found ${productsSnap.size} products`);
+
+      for (const doc of productsSnap.docs.slice(0, 5)) {
+        // Show first 5
+        const product = doc.data();
+        logger.info(`Product ${doc.id}:`, product);
+      }
+
+      logger.info("=== END DEBUGGING ===");
+    } catch (error) {
+      logger.error("Error debugging data structure:", error);
     }
   }
 }
