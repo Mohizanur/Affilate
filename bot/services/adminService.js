@@ -1256,18 +1256,82 @@ class AdminService {
 
   async calculateTotalLifetimeWithdrawn() {
     try {
-      // Get all company withdrawals
-      const withdrawalsSnap = await databaseService
-        .getDb()
-        .collection("company_withdrawals")
-        .where("status", "==", "processed")
-        .get();
-
       let totalWithdrawn = 0;
 
-      for (const doc of withdrawalsSnap.docs) {
-        const withdrawal = doc.data();
-        totalWithdrawn += withdrawal.amount || 0;
+      // Check the withdrawals collection (where actual withdrawals are stored)
+      try {
+        logger.info(
+          `Checking withdrawals collection for approved withdrawals...`
+        );
+
+        // Get approved withdrawals from the withdrawals collection
+        const withdrawalsSnap = await databaseService
+          .withdrawals()
+          .where("status", "==", "approved")
+          .get();
+
+        logger.info(`Found ${withdrawalsSnap.size} approved withdrawals`);
+
+        for (const doc of withdrawalsSnap.docs) {
+          const withdrawal = doc.data();
+          const amount = withdrawal.amount || 0;
+          totalWithdrawn += amount;
+
+          logger.info(
+            `Approved withdrawal: $${amount.toFixed(2)} for user ${
+              withdrawal.userId
+            }`
+          );
+        }
+
+        // Also check for any other statuses that might indicate completed withdrawals
+        const otherStatuses = ["processed", "completed", "finalized"];
+
+        for (const status of otherStatuses) {
+          try {
+            const otherWithdrawalsSnap = await databaseService
+              .withdrawals()
+              .where("status", "==", status)
+              .get();
+
+            logger.info(
+              `Found ${otherWithdrawalsSnap.size} withdrawals with status '${status}'`
+            );
+
+            for (const doc of otherWithdrawalsSnap.docs) {
+              const withdrawal = doc.data();
+              const amount = withdrawal.amount || 0;
+              totalWithdrawn += amount;
+
+              logger.info(`Withdrawal (${status}): $${amount.toFixed(2)}`);
+            }
+          } catch (error) {
+            logger.info(`No withdrawals with status '${status}'`);
+          }
+        }
+      } catch (error) {
+        logger.error("Error accessing withdrawals collection:", error);
+      }
+
+      // Also check company_withdrawals collection if it exists
+      try {
+        const companyWithdrawalsSnap = await databaseService
+          .getDb()
+          .collection("company_withdrawals")
+          .where("status", "==", "processed")
+          .get();
+
+        logger.info(`Found ${companyWithdrawalsSnap.size} company withdrawals`);
+
+        for (const doc of companyWithdrawalsSnap.docs) {
+          const withdrawal = doc.data();
+          const amount = withdrawal.amount || 0;
+          totalWithdrawn += amount;
+
+          logger.info(`Company withdrawal: $${amount.toFixed(2)}`);
+        }
+      } catch (error) {
+        logger.info("Company withdrawals collection not accessible or empty");
       }
 
       logger.info(
