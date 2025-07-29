@@ -543,17 +543,17 @@ class AdminService {
 
   async getDashboardData() {
     try {
-      const [recentOrders, pendingApprovals, recentUsers, systemAlerts] =
+      const [platformStats, companyAnalytics, recentUsers, systemAlerts] =
         await Promise.all([
-          // orderService.getRecentOrders(5), // Removed orderService calls
-          this.getPendingApprovals(),
+          this.getPlatformStats(),
+          this.getCompanyAnalytics(),
           userService.getRecentUsers(5),
           this.getSystemAlerts(),
         ]);
 
       return {
-        recentOrders,
-        pendingApprovals,
+        platformStats,
+        companyAnalytics,
         recentUsers,
         systemAlerts,
         quickStats: await this.getQuickStats(),
@@ -626,9 +626,25 @@ class AdminService {
         databaseService.users().get(),
         databaseService.companies().where("status", "==", "approved").get(),
       ]);
+      
+      // Calculate total platform fees from all companies
+      let totalPlatformFees = 0;
+      let totalWithdrawable = 0;
+      
+      for (const doc of companiesSnap.docs) {
+        const company = doc.data();
+        totalPlatformFees += company.platformFees || 0;
+        totalWithdrawable += company.withdrawable || 0;
+      }
+      
       const totalUsers = usersSnap.size;
       const totalCompanies = companiesSnap.size;
-      return { totalUsers, totalCompanies, totalOrders: 0, totalRevenue: 0 };
+      return { 
+        totalUsers, 
+        totalCompanies, 
+        totalPlatformFees, 
+        totalWithdrawable 
+      };
     } catch (error) {
       logger.error("Error getting quick stats (Firestore):", error);
       throw error;
@@ -1044,27 +1060,88 @@ class AdminService {
 
   async getPlatformStats() {
     try {
-      const usersSnap = await databaseService.users().get();
+      // Get all companies and calculate platform fees
       const companiesSnap = await databaseService.companies().get();
-      const totalUsers = usersSnap.size;
-      const totalCompanies = companiesSnap.size;
-      // Revenue: sum all completed sales amounts
-      const salesSnap = await databaseService
-        .getDb()
-        .collection("sales")
-        .where("status", "==", "completed")
-        .get();
-      let platformRevenue = 0;
-      salesSnap.forEach((doc) => {
-        const s = doc.data();
-        platformRevenue += s.amount || 0;
-      });
-      // Growth: dummy values for now, or implement real growth logic if needed
-      const growth = { users30d: 0, revenue30d: 0 };
-      return { totalUsers, totalCompanies, platformRevenue, growth };
+      let totalPlatformFees = 0;
+      let totalWithdrawable = 0;
+      let totalLifetimeRevenue = 0;
+
+      const companyStats = [];
+
+      for (const doc of companiesSnap.docs) {
+        const company = doc.data();
+        const companyId = doc.id;
+
+        // Get company's platform fees and withdrawals
+        const platformFees = company.platformFees || 0;
+        const withdrawable = company.withdrawable || 0;
+        const lifetimeRevenue = company.lifetimeRevenue || 0;
+
+        totalPlatformFees += platformFees;
+        totalWithdrawable += withdrawable;
+        totalLifetimeRevenue += lifetimeRevenue;
+
+        companyStats.push({
+          id: companyId,
+          name: company.name,
+          platformFees,
+          withdrawable,
+          lifetimeRevenue,
+          hasWithdrawable: withdrawable > 0,
+        });
+      }
+
+      return {
+        totalPlatformFees,
+        totalWithdrawable,
+        totalLifetimeRevenue,
+        companies: companyStats,
+        totalCompanies: companiesSnap.size,
+      };
     } catch (error) {
       logger.error("Error getting platform stats:", error);
-      throw error;
+      return {
+        totalPlatformFees: 0,
+        totalWithdrawable: 0,
+        totalLifetimeRevenue: 0,
+        companies: [],
+        totalCompanies: 0,
+      };
+    }
+  }
+
+  async getCompanyAnalytics() {
+    try {
+      const companiesSnap = await databaseService.companies().get();
+      const analytics = [];
+
+      for (const doc of companiesSnap.docs) {
+        const company = doc.data();
+        const companyId = doc.id;
+
+        // Get company's products count
+        const productsSnap = await databaseService
+          .getDb()
+          .collection("products")
+          .where("companyId", "==", companyId)
+          .get();
+
+        analytics.push({
+          id: companyId,
+          name: company.name,
+          ownerUsername: company.ownerUsername,
+          platformFees: company.platformFees || 0,
+          withdrawable: company.withdrawable || 0,
+          lifetimeRevenue: company.lifetimeRevenue || 0,
+          productCount: productsSnap.size,
+          hasWithdrawable: (company.withdrawable || 0) > 0,
+        });
+      }
+
+      return analytics;
+    } catch (error) {
+      logger.error("Error getting company analytics:", error);
+      return [];
     }
   }
 

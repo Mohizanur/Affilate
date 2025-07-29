@@ -627,6 +627,10 @@ class AdminHandlers {
           t("msg__company_not_found", {}, ctx.session?.language || "en")
         );
 
+      // Get company analytics
+      const companyAnalytics = await adminService.getCompanyAnalytics();
+      const companyAnalytic = companyAnalytics.find((c) => c.id === companyId);
+
       let msg = `🏢 *Company Details*
 
 `;
@@ -634,7 +638,9 @@ class AdminHandlers {
 `;
       msg += `🆔 ID: ${company.id}
 `;
-      msg += `👤 Owner ID: ${company.telegramId || "N/A"}
+      msg += `👤 Owner: ${
+        companyAnalytic?.ownerUsername || company.telegramId || "N/A"
+      }
 `;
       msg += `📧 Email: ${company.email || "N/A"}
 `;
@@ -642,9 +648,13 @@ class AdminHandlers {
 `;
       msg += `📋 Description: ${company.description || "N/A"}
 `;
-      msg += `💰 Balance: $${(company.billingBalance || 0).toFixed(2)}
+      msg += `💰 Platform Fees: $${(company.platformFees || 0).toFixed(2)}
 `;
-      msg += `📦 Products: ${company.products?.length || 0}
+      msg += `💳 Withdrawable: $${(company.withdrawable || 0).toFixed(2)}
+`;
+      msg += `📈 Lifetime Revenue: $${(company.lifetimeRevenue || 0).toFixed(2)}
+`;
+      msg += `📦 Products: ${companyAnalytic?.productCount || 0}
 `;
       msg += `🎯 Status: ${company.status || "active"}
 `;
@@ -658,6 +668,16 @@ class AdminHandlers {
       const buttons = [
         [Markup.button.callback("🔙 Back to Companies", "admin_companies_1")],
       ];
+
+      // Add withdrawal button if company has withdrawable amount
+      if (company.withdrawable && company.withdrawable > 0) {
+        buttons.unshift([
+          Markup.button.callback(
+            `💳 Withdraw $${company.withdrawable.toFixed(2)}`,
+            `admin_withdraw_company_${companyId}`
+          ),
+        ]);
+      }
 
       ctx.reply(msg, {
         parse_mode: "Markdown",
@@ -1002,26 +1022,59 @@ class AdminHandlers {
         return ctx.reply(
           t("msg__access_denied", {}, ctx.session?.language || "en")
         );
-      const analytics = await adminService.getAnalytics();
+
       const dashboard = await adminService.getDashboardData();
+      const { platformStats, companyAnalytics, recentUsers, systemAlerts } =
+        dashboard;
+
       let msg = `📊 *Platform Analytics*
 
 `;
-      msg += `👥 *Users:* ${analytics.users.total}\n`;
-      msg += `🏢 *Companies:* ${analytics.companies.total}\n`;
-      msg += `📦 *Orders:* ${analytics.orders.total}\n`;
-      msg += `💰 *Revenue:* $${analytics.revenue.total?.toFixed(2) || 0}\n`;
-      msg += `📈 *Active Users (7d):* ${analytics.users.active}\n`;
-      msg += `⭐ *Referrers:* ${analytics.users.referrers}\n`;
+      msg += `👥 *Users:* ${dashboard.quickStats.totalUsers}\n`;
+      msg += `🏢 *Companies:* ${dashboard.quickStats.totalCompanies}\n`;
+      msg += `💰 *Total Platform Fees:* $${dashboard.quickStats.totalPlatformFees.toFixed(
+        2
+      )}\n`;
+      msg += `💳 *Total Withdrawable:* $${dashboard.quickStats.totalWithdrawable.toFixed(
+        2
+      )}\n`;
+      msg += `📈 *Lifetime Revenue:* $${platformStats.totalLifetimeRevenue.toFixed(
+        2
+      )}\n`;
+
+      // Show companies with withdrawable amounts
+      const companiesWithWithdrawable = companyAnalytics.filter(
+        (c) => c.hasWithdrawable
+      );
+      if (companiesWithWithdrawable.length > 0) {
+        msg += `\n💳 *Companies with Withdrawable:*\n`;
+        companiesWithWithdrawable.forEach((company) => {
+          msg += `• ${company.name}: $${company.withdrawable.toFixed(2)}\n`;
+        });
+      }
+
       msg += `\n*Recent Users:*\n`;
-      dashboard.recentUsers?.forEach((u) => {
-        msg += `• ${u.username || u.first_name || u.id} (${u.id})\n`;
+      recentUsers?.forEach((u) => {
+        msg += `• ${u.username || u.first_name || u.id}\n`;
       });
-      msg += `\n*System Alerts:*\n`;
-      dashboard.systemAlerts?.forEach((a) => {
-        msg += `• [${a.priority}] ${a.message}\n`;
+
+      if (systemAlerts && systemAlerts.length > 0) {
+        msg += `\n*System Alerts:*\n`;
+        systemAlerts.forEach((a) => {
+          msg += `• [${a.priority}] ${a.message}\n`;
+        });
+      }
+
+      const buttons = [
+        [Markup.button.callback("🏢 Company Details", "admin_companies_1")],
+        [Markup.button.callback("🔙 Back to Admin", "admin_panel")],
+      ];
+
+      ctx.reply(msg, {
+        parse_mode: "Markdown",
+        reply_markup: Markup.inlineKeyboard(buttons),
       });
-      ctx.reply(msg, { parse_mode: "Markdown" });
+
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error in platform analytics dashboard:", error);
