@@ -3,7 +3,7 @@ const databaseService = require("../config/database");
 console.log("Loaded config/database in adminService");
 const logger = require("../../utils/logger");
 console.log("Loaded utils/logger in adminService");
-const userService = require("./userService");
+const userService = require("./userService").userService;
 console.log("Loaded userService in adminService");
 const companyService = require("./companyService");
 console.log("Loaded companyService in adminService");

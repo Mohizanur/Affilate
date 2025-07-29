@@ -747,5 +747,8 @@ module.exports = {
   getBannedUsers: (...args) => userService.getBannedUsers(...args),
   unbanUser: (...args) => userService.unbanUser(...args),
   getPromotedUsers: (...args) => userService.getPromotedUsers(...args),
+  getPendingWithdrawals: (...args) =>
+    userService.getPendingWithdrawals(...args),
+  getRecentUsers: (...args) => userService.getRecentUsers(...args),
 };
 console.log("End of userService.js (from companyHandlers)");
