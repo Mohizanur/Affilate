@@ -673,9 +673,9 @@ class AdminHandlers {
       if (company.billingBalance && company.billingBalance > 0) {
         buttons.unshift([
           Markup.button.callback(
-            `💳 Withdraw $${company.billingBalance.toFixed(2)}`, 
+            `💳 Withdraw $${company.billingBalance.toFixed(2)}`,
             `admin_withdraw_company_${companyId}`
-          )
+          ),
         ]);
       }
 
@@ -1032,25 +1032,33 @@ class AdminHandlers {
 `;
       msg += `👥 *Users:* ${dashboard.quickStats.totalUsers}\n`;
       msg += `🏢 *Companies:* ${dashboard.quickStats.totalCompanies}\n`;
-      msg += `💰 *Total Platform Fees:* $${dashboard.quickStats.totalPlatformFees.toFixed(
+      msg += `💰 *Total Platform Fees:* $${platformStats.totalPlatformFees.toFixed(
         2
       )}\n`;
-      msg += `💳 *Total Withdrawable:* $${dashboard.quickStats.totalWithdrawable.toFixed(
+      msg += `💳 *Total Withdrawable:* $${platformStats.totalWithdrawable.toFixed(
         2
       )}\n`;
       msg += `📈 *Lifetime Revenue:* $${platformStats.totalLifetimeRevenue.toFixed(
         2
       )}\n`;
 
-      // Show companies with withdrawable amounts
-      const companiesWithWithdrawable = companyAnalytics.filter(
-        (c) => c.hasWithdrawable
-      );
-      if (companiesWithWithdrawable.length > 0) {
-        msg += `\n💳 *Companies with Withdrawable:*\n`;
-        companiesWithWithdrawable.forEach((company) => {
-          msg += `• ${company.name}: $${company.withdrawable.toFixed(2)}\n`;
-        });
+      // Show companies with detailed analytics
+      if (companyAnalytics && companyAnalytics.length > 0) {
+        msg += `\n🏢 *Company Analytics:*\n`;
+
+        // Sort companies by withdrawable amount (highest first)
+        const sortedCompanies = companyAnalytics.sort(
+          (a, b) => b.withdrawable - a.withdrawable
+        );
+
+        for (const company of sortedCompanies) {
+          msg += `\n*${company.name}*\n`;
+          msg += `• Platform Cut: $${company.platformFees.toFixed(2)}\n`;
+          msg += `• Lifetime Revenue: $${company.lifetimeRevenue.toFixed(2)}\n`;
+          msg += `• Withdrawable: $${company.withdrawable.toFixed(2)}\n`;
+          msg += `• Products: ${company.productCount}\n`;
+          msg += `• Status: ${company.status}\n`;
+        }
       }
 
       msg += `\n*Recent Users:*\n`;
@@ -1067,6 +1075,7 @@ class AdminHandlers {
 
       const buttons = [
         [Markup.button.callback("🏢 Company Details", "admin_companies_1")],
+        [Markup.button.callback("💰 Withdrawals", "admin_withdrawals")],
         [Markup.button.callback("🔙 Back to Admin", "admin_panel")],
       ];
 
@@ -1662,6 +1671,109 @@ class AdminHandlers {
 
   async handleAdminRemoveCompanyStep(ctx) {
     ctx.reply("Not implemented: handleAdminRemoveCompanyStep");
+  }
+
+  async handleCompanyWithdrawals(ctx) {
+    try {
+      if (!(await this.isAdminAsync(ctx.from.id)))
+        return ctx.reply(
+          t("msg__access_denied", {}, ctx.session?.language || "en")
+        );
+
+      const companyAnalytics = await adminService.getCompanyAnalytics();
+      const companiesWithWithdrawable = companyAnalytics.filter(
+        (c) => c.hasWithdrawable
+      );
+
+      if (companiesWithWithdrawable.length === 0) {
+        return ctx.reply(
+          "💳 *Withdrawals*\n\nNo companies have withdrawable amounts at this time.",
+          { parse_mode: "Markdown" }
+        );
+      }
+
+      let msg = `💳 *Company Withdrawals*\n\n`;
+      msg += `Companies with withdrawable amounts:\n\n`;
+
+      const buttons = [];
+
+      for (const company of companiesWithWithdrawable) {
+        msg += `*${company.name}*\n`;
+        msg += `• Withdrawable: $${company.withdrawable.toFixed(2)}\n`;
+        msg += `• Platform Cut: $${company.platformFees.toFixed(2)}\n`;
+        msg += `• Lifetime Revenue: $${company.lifetimeRevenue.toFixed(2)}\n\n`;
+
+        // Add withdraw button for this company
+        buttons.push([
+          Markup.button.callback(
+            `💰 Withdraw ${company.name} ($${company.withdrawable.toFixed(2)})`,
+            `withdraw_company_${company.id}`
+          ),
+        ]);
+      }
+
+      buttons.push([
+        Markup.button.callback(
+          "🔙 Back to Analytics",
+          "platform_analytics_dashboard"
+        ),
+      ]);
+
+      ctx.reply(msg, {
+        parse_mode: "Markdown",
+        reply_markup: Markup.inlineKeyboard(buttons),
+      });
+
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    } catch (error) {
+      logger.error("Error in company withdrawals:", error);
+      ctx.reply("❌ Failed to load withdrawal data.");
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    }
+  }
+
+  async handleCompanyWithdraw(ctx, companyId) {
+    try {
+      if (!(await this.isAdminAsync(ctx.from.id)))
+        return ctx.reply(
+          t("msg__access_denied", {}, ctx.session?.language || "en")
+        );
+
+      const company = await companyService.getCompanyById(companyId);
+      if (!company) {
+        return ctx.reply("❌ Company not found.");
+      }
+
+      const withdrawable = company.billingBalance || 0;
+      if (withdrawable <= 0) {
+        return ctx.reply("❌ No withdrawable amount for this company.");
+      }
+
+      // Process the withdrawal
+      await companyService.processCompanyWithdrawal(companyId, withdrawable);
+
+      ctx.reply(
+        `✅ Successfully processed withdrawal of $${withdrawable.toFixed(
+          2
+        )} for ${company.name}`,
+        {
+          reply_markup: Markup.inlineKeyboard([
+            [
+              Markup.button.callback(
+                "🔙 Back to Withdrawals",
+                "admin_withdrawals"
+              ),
+            ],
+          ]),
+        }
+      );
+
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    } catch (error) {
+      logger.error("Error processing company withdrawal:", error);
+      ctx.reply("❌ Failed to process withdrawal.");
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    }
   }
 }
 

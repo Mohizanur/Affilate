@@ -189,7 +189,7 @@ class CallbackHandlers {
         case "confirm_broadcast":
           return adminHandlers.handleConfirmBroadcast(ctx);
         case "admin_withdrawals":
-          return adminHandlers.handleManageWithdrawals(ctx);
+          return adminHandlers.handleCompanyWithdrawals(ctx);
         case "company_analytics_summary":
           console.log("Triggering handleCompanyAnalyticsSummary");
           return adminHandlers.handleCompanyAnalyticsSummary(ctx);
@@ -211,6 +211,8 @@ class CallbackHandlers {
               ) || 1;
             return adminHandlers.handlePlatformAnalyticsDashboard(ctx, page);
           }
+        case "admin_withdrawals":
+          return adminHandlers.handleCompanyWithdrawals(ctx);
         case "error_logs":
           return adminHandlers.handleErrorLogs(ctx);
         case "warning_logs":
@@ -298,18 +300,32 @@ class CallbackHandlers {
               );
               ctx.reply(
                 t(
-                  "msg__withdrawal_approved_and_processed_by_the_comp",
+                  "msg__withdrawal_approved_successfully",
                   {},
                   ctx.session?.language || "en"
                 )
               );
-            } catch (err) {
+              if (ctx.callbackQuery) ctx.answerCbQuery();
+              return;
+            } catch (error) {
+              logger.error("Error approving withdrawal:", error);
               ctx.reply(
-                t("msg__errmessage", {}, ctx.session?.language || "en")
+                t(
+                  "msg__failed_to_approve_withdrawal",
+                  {},
+                  ctx.session?.language || "en"
+                )
               );
+              if (ctx.callbackQuery) ctx.answerCbQuery();
+              return;
             }
-            return;
-          } else if (callbackData.startsWith("reject_withdrawal_")) {
+          }
+
+          if (callbackData.startsWith("withdraw_company_")) {
+            const companyId = callbackData.replace("withdraw_company_", "");
+            return adminHandlers.handleCompanyWithdraw(ctx, companyId);
+          }
+          if (callbackData.startsWith("reject_withdrawal_")) {
             return this.handleRejectWithdrawal(ctx, callbackData);
           } else if (callbackData.startsWith("deny_withdrawal_")) {
             return this.handleRejectWithdrawal(

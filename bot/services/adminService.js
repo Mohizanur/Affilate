@@ -31,26 +31,18 @@ async function _getCompanyOrThrow(companyId) {
 class AdminService {
   async getAnalytics() {
     try {
-      const [
-        userStats,
-        companyStats,
-        orderStats,
-        payoutStats,
-        revenueStats,
-        growthStats,
-      ] = await Promise.all([
-        this.getUserAnalytics(),
-        this.getCompanyAnalytics(),
-        this.getOrderAnalytics(),
-        this.getPayoutAnalytics(),
-        this.getRevenueAnalytics(),
-        this.getGrowthAnalytics(),
-      ]);
+      const [userStats, companyStats, payoutStats, revenueStats, growthStats] =
+        await Promise.all([
+          this.getUserAnalytics(),
+          this.getCompanyAnalytics(),
+          this.getPayoutAnalytics(),
+          this.getRevenueAnalytics(),
+          this.getGrowthAnalytics(),
+        ]);
 
       return {
         users: userStats,
         companies: companyStats,
-        orders: orderStats,
         payouts: payoutStats,
         revenue: revenueStats,
         growth: growthStats,
@@ -117,15 +109,24 @@ class AdminService {
           .where("companyId", "==", companyId)
           .get();
 
+        // Calculate actual platform fees and lifetime revenue
+        const platformFees = await this.calculateCompanyPlatformFees(companyId);
+        const lifetimeRevenue = await this.calculateCompanyLifetimeRevenue(
+          companyId
+        );
+        const withdrawable = company.billingBalance || 0;
+
         analytics.push({
           id: companyId,
           name: company.name,
           ownerUsername: company.ownerUsername || company.telegramId,
-          platformFees: company.billingBalance || 0,
-          withdrawable: company.billingBalance || 0,
-          lifetimeRevenue: company.billingBalance || 0,
+          platformFees,
+          withdrawable,
+          lifetimeRevenue,
           productCount: productsSnap.size,
-          hasWithdrawable: (company.billingBalance || 0) > 0,
+          hasWithdrawable: withdrawable > 0,
+          status: company.status || "pending",
+          createdAt: company.createdAt,
         });
       }
 
@@ -133,31 +134,6 @@ class AdminService {
     } catch (error) {
       logger.error("Error getting company analytics:", error);
       return [];
-    }
-  }
-
-  async getOrderAnalytics() {
-    try {
-      // Firestore: aggregate order stats
-      const [ordersSnap, pendingSnap, approvedSnap, rejectedSnap] =
-        await Promise.all([
-          databaseService.orders().get(),
-          databaseService.orders().where("status", "==", "pending").get(),
-          databaseService.orders().where("status", "==", "approved").get(),
-          databaseService.orders().where("status", "==", "rejected").get(),
-        ]);
-      const total = ordersSnap.size;
-      const pending = pendingSnap.size;
-      const approved = approvedSnap.size;
-      const rejected = rejectedSnap.size;
-      const totalValue = ordersSnap.docs.reduce(
-        (sum, doc) => sum + (doc.data().amount || 0),
-        0
-      );
-      return { total, pending, approved, rejected, totalValue };
-    } catch (error) {
-      logger.error("Error getting order analytics (Firestore):", error);
-      throw error;
     }
   }
 
@@ -200,31 +176,29 @@ class AdminService {
 
   async getRevenueAnalytics() {
     try {
-      // Firestore: aggregate revenue and commissions
-      const ordersSnap = await databaseService
-        .orders()
-        .where("status", "==", "approved")
-        .get();
+      // Calculate revenue from referrals instead of orders
+      const referralsSnap = await databaseService.referrals().get();
       let totalRevenue = 0;
       let totalCommissions = 0;
       let platformRevenue = 0;
-      for (const doc of ordersSnap.docs) {
-        const order = doc.data();
-        totalRevenue += order.amount || 0;
-        // Get company commission rate
-        const companyDoc = await databaseService
-          .companies()
-          .doc(order.companyId)
-          .get();
-        const commissionRate = companyDoc.exists
-          ? companyDoc.data().commission_rate || 0
-          : 0;
-        totalCommissions += (order.amount || 0) * (commissionRate / 100);
-        platformRevenue += (order.amount || 0) * (1 - commissionRate / 100);
-      }
+
+      referralsSnap.forEach((doc) => {
+        const referral = doc.data();
+        const amount = referral.amount || 0;
+        totalRevenue += amount;
+
+        // Calculate commissions (assuming 2.5% commission rate)
+        const commission = amount * 0.025;
+        totalCommissions += commission;
+
+        // Calculate platform revenue (1.5% platform fee)
+        const platformFee = amount * 0.015;
+        platformRevenue += platformFee;
+      });
+
       return { totalRevenue, totalCommissions, platformRevenue };
     } catch (error) {
-      logger.error("Error getting revenue analytics (Firestore):", error);
+      logger.error("Error getting revenue analytics:", error);
       throw error;
     }
   }
@@ -283,7 +257,7 @@ class AdminService {
 
   async calculateRevenueGrowthRate() {
     try {
-      // Firestore: sum order amounts for this month and last month
+      // Calculate revenue growth from referrals instead of orders
       const now = new Date();
       const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const startOfLastMonth = new Date(
@@ -292,68 +266,59 @@ class AdminService {
         1
       );
       const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-      const ordersSnap = await databaseService
-        .orders()
-        .where("status", "==", "approved")
-        .get();
+
+      const referralsSnap = await databaseService.referrals().get();
       let thisMonth = 0,
         lastMonth = 0;
-      ordersSnap.forEach((doc) => {
+
+      referralsSnap.forEach((doc) => {
         const d = doc.data();
         const created =
           d.createdAt instanceof Date ? d.createdAt : new Date(d.createdAt);
-        if (created >= startOfThisMonth) thisMonth += d.amount || 0;
+        const amount = d.amount || 0;
+
+        if (created >= startOfThisMonth) thisMonth += amount;
         else if (created >= startOfLastMonth && created <= endOfLastMonth)
-          lastMonth += d.amount || 0;
+          lastMonth += amount;
       });
+
       const growthRate =
         lastMonth > 0
           ? (((thisMonth - lastMonth) / lastMonth) * 100).toFixed(2)
           : 0;
       return { thisMonth, lastMonth, growthRate: parseFloat(growthRate) };
     } catch (error) {
-      logger.error("Error calculating revenue growth rate (Firestore):", error);
+      logger.error("Error calculating revenue growth rate:", error);
       throw error;
     }
   }
 
   async getFinancialMetrics() {
     try {
-      // Firestore: aggregate order and payout metrics
-      const ordersSnap = await databaseService.orders().get();
+      // Firestore: aggregate payout metrics only (no orders)
       const payoutsSnap = await databaseService
         .getDb()
         .collection("payouts")
         .where("status", "==", "pending")
         .get();
-      const totalOrders = ordersSnap.size;
-      const avgOrderValue =
-        totalOrders > 0
-          ? ordersSnap.docs.reduce(
-              (sum, doc) => sum + (doc.data().amount || 0),
-              0
-            ) / totalOrders
-          : 0;
-      const totalProcessed = ordersSnap.docs
-        .filter((doc) => doc.data().status === "approved")
-        .reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
-      const pendingValue = ordersSnap.docs
-        .filter((doc) => doc.data().status === "pending")
-        .reduce((sum, doc) => sum + (doc.data().amount || 0), 0);
+
       const pendingPayouts = payoutsSnap.docs.reduce(
         (sum, doc) => sum + (doc.data().amount || 0),
         0
       );
+
       return {
-        avgOrderValue,
-        totalProcessed,
-        pendingValue,
-        totalOrders,
         pendingPayouts,
+        totalPayouts: 0, // No orders to calculate from
+        avgPayoutValue: 0, // No orders to calculate from
       };
     } catch (error) {
-      logger.error("Error getting financial metrics (Firestore):", error);
-      throw error;
+      logger.error("Error getting financial metrics:", error);
+      return {
+        pendingPayouts: 0,
+        totalPayouts: 0,
+        avgPayoutValue: 0,
+      };
     }
   }
 
@@ -640,13 +605,17 @@ class AdminService {
         databaseService.companies().where("status", "==", "approved").get(),
       ]);
 
-      // Calculate total platform fees from all companies
+      // Calculate total platform fees from actual transactions
       let totalPlatformFees = 0;
       let totalWithdrawable = 0;
 
       for (const doc of companiesSnap.docs) {
         const company = doc.data();
-        totalPlatformFees += company.billingBalance || 0;
+        const companyId = doc.id;
+
+        // Calculate actual platform fees for this company
+        const platformFees = await this.calculateCompanyPlatformFees(companyId);
+        totalPlatformFees += platformFees;
         totalWithdrawable += company.billingBalance || 0;
       }
 
@@ -659,8 +628,13 @@ class AdminService {
         totalWithdrawable,
       };
     } catch (error) {
-      logger.error("Error getting quick stats (Firestore):", error);
-      throw error;
+      logger.error("Error getting quick stats:", error);
+      return {
+        totalUsers: 0,
+        totalCompanies: 0,
+        totalPlatformFees: 0,
+        totalWithdrawable: 0,
+      };
     }
   }
 
@@ -1073,7 +1047,7 @@ class AdminService {
 
   async getPlatformStats() {
     try {
-      // Get all companies and calculate platform fees
+      // Get all companies and calculate platform fees from actual transactions
       const companiesSnap = await databaseService.companies().get();
       let totalPlatformFees = 0;
       let totalWithdrawable = 0;
@@ -1085,11 +1059,12 @@ class AdminService {
         const company = doc.data();
         const companyId = doc.id;
 
-        // Calculate platform fees from existing data
-        // For now, use billingBalance as a proxy for platform fees
-        const platformFees = company.billingBalance || 0;
-        const withdrawable = company.billingBalance || 0; // Same as platform fees for now
-        const lifetimeRevenue = company.billingBalance || 0; // Same for now
+        // Calculate actual platform fees from referrals and transactions
+        const platformFees = await this.calculateCompanyPlatformFees(companyId);
+        const withdrawable = company.billingBalance || 0;
+        const lifetimeRevenue = await this.calculateCompanyLifetimeRevenue(
+          companyId
+        );
 
         totalPlatformFees += platformFees;
         totalWithdrawable += withdrawable;
@@ -1121,6 +1096,52 @@ class AdminService {
         companies: [],
         totalCompanies: 0,
       };
+    }
+  }
+
+  async calculateCompanyPlatformFees(companyId) {
+    try {
+      // Calculate platform fees from referrals for this company
+      const referralsSnap = await databaseService
+        .referrals()
+        .where("companyId", "==", companyId)
+        .get();
+
+      let totalPlatformFees = 0;
+
+      for (const doc of referralsSnap.docs) {
+        const referral = doc.data();
+        // Platform fee is typically 1.5% of the transaction amount
+        const platformFee = (referral.amount || 0) * 0.015; // 1.5% platform fee
+        totalPlatformFees += platformFee;
+      }
+
+      return totalPlatformFees;
+    } catch (error) {
+      logger.error("Error calculating company platform fees:", error);
+      return 0;
+    }
+  }
+
+  async calculateCompanyLifetimeRevenue(companyId) {
+    try {
+      // Calculate lifetime revenue from all referrals for this company
+      const referralsSnap = await databaseService
+        .referrals()
+        .where("companyId", "==", companyId)
+        .get();
+
+      let totalRevenue = 0;
+
+      for (const doc of referralsSnap.docs) {
+        const referral = doc.data();
+        totalRevenue += referral.amount || 0;
+      }
+
+      return totalRevenue;
+    } catch (error) {
+      logger.error("Error calculating company lifetime revenue:", error);
+      return 0;
     }
   }
 

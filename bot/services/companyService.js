@@ -35,9 +35,7 @@ async function registerCompany({
 }) {
   try {
     if (!name || !description || !telegramId)
-      throw new Error(
-        "Name, description, and Telegram ID are required."
-      );
+      throw new Error("Name, description, and Telegram ID are required.");
     if (typeof telegramId !== "number")
       throw new Error("telegramId must be a number");
     if (email && !validator.isEmail(email))
@@ -94,9 +92,7 @@ class CompanyService {
         !companyData.description ||
         !companyData.telegramId
       )
-        throw new Error(
-          "Name, description, and Telegram ID are required."
-        );
+        throw new Error("Name, description, and Telegram ID are required.");
       if (typeof companyData.telegramId !== "number")
         throw new Error("telegramId must be a number");
       if (companyData.email && !validator.isEmail(companyData.email))
@@ -443,6 +439,59 @@ class CompanyService {
       return true;
     } catch (error) {
       logger.error("Error deleting company:", error);
+      throw error;
+    }
+  }
+
+  async processCompanyWithdrawal(companyId, amount) {
+    try {
+      const companyRef = databaseService.companies().doc(companyId);
+      const companyDoc = await companyRef.get();
+
+      if (!companyDoc.exists) {
+        throw new Error("Company not found");
+      }
+
+      const company = companyDoc.data();
+      const currentBalance = company.billingBalance || 0;
+
+      if (currentBalance < amount) {
+        throw new Error("Insufficient balance for withdrawal");
+      }
+
+      // Update company balance
+      const newBalance = currentBalance - amount;
+      await companyRef.update({
+        billingBalance: newBalance,
+        lastWithdrawal: {
+          amount,
+          date: new Date(),
+        },
+      });
+
+      // Create withdrawal record
+      const withdrawalRecord = {
+        companyId,
+        amount,
+        status: "processed",
+        processedAt: new Date(),
+        processedBy: "admin",
+      };
+
+      await databaseService
+        .getDb()
+        .collection("company_withdrawals")
+        .add(withdrawalRecord);
+
+      logger.info(`Company withdrawal processed: ${companyId} - $${amount}`);
+
+      return {
+        success: true,
+        newBalance,
+        withdrawalAmount: amount,
+      };
+    } catch (error) {
+      logger.error("Error processing company withdrawal:", error);
       throw error;
     }
   }
