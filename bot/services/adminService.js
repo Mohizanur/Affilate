@@ -566,22 +566,29 @@ class AdminService {
 
   async getPendingApprovals() {
     try {
-      const [orders, payouts] = await Promise.all([
-        // orderService.getPendingOrders(), // Removed orderService calls
-        userService.getPendingWithdrawals(), // Changed from payoutService.getPendingPayouts()
-      ]);
+      const withdrawals = await userService.getPendingWithdrawals();
+
+      // Handle case where withdrawals might be undefined
+      const safeWithdrawals = withdrawals || [];
 
       return {
-        orders: orders.slice(0, 5),
-        payouts: payouts.slice(0, 5),
+        orders: [], // No orders in this system
+        payouts: safeWithdrawals.slice(0, 5),
         counts: {
-          orders: orders.length,
-          payouts: payouts.length,
+          orders: 0,
+          payouts: safeWithdrawals.length,
         },
       };
     } catch (error) {
       logger.error("Error getting pending approvals:", error);
-      throw error;
+      return {
+        orders: [],
+        payouts: [],
+        counts: {
+          orders: 0,
+          payouts: 0,
+        },
+      };
     }
   }
 
@@ -605,26 +612,7 @@ class AdminService {
           priority: "medium",
         });
       }
-      // Old pending orders
-      const now = new Date();
-      const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-      const ordersSnap = await databaseService
-        .orders()
-        .where("status", "pending")
-        .get();
-      const oldOrders = ordersSnap.docs.filter((doc) => {
-        const d = doc.data();
-        const created =
-          d.createdAt instanceof Date ? d.createdAt : new Date(d.createdAt);
-        return created < sevenDaysAgo;
-      });
-      if (oldOrders.length > 0) {
-        alerts.push({
-          type: "error",
-          message: `${oldOrders.length} orders pending for over 7 days`,
-          priority: "high",
-        });
-      }
+      // No orders in this system, so remove order-related alerts
       return alerts;
     } catch (error) {
       logger.error("Error getting system alerts (Firestore):", error);
@@ -634,19 +622,13 @@ class AdminService {
 
   async getQuickStats() {
     try {
-      const [usersSnap, companiesSnap, ordersSnap] = await Promise.all([
+      const [usersSnap, companiesSnap] = await Promise.all([
         databaseService.users().get(),
         databaseService.companies().where("status", "==", "approved").get(),
-        databaseService.orders().where("status", "==", "approved").get(),
       ]);
       const totalUsers = usersSnap.size;
       const totalCompanies = companiesSnap.size;
-      const totalOrders = ordersSnap.size;
-      const totalRevenue = ordersSnap.docs.reduce(
-        (sum, doc) => sum + (doc.data().amount || 0),
-        0
-      );
-      return { totalUsers, totalCompanies, totalOrders, totalRevenue };
+      return { totalUsers, totalCompanies, totalOrders: 0, totalRevenue: 0 };
     } catch (error) {
       logger.error("Error getting quick stats (Firestore):", error);
       throw error;
