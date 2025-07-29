@@ -10,6 +10,14 @@ const { t } = require("../../utils/localize");
 const adminHandlers = require("./adminHandlers");
 const userHandlers = require("./userHandlers");
 
+function blockIfBanned(ctx, user) {
+  if (user && (user.banned || user.isBanned)) {
+    ctx.reply(t("msg__you_are_banned_from_using_this_bot", {}, ctx.session?.language || "en"));
+    return true;
+  }
+  return false;
+}
+
 class MessageHandlers {
   async handleTextMessage(ctx) {
     console.log(
@@ -25,10 +33,7 @@ class MessageHandlers {
       const user = await userService.userService.getUserByTelegramId(
         telegramId
       );
-      if (user && user.banned) {
-        return ctx.reply("🚫 You are banned from using this bot.");
-      }
-      const messageText = ctx.message.text;
+      if (blockIfBanned(ctx, user)) return;
 
       if (ctx.session && ctx.session.adminAddCompanyStep) {
         return adminHandlers.handleAdminAddCompanyStep(ctx);
@@ -83,7 +88,7 @@ class MessageHandlers {
       );
     } catch (error) {
       logger.error("Error in handleTextMessage:", error);
-      ctx.reply("❌ Something went wrong. Please try again.");
+      ctx.reply(t("msg__something_went_wrong_please_try_again", {}, ctx.session?.language || "en"));
     }
   }
 
@@ -120,7 +125,7 @@ class MessageHandlers {
         case "awaiting_fee_calculator_amount": {
           const amount = parseFloat(messageText);
           if (isNaN(amount) || amount <= 0) {
-            return ctx.reply("❌ Please enter a valid amount.");
+            return ctx.reply(t("msg__please_enter_a_valid_amount", {}, ctx.session?.language || "en"));
           }
           // Fetch dynamic settings
           const settings = await getPlatformSettings();
@@ -146,61 +151,52 @@ Purchase Amount: $${amount.toFixed(2)}
         }
         default:
           ctx.session.state = null;
-          ctx.reply("❌ Session expired. Please start over.");
+          ctx.reply(t("msg__session_expired_please_start_over", {}, ctx.session?.language || "en"));
       }
     } catch (error) {
       logger.error("Error in handleSessionState:", error);
-      ctx.reply("❌ Something went wrong. Please try again.");
+      ctx.reply(t("msg__something_went_wrong_please_try_again", {}, ctx.session?.language || "en"));
     }
   }
 
   async handleCompanyName(ctx, companyName) {
     if (companyName.length < 2 || companyName.length > 100) {
-      return ctx.reply(
-        "❌ Company name must be between 2 and 100 characters. Please try again:"
-      );
+      return ctx.reply(t("msg__company_name_must_be_between_2_and_100_charac", {}, ctx.session?.language || "en"));
     }
     ctx.session.companyData = { name: companyName };
     ctx.session.state = "awaiting_company_description";
-    ctx.reply(
-      "✅ Company name saved!\\n\\nNow please provide a brief description of your business:"
-    );
+    ctx.reply(t("msg__company_name_savednnnow_please_provide_a_brie", {}, ctx.session?.language || "en"));
   }
 
   async handleCompanyDescription(ctx, description) {
     if (description.length < 10 || description.length > 500) {
-      return ctx.reply(
-        "❌ Description must be between 10 and 500 characters. Please try again:"
-      );
+      return ctx.reply(t("msg__description_must_be_between_10_and_500_charac", {}, ctx.session?.language || "en"));
     }
     ctx.session.companyData.description = description;
     ctx.session.state = "awaiting_company_website";
-    ctx.reply(
-      "✅ Description saved!\\n\\nPlease provide your company website URL:"
-    );
+    ctx.reply(t("msg__description_savednnplease_provide_your_compan", {}, ctx.session?.language || "en"));
   }
 
   async handleCompanyWebsite(ctx, website) {
     const urlRegex = /^https?:\/\/.+\..+/;
     if (!urlRegex.test(website)) {
-      return ctx.reply(
-        "❌ Please provide a valid website URL (starting with http:// or https://):"
-      );
+      return ctx.reply(t("msg__please_provide_a_valid_website_url_starting_w", {}, ctx.session?.language || "en"));
     }
     ctx.session.companyData.website = website;
     ctx.session.state = "awaiting_company_email";
-    ctx.reply(
-      "✅ Website saved!\\n\\nFinally, please provide your business contact email:"
-    );
+    ctx.reply(t("msg__website_savednnfinally_please_provide_your_bu", {}, ctx.session?.language || "en"));
   }
 
   async handleCompanyEmail(ctx, email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return ctx.reply("❌ Please provide a valid email address:");
+      return ctx.reply(t("msg__please_provide_a_valid_email_address", {}, ctx.session?.language || "en"));
     }
     try {
       const telegramId = ctx.from.id;
+      const user = await userService.userService.getUserByTelegramId(telegramId);
+      if (blockIfBanned(ctx, user)) return;
+
       const companyData = {
         ...ctx.session.companyData,
         email,
@@ -227,7 +223,7 @@ Purchase Amount: $${amount.toFixed(2)}
       ctx.reply(successMessage, { parse_mode: "Markdown" });
     } catch (error) {
       logger.error("Error in handleCompanyEmail:", error);
-      ctx.reply("❌ Failed to submit registration. Please try again later.");
+      ctx.reply(t("msg__failed_to_submit_registration_please_try_agai", {}, ctx.session?.language || "en"));
     }
   }
 
@@ -236,17 +232,12 @@ Purchase Amount: $${amount.toFixed(2)}
       ctx.session.withdrawalDetails = details;
       ctx.session.state = "awaiting_withdrawal_amount";
       const user = await userService.getUserByTelegramId(ctx.from.id);
+      if (blockIfBanned(ctx, user)) return;
       const balance = user.coinBalance || 0;
-      ctx.reply(
-        `✅ Payment details saved!\\n\\nHow much would you like to withdraw?\\n\\nAvailable balance: $${balance.toFixed(
-          2
-        )}\\nMinimum withdrawal: $${
-          process.env.MIN_WITHDRAWAL_AMOUNT
-        }\\n\\nPlease enter the amount:`
-      );
+      ctx.reply(t("msg__payment_details_savednnhow_much_would_you_lik", {}, ctx.session?.language || "en"));
     } catch (error) {
       logger.error("Error in handleWithdrawalDetails:", error);
-      ctx.reply("❌ Failed to save withdrawal details. Please try again.");
+      ctx.reply(t("msg__failed_to_save_withdrawal_details_please_try_", {}, ctx.session?.language || "en"));
     }
   }
 
@@ -254,8 +245,10 @@ Purchase Amount: $${amount.toFixed(2)}
     try {
       const amount = parseFloat(amountText);
       if (isNaN(amount) || amount <= 0) {
-        return ctx.reply("❌ Please enter a valid amount:");
+        return ctx.reply(t("msg__please_enter_a_valid_amount", {}, ctx.session?.language || "en"));
       }
+      const user = await userService.getUserByTelegramId(ctx.from.id);
+      if (blockIfBanned(ctx, user)) return;
       const withdrawalId = await userService.requestWithdrawal(
         ctx.from.id,
         ctx.session.withdrawalCompanyId, // companyId
@@ -278,7 +271,7 @@ Use /start to return to the main menu.
       ctx.reply(successMessage, { parse_mode: "Markdown" });
     } catch (error) {
       logger.error("Error in handleWithdrawalAmount:", error);
-      ctx.reply(`❌ ${error.message}`);
+      ctx.reply(t("msg__errormessage", {}, ctx.session?.language || "en"));
     }
   }
 
@@ -288,22 +281,23 @@ Use /start to return to the main menu.
         ctx.from.id
       );
       if (!user) {
-        return ctx.reply("❌ You are not registered in the system.");
+        return ctx.reply(t("msg__you_are_not_registered_in_the_system", {}, ctx.session?.language || "en"));
       }
+      if (blockIfBanned(ctx, user)) return;
 
       const referral = await referralService.referralService.getReferralByCode(
         referralCode
       );
       if (!referral) {
-        return ctx.reply("❌ Invalid referral code.");
+        return ctx.reply(t("msg__invalid_referral_code", {}, ctx.session?.language || "en"));
       }
 
       if (referral.usedByTelegramId) {
-        return ctx.reply("❌ This referral code has already been used.");
+        return ctx.reply(t("msg__this_referral_code_has_already_been_used", {}, ctx.session?.language || "en"));
       }
 
       if (referral.userId === user.id) {
-        return ctx.reply("❌ You cannot use your own referral code.");
+        return ctx.reply(t("msg__you_cannot_use_your_own_referral_code", {}, ctx.session?.language || "en"));
       }
 
       await userService.userService.addCoinBalance(user.id, 10); // Example reward
@@ -321,7 +315,7 @@ Use /start to return to the main menu.
       ctx.reply(successMessage, { parse_mode: "Markdown" });
     } catch (error) {
       logger.error("Error in handleReferralCodeUsage:", error);
-      ctx.reply("❌ Something went wrong. Please try again.");
+      ctx.reply(t("msg__something_went_wrong_please_try_again", {}, ctx.session?.language || "en"));
     }
   }
 }

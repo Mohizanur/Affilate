@@ -28,15 +28,15 @@ async function _getCompanyOrThrow(companyId) {
 async function registerCompany({
   name,
   description,
-  offer,
+  offer = null,
   telegramId,
   email,
   phone,
 }) {
   try {
-    if (!name || !description || !offer || !telegramId)
+    if (!name || !description || !telegramId)
       throw new Error(
-        "Name, description, offer, and Telegram ID are required."
+        "Name, description, and Telegram ID are required."
       );
     if (typeof telegramId !== "number")
       throw new Error("telegramId must be a number");
@@ -58,7 +58,7 @@ async function registerCompany({
     const companyData = {
       name,
       description,
-      offer,
+      offer: offer || null,
       telegramId, // must be a number
       codePrefix,
       id: companyId,
@@ -92,11 +92,10 @@ class CompanyService {
       if (
         !companyData.name ||
         !companyData.description ||
-        !companyData.offer ||
         !companyData.telegramId
       )
         throw new Error(
-          "Name, description, offer, and Telegram ID are required."
+          "Name, description, and Telegram ID are required."
         );
       if (typeof companyData.telegramId !== "number")
         throw new Error("telegramId must be a number");
@@ -110,6 +109,7 @@ class CompanyService {
       const companyId = uuidv4();
       const doc = {
         ...companyData,
+        offer: companyData.offer || null,
         id: companyId,
         createdAt: new Date(),
         status: "active",

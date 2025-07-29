@@ -38,6 +38,15 @@ function toDateSafe(x) {
   return x instanceof Date ? x : null;
 }
 
+function blockIfBanned(ctx, user) {
+  if (user && (user.banned || user.isBanned)) {
+    const userLanguage = ctx.session?.language || user.language || "en";
+    ctx.reply(t("msg__you_are_banned_from_using_this_bot", {}, userLanguage));
+    return true;
+  }
+  return false;
+}
+
 class UserHandlers {
   async handleStart(ctx) {
     try {
@@ -62,9 +71,7 @@ class UserHandlers {
       ctx.session = {}; // Reset session state
       const telegramId = ctx.from.id;
       // Use the already declared 'user' variable for all further logic
-      if (user && user.banned) {
-        return ctx.reply(t("msg_you_are_banned", {}, userLanguage || "en"));
-      }
+      if (blockIfBanned(ctx, user)) return;
       const userData = {
         telegramId,
         firstName: ctx.from.first_name,
@@ -123,8 +130,7 @@ class UserHandlers {
       const isCompany = user.isCompanyOwner === true || user.companyId;
 
       // Get user's language preference
-      const userLanguage = user.language || "en";
-      const { t } = require("../../utils/localize");
+      const userLanguage = ctx.session?.language || user.language || "en";
 
       const welcomeMessage =
         t("welcome", {}, userLanguage) +
@@ -132,6 +138,7 @@ class UserHandlers {
         t("start_instructions", {}, userLanguage);
 
       let buttons = [];
+      // Only show company/product options if user.canRegisterCompany is true or user.isCompanyOwner === true
       if (user.canRegisterCompany) {
         buttons.push([
           Markup.button.callback(
@@ -151,7 +158,7 @@ class UserHandlers {
             "my_products"
           ),
         ]);
-      } else if (user.companyId || user.isCompanyOwner) {
+      } else if (user.isCompanyOwner === true) {
         buttons.push([
           Markup.button.callback(
             t("btn_my_companies", {}, userLanguage),
@@ -253,7 +260,7 @@ class UserHandlers {
       });
     } catch (error) {
       logger.error("Error in start handler:", error);
-      ctx.reply(t("error_generic", {}, userLanguage || "en"));
+      ctx.reply(t("error_generic", {}, userLanguage));
     }
   }
 
@@ -262,12 +269,12 @@ class UserHandlers {
     ctx.session = {}; // Reset session state
     // Fix: fetch user and define userLanguage
     const user = await userService.userService.getUserByTelegramId(ctx.from.id);
-    const userLanguage = user?.language || "en";
+    const userLanguage = ctx.session?.language || user?.language || "en";
     const products = await productService.getAllActiveProductsWithCompany();
     logger.info(`[BrowseProducts] Found ${products.length} active products.`);
 
     if (products.length === 0) {
-      ctx.reply(t("msg_no_products", {}, userLanguage || "en"));
+      ctx.reply(t("msg_no_products", {}, userLanguage));
       return;
     }
 
@@ -292,7 +299,7 @@ class UserHandlers {
     let message = t(
       "msg_available_products",
       { page, totalPages },
-      userLanguage || "en"
+      userLanguage
     );
     const buttons = [];
 
@@ -303,11 +310,12 @@ class UserHandlers {
           index: startIdx + index + 1,
           title: product.title,
           price: Number(product.price) || 0,
+          quantity: product.quantity || 0,
           companyName:
             product.companyName || t("msg_unknown", {}, userLanguage),
           description: (product.description || "").substring(0, 50),
         },
-        userLanguage || "en"
+        userLanguage
       );
       buttons.push([
         Markup.button.callback(
@@ -322,21 +330,21 @@ class UserHandlers {
     if (page > 1)
       navButtons.push(
         Markup.button.callback(
-          t("btn_previous_page", {}, userLanguage || "en"),
+          t("btn_previous_page", {}, userLanguage),
           `browse_products_page_${page - 1}`
         )
       );
     if (page < totalPages)
       navButtons.push(
         Markup.button.callback(
-          t("btn_next_page", {}, userLanguage || "en"),
+          t("btn_next_page", {}, userLanguage),
           `browse_products_page_${page + 1}`
         )
       );
     if (navButtons.length) buttons.push(navButtons);
     buttons.push([
       Markup.button.callback(
-        t("btn_back_to_menu", {}, userLanguage || "en"),
+        t("btn_back_to_menu", {}, userLanguage),
         "main_menu"
       ),
     ]);
@@ -368,7 +376,7 @@ class UserHandlers {
       const user = await userService.userService.getUserByTelegramId(
         ctx.from.id
       );
-      const userLanguage = user?.language || "en";
+      const userLanguage = ctx.session?.language || user?.language || "en";
 
       const product = await productService.getProductById(productId);
 
@@ -411,9 +419,7 @@ class UserHandlers {
             company.phone || t("msg_no_description", {}, userLanguage)
           }\n✉️ Email: ${
             company.email || t("msg_no_description", {}, userLanguage)
-          }\n🌐 Website: ${
-            company.website || t("msg_no_description", {}, userLanguage)
-          }\n📌 Location: ${
+          }\n🌐 Website: ${company.website || "Not provided"}\n📌 Location: ${
             company.location || t("msg_no_description", {}, userLanguage)
           }\n`;
           if (company.ownerUsername) {
@@ -430,6 +436,7 @@ class UserHandlers {
           {
             title: product.title,
             price: Number(product.price) || 0,
+            quantity: product.quantity || 0,
             companyName:
               product.companyName || t("msg_unknown", {}, userLanguage),
             description:
@@ -498,7 +505,7 @@ class UserHandlers {
       });
     } catch (error) {
       logger.error("Error in handleViewProduct:", error);
-      const userLanguage = "en"; // Fallback language
+      const userLanguage = userLanguage; // Fallback language
       await ctx.reply(t("msg_failed_load_products", {}, userLanguage));
     }
   }
@@ -508,7 +515,7 @@ class UserHandlers {
       const productId = ctx.callbackQuery.data.split("_")[2];
       ctx.session.purchaseProductId = productId;
 
-      ctx.reply("🎯 Please enter your referral code:");
+      ctx.reply(t("msg__please_enter_your_referral_code", {}, userLanguage));
       ctx.session.waitingForReferralCode = true;
     } catch (error) {
       logger.error("Error handling referral yes:", error);
@@ -521,10 +528,11 @@ class UserHandlers {
       const telegramId = ctx.from.id;
       const orderId = await orderService.processPurchase(telegramId, productId);
       ctx.reply(
-        `✅ Order placed successfully! Order ID: ${orderId.substring(
-          0,
-          8
-        )}\n\nPlease upload a screenshot or file as proof of purchase.\n\nWaiting for company approval...`
+        t(
+          "msg__order_placed_successfully_order_id_orderidsub",
+          {},
+          userLanguage
+        )
       );
       ctx.session.waitingForProofOrderId = orderId;
       // Get companyId from product
@@ -604,10 +612,11 @@ class UserHandlers {
       delete ctx.session.waitingForReferralCode;
       delete ctx.session.purchaseProductId;
       ctx.reply(
-        `✅ Order placed successfully with referral code! Order ID: ${orderId.substring(
-          0,
-          8
-        )}\n\nPlease upload a screenshot or file as proof of purchase.\n\n🎉 You'll receive a discount when the order is approved!\n\nWaiting for company approval...`
+        t(
+          "msg__order_placed_successfully_with_referral_code_",
+          {},
+          userLanguage
+        )
       );
       ctx.session.waitingForProofOrderId = orderId;
       // The following code is commented out to prevent duplicate referral code messages:
@@ -624,7 +633,13 @@ class UserHandlers {
       // );
     } catch (error) {
       logger.error("Error processing referral code:", error);
-      ctx.reply("❌ Failed to process referral code. Please try again.");
+      ctx.reply(
+        t(
+          "msg__failed_to_process_referral_code_please_try_ag",
+          {},
+          userLanguage
+        )
+      );
     }
   }
 
@@ -644,11 +659,17 @@ class UserHandlers {
       await orderService.attachProofToOrder(orderId, fileId);
       delete ctx.session.waitingForProofOrderId;
       ctx.reply(
-        "✅ Proof of purchase uploaded! Your order will be reviewed by the company."
+        t(
+          "msg__proof_of_purchase_uploaded_your_order_will_be",
+          {},
+          userLanguage
+        )
       );
     } catch (error) {
       logger.error("Error uploading proof:", error);
-      ctx.reply("❌ Failed to upload proof. Please try again.");
+      ctx.reply(
+        t("msg__failed_to_upload_proof_please_try_again", {}, userLanguage)
+      );
     }
   }
 
@@ -671,7 +692,11 @@ class UserHandlers {
       );
       if (!user.phoneVerified) {
         ctx.reply(
-          "❌ Please verify your phone number first to become a referrer."
+          t(
+            "msg__please_verify_your_phone_number_first_to_beco",
+            {},
+            userLanguage
+          )
         );
         return;
       }
@@ -687,31 +712,31 @@ class UserHandlers {
           code: referralCode,
           companyName: company.name,
         },
-        userLanguage || "en"
+        userLanguage
       );
 
       const buttons = [
         [
           Markup.button.callback(
-            t("btn_my_referral_stats", {}, userLanguage || "en"),
+            t("btn_my_referral_stats", {}, userLanguage),
             "my_referrals"
           ),
         ],
         [
           Markup.button.callback(
-            t("btn_share_code", {}, userLanguage || "en"),
+            t("btn_share_code", {}, userLanguage),
             `share_code_${referralCode}`
           ),
         ],
         [
           Markup.button.callback(
-            t("btn_share_link", {}, userLanguage || "en"),
+            t("btn_share_link", {}, userLanguage),
             `share_link_${companyId}_${referralCode}`
           ),
         ],
         [
           Markup.button.callback(
-            t("btn_back_to_product", {}, userLanguage || "en"),
+            t("btn_back_to_product", {}, userLanguage),
             `view_product_${ctx.session.lastProductId || "browse"}`
           ),
         ],
@@ -723,7 +748,13 @@ class UserHandlers {
       });
     } catch (error) {
       logger.error("Error generating referral code:", error);
-      ctx.reply("❌ Failed to generate referral code. Please try again.");
+      ctx.reply(
+        t(
+          "msg__failed_to_generate_referral_code_please_try_a",
+          {},
+          userLanguage
+        )
+      );
     }
   }
 
@@ -731,12 +762,12 @@ class UserHandlers {
     if (ctx.callbackQuery) await ctx.answerCbQuery();
     ctx.session = {}; // Reset session state
     if (!ctx.from || !ctx.from.id) {
-      ctx.reply(t("msg_failed_load_stats", {}, userLanguage || "en"));
+      ctx.reply(t("msg_failed_load_stats", {}, userLanguage));
       return;
     }
 
     const user = await userService.userService.getUserByTelegramId(ctx.from.id);
-    const userLanguage = user?.language || "en";
+    const userLanguage = ctx.session?.language || user?.language || "en";
 
     const referralService = require("../services/referralService");
     const stats = await referralService.getUserReferralStats(ctx.from.id);
@@ -860,7 +891,7 @@ class UserHandlers {
       const user = await userService.userService.getUserByTelegramId(
         ctx.from.id
       );
-      const userLanguage = user?.language || "en";
+      const userLanguage = ctx.session?.language || user?.language || "en";
 
       const topReferrers = await referralService.getTopReferrers(100); // Fetch enough for pagination
       const ITEMS_PER_PAGE = 5;
@@ -948,7 +979,7 @@ class UserHandlers {
       const user = await userService.userService.getUserByTelegramId(
         telegramId
       );
-      const userLanguage = user.language || "en";
+      const userLanguage = ctx.session?.language || user.language || "en";
 
       const referralService = require("../services/referralService");
       const stats = await referralService.getUserReferralStats(telegramId);
@@ -1009,7 +1040,13 @@ class UserHandlers {
       });
     } catch (error) {
       logger.error("Error requesting payout:", error);
-      ctx.reply("❌ Failed to load payout options. Please try again.");
+      ctx.reply(
+        t(
+          "msg__failed_to_load_payout_options_please_try_agai",
+          {},
+          userLanguage
+        )
+      );
     }
   }
 
@@ -1034,14 +1071,11 @@ class UserHandlers {
       const payoutAmount = amount - fee;
 
       ctx.reply(
-        `✅ Payout request submitted!\n\nAmount: $${amount.toFixed(
-          2
-        )}\nFee (2%): $${fee.toFixed(2)}\nPayout: $${payoutAmount.toFixed(
-          2
-        )}\nRequest ID: ${payoutId.substring(
-          0,
-          8
-        )}\n\nProcessing time: 3-5 business days`
+        t(
+          "msg__payout_request_submittednnamount_amounttofixe",
+          {},
+          userLanguage
+        )
       );
       // Notify admins
       await getNotificationServiceInstance().sendAdminActionNotification(
@@ -1057,14 +1091,16 @@ class UserHandlers {
       );
     } catch (error) {
       logger.error("Error processing payout:", error);
-      ctx.reply(`❌ Payout failed: ${error.message}`);
+      ctx.reply(t("msg__payout_failed_errormessage", {}, userLanguage));
     }
   }
 
   async handlePayoutCustom(ctx) {
     try {
       ctx.session.waitingForPayoutAmount = true;
-      ctx.reply("💸 Please enter the amount you want to withdraw:");
+      ctx.reply(
+        t("msg__please_enter_the_amount_you_want_to_withdraw", {}, userLanguage)
+      );
     } catch (error) {
       logger.error("Error handling custom payout:", error);
     }
@@ -1096,14 +1132,11 @@ class UserHandlers {
       const payoutAmount = amount - fee;
 
       ctx.reply(
-        `✅ Payout request submitted!\n\nAmount: $${amount.toFixed(
-          2
-        )}\nFee (2%): $${fee.toFixed(2)}\nPayout: $${payoutAmount.toFixed(
-          2
-        )}\nRequest ID: ${payoutId.substring(
-          0,
-          8
-        )}\n\nProcessing time: 3-5 business days`
+        t(
+          "msg__payout_request_submittednnamount_amounttofixe",
+          {},
+          userLanguage
+        )
       );
       // Notify admins
       await getNotificationServiceInstance().sendAdminActionNotification(
@@ -1119,7 +1152,7 @@ class UserHandlers {
       );
     } catch (error) {
       logger.error("Error processing custom payout:", error);
-      ctx.reply(`❌ Payout failed: ${error.message}`);
+      ctx.reply(t("msg__payout_failed_errormessage", {}, userLanguage));
     }
   }
 
@@ -1167,7 +1200,13 @@ class UserHandlers {
       });
     } catch (error) {
       logger.error("Error showing payout history:", error);
-      ctx.reply("❌ Failed to load payout history. Please try again.");
+      ctx.reply(
+        t(
+          "msg__failed_to_load_payout_history_please_try_agai",
+          {},
+          userLanguage
+        )
+      );
     }
   }
 
@@ -1190,7 +1229,7 @@ class UserHandlers {
       });
     } catch (error) {
       logger.error("Error starting phone verification:", error);
-      ctx.reply("❌ Failed to start phone verification.");
+      ctx.reply(t("msg__failed_to_start_phone_verification", {}, userLanguage));
     }
   }
 
@@ -1218,7 +1257,7 @@ class UserHandlers {
       await this.handleStart(ctx);
     } catch (error) {
       logger.error("Error in handlePhoneContact:", error);
-      ctx.reply("❌ Failed to verify phone.");
+      ctx.reply(t("msg__failed_to_verify_phone", {}, userLanguage));
     }
   }
 
@@ -1226,7 +1265,7 @@ class UserHandlers {
     try {
       const telegramId = ctx.from.id;
       const user = await userService.getUserByTelegramId(telegramId);
-      const userLanguage = user.language || "en";
+      const userLanguage = ctx.session?.language || user.language || "en";
 
       // Fetch company info (assume companyService.getCompanyById exists)
       const company =
@@ -1263,7 +1302,7 @@ class UserHandlers {
       const user = await userService.userService.getUserByTelegramId(
         telegramId
       );
-      const userLanguage = user.language || "en";
+      const userLanguage = ctx.session?.language || user.language || "en";
 
       if (user.phone_verified && !user.phoneVerified)
         user.phoneVerified = user.phone_verified;
@@ -1314,7 +1353,7 @@ class UserHandlers {
       ctx.session = {}; // Reset session state
       const telegramId = ctx.from.id;
       const user = await userService.getUserByTelegramId(telegramId);
-      const userLanguage = user.language || "en";
+      const userLanguage = ctx.session?.language || user.language || "en";
 
       const orders = await orderService.getUserOrders(telegramId);
 
@@ -1388,7 +1427,7 @@ class UserHandlers {
       const user = await userService.userService.getUserByTelegramId(
         ctx.from.id
       );
-      const userLanguage = user?.language || "en";
+      const userLanguage = ctx.session?.language || user?.language || "en";
 
       const shareMessage = t(
         "msg_share_code_message",
@@ -1416,7 +1455,7 @@ class UserHandlers {
       const user = await userService.userService.getUserByTelegramId(
         ctx.from.id
       );
-      const userLanguage = user?.language || "en";
+      const userLanguage = ctx.session?.language || user?.language || "en";
 
       const buttons = [
         [
@@ -1457,10 +1496,16 @@ class UserHandlers {
     try {
       ctx.session = {}; // Reset session state
       ctx.session.state = "awaiting_fee_calculator_amount";
-      await ctx.reply("Enter a purchase amount to calculate fees and rewards:");
+      await ctx.reply(
+        t(
+          "msg_enter_a_purchase_amount_to_calculate_fees_and_",
+          {},
+          userLanguage
+        )
+      );
     } catch (error) {
       logger.error("Error in handleFeeCalculator:", error);
-      ctx.reply("❌ Something went wrong.");
+      ctx.reply(t("msg__something_went_wrong", {}, userLanguage));
     }
   }
 
@@ -1494,7 +1539,7 @@ What would you like to do?
       });
     } catch (error) {
       logger.error("Error showing main menu:", error);
-      ctx.reply("❌ Failed to load menu.");
+      ctx.reply(t("msg__failed_to_load_menu", {}, userLanguage));
     }
   }
 
@@ -1506,7 +1551,7 @@ What would you like to do?
   async handlePrivacy(ctx) {
     ctx.session = {}; // Reset session state
     const user = await userService.userService.getUserByTelegramId(ctx.from.id);
-    const userLanguage = user?.language || "en";
+    const userLanguage = ctx.session?.language || user?.language || "en";
 
     ctx.reply(t("msg_privacy_policy", {}, userLanguage), {
       parse_mode: "Markdown",
@@ -1516,7 +1561,7 @@ What would you like to do?
   async handleTerms(ctx) {
     ctx.session = {}; // Reset session state
     const user = await userService.userService.getUserByTelegramId(ctx.from.id);
-    const userLanguage = user?.language || "en";
+    const userLanguage = ctx.session?.language || user?.language || "en";
 
     ctx.reply(t("msg_terms_of_service", {}, userLanguage), {
       parse_mode: "Markdown",
@@ -1528,7 +1573,7 @@ What would you like to do?
       const user = await userService.userService.getUserByTelegramId(
         ctx.from.id
       );
-      const userLanguage = user?.language || "en";
+      const userLanguage = ctx.session?.language || user?.language || "en";
 
       // Clear all session data
       ctx.session = {};
@@ -1585,7 +1630,7 @@ Choose your preferred payout method:
       });
     } catch (error) {
       logger.error("Error showing payment settings:", error);
-      ctx.reply("❌ Failed to load payment settings.");
+      ctx.reply(t("msg__failed_to_load_payment_settings", {}, userLanguage));
     }
   }
 
@@ -1620,7 +1665,7 @@ Choose your preferred payout method:
       ctx.reply(message, { parse_mode: "Markdown" });
     } catch (error) {
       logger.error("Error setting payment method:", error);
-      ctx.reply("❌ Failed to set payment method.");
+      ctx.reply(t("msg__failed_to_set_payment_method", {}, userLanguage));
     }
   }
 
@@ -1664,10 +1709,18 @@ Choose your preferred payout method:
       delete ctx.session.paymentMethod;
       delete ctx.session.paymentStep;
 
-      ctx.reply("✅ Payment method updated successfully!");
+      ctx.reply(
+        t("msg__payment_method_updated_successfully", {}, userLanguage)
+      );
     } catch (error) {
       logger.error("Error updating payment details:", error);
-      ctx.reply("❌ Failed to update payment method. Please try again.");
+      ctx.reply(
+        t(
+          "msg__failed_to_update_payment_method_please_try_ag",
+          {},
+          userLanguage
+        )
+      );
     }
   }
 
@@ -1724,7 +1777,9 @@ Toggle notifications:
       });
     } catch (error) {
       logger.error("Error showing notification settings:", error);
-      ctx.reply("❌ Failed to load notification settings.");
+      ctx.reply(
+        t("msg__failed_to_load_notification_settings", {}, userLanguage)
+      );
     }
   }
 
@@ -1736,9 +1791,11 @@ Toggle notifications:
       await userService.userService.toggleNotification(telegramId, type);
 
       ctx.reply(
-        `✅ ${
-          type.charAt(0).toUpperCase() + type.slice(1)
-        } notifications updated!`
+        t(
+          "msg__typecharat0touppercase_typeslice1_notificatio",
+          {},
+          userLanguage
+        )
       );
 
       // Refresh notification settings
@@ -1747,7 +1804,9 @@ Toggle notifications:
       }, 1000);
     } catch (error) {
       logger.error("Error toggling notification:", error);
-      ctx.reply("❌ Failed to update notification setting.");
+      ctx.reply(
+        t("msg__failed_to_update_notification_setting", {}, userLanguage)
+      );
     }
   }
 
@@ -1798,7 +1857,13 @@ Toggle notifications:
       ctx.reply(message, { parse_mode: "Markdown" });
     } catch (error) {
       logger.error("Error showing detailed referral stats:", error);
-      ctx.reply("❌ Failed to load detailed stats. Please try again.");
+      ctx.reply(
+        t(
+          "msg__failed_to_load_detailed_stats_please_try_agai",
+          {},
+          userLanguage
+        )
+      );
     }
   }
 
@@ -1808,7 +1873,7 @@ Toggle notifications:
       const user = await userService.userService.getUserByTelegramId(
         telegramId
       );
-      const userLanguage = user.language || "en";
+      const userLanguage = ctx.session?.language || user.language || "en";
 
       if (!user.canRegisterCompany) {
         return ctx.reply(
@@ -1825,11 +1890,12 @@ Toggle notifications:
       ctx.session.awaitingCompanyAgreement = true;
     } catch (error) {
       logger.error("Error starting company registration:", error);
-      ctx.reply(t("msg_failed_start_registration", {}, userLanguage || "en"));
+      ctx.reply(t("msg_failed_start_registration", {}, userLanguage));
     }
   }
 
   async handleCompanyRegistrationStep(ctx) {
+    const userLanguage = ctx.session?.language || "en";
     console.log(
       "[DEBUG] handleCompanyRegistrationStep called:",
       ctx.message.text,
@@ -1838,14 +1904,20 @@ Toggle notifications:
     try {
       if (ctx.session.awaitingCompanyAgreement) {
         if (ctx.message.text.trim().toLowerCase() !== "i accept") {
-          ctx.reply("❌ You must accept the agreement to register a company.");
+          ctx.reply(
+            t(
+              "msg__you_must_accept_the_agreement_to_register_a_c",
+              {},
+              userLanguage
+            )
+          );
           ctx.session.companyRegistrationStep = null;
           ctx.session.companyRegistrationData = null;
           ctx.session.awaitingCompanyAgreement = null;
           return;
         }
         ctx.session.awaitingCompanyAgreement = null;
-        ctx.reply(t(ctx, "msg_enter_company_name"));
+        ctx.reply(t("msg_enter_company_name", {}, userLanguage));
         ctx.session.companyRegistrationStep = "name";
         return;
       }
@@ -1855,7 +1927,11 @@ Toggle notifications:
       );
       if (!user.canRegisterCompany) {
         return ctx.reply(
-          "❌ You are not eligible to register a company. Please contact an admin to request access."
+          t(
+            "msg__you_are_not_eligible_to_register_a_company_pl",
+            {},
+            userLanguage
+          )
         );
       }
       const step = ctx.session.companyRegistrationStep;
@@ -1866,44 +1942,43 @@ Toggle notifications:
         case "name":
           ctx.session.companyRegistrationData.name = text;
           ctx.session.companyRegistrationStep = "description";
-          ctx.reply(t(ctx, "msg_enter_company_description"));
+          ctx.reply(t("msg_enter_company_description", {}, userLanguage));
           break;
         case "description":
           ctx.session.companyRegistrationData.description = text;
           ctx.session.companyRegistrationStep = "website";
-          ctx.reply(t(ctx, "msg_enter_company_website"));
+          ctx.reply(t("msg_enter_company_website", {}, userLanguage));
           break;
         case "website":
           ctx.session.companyRegistrationData.website =
             text === "skip" ? null : text;
           ctx.session.companyRegistrationStep = "phone";
-          ctx.reply(t(ctx, "msg_enter_company_phone"));
+          ctx.reply("📞 Enter company phone:", { parse_mode: "Markdown" });
           break;
         case "phone":
           ctx.session.companyRegistrationData.phone = text;
           ctx.session.companyRegistrationStep = "email";
-          ctx.reply(t(ctx, "msg_enter_company_email"));
+          ctx.reply("📧 Enter company email:", { parse_mode: "Markdown" });
           break;
         case "email":
           if (!/^\S+@\S+\.\S+$/.test(text)) {
-            return ctx.reply(t(ctx, "msg_enter_valid_email"));
+            return ctx.reply("❌ Please enter a valid email:");
           }
           ctx.session.companyRegistrationData.email = text;
           ctx.session.companyRegistrationStep = "address";
-          ctx.reply(t(ctx, "msg_enter_company_address"));
+          ctx.reply("📍 Enter company address:", { parse_mode: "Markdown" });
           break;
         case "address":
           ctx.session.companyRegistrationData.address = text;
           ctx.session.companyRegistrationStep = "location";
-          ctx.reply(t(ctx, "msg_enter_company_location"));
+          ctx.reply("🌐 Enter company location (or type skip if none):", {
+            parse_mode: "Markdown",
+          });
           break;
         case "location":
-          ctx.session.companyRegistrationData.location = text;
-          ctx.session.companyRegistrationStep = "offer";
-          ctx.reply(t(ctx, "msg_enter_company_offer"));
-          break;
-        case "offer":
-          ctx.session.companyRegistrationData.offer = text;
+          ctx.session.companyRegistrationData.location =
+            text === "skip" ? null : text;
+          // No offer step, proceed to create company
           const companyData = {
             ...ctx.session.companyRegistrationData,
             telegramId: ctx.from.id,
@@ -1916,14 +1991,7 @@ Toggle notifications:
             await require("../services/companyService").createCompany(
               companyData
             );
-          console.log(
-            "[DEBUG] createCompany returned:",
-            companyIdRaw,
-            "type:",
-            typeof companyIdRaw
-          );
           let companyId = companyIdRaw;
-          // Firestore DocumentReference or object with .id
           if (companyIdRaw && typeof companyIdRaw === "object") {
             if (companyIdRaw.id) companyId = companyIdRaw.id;
             else if (companyIdRaw._id) companyId = companyIdRaw._id;
@@ -1931,7 +1999,6 @@ Toggle notifications:
               companyIdRaw.path &&
               typeof companyIdRaw.path === "string"
             ) {
-              // Firestore DocumentReference: path is like 'companies/abc123', extract last part
               const parts = companyIdRaw.path.split("/");
               companyId = parts[parts.length - 1];
             } else {
@@ -1939,14 +2006,17 @@ Toggle notifications:
             }
           }
 
-          // Also update the user to be a company owner
           await userService.userService.updateUser(ctx.from.id, {
             isCompanyOwner: true,
             companyId: companyId,
           });
 
           ctx.reply(
-            "✅ Company registered and active! You can now add products and manage your dashboard.",
+            t(
+              "msg__company_registered_and_active_you_can_now_add",
+              {},
+              userLanguage
+            ),
             {
               ...Markup.inlineKeyboard([
                 [
@@ -1963,13 +2033,21 @@ Toggle notifications:
           ctx.session.companyRegistrationData = null;
           break;
         default:
-          ctx.reply("❌ Invalid registration step. Please start again.");
+          ctx.reply(
+            t(
+              "msg__invalid_registration_step_please_start_again",
+              {},
+              userLanguage
+            )
+          );
           ctx.session.companyRegistrationStep = null;
           ctx.session.companyRegistrationData = null;
       }
     } catch (error) {
       logger.error("Error in company registration step:", error);
-      ctx.reply("❌ Failed to register company. Please try again.");
+      ctx.reply(
+        t("msg__failed_to_register_company_please_try_again", {}, userLanguage)
+      );
     }
   }
 
@@ -1985,12 +2063,14 @@ Toggle notifications:
   }
 
   async handleCompanyActionMenu(ctx, companyId) {
+    const userLanguage = ctx.session?.language || "en";
     try {
       console.log("[DEBUG] handleCompanyActionMenu companyId:", companyId);
       const companyService = require("../services/companyService");
       const company = await companyService.getCompanyById(companyId);
       console.log("[DEBUG] handleCompanyActionMenu company:", company);
-      if (!company) return ctx.reply("❌ Company not found.");
+      if (!company)
+        return ctx.reply(t("msg__company_not_found", {}, userLanguage));
       let msg = `🏢 *Manage Company*\n\n`;
       msg += `*Name:* ${company.name}\n`;
       msg += `*Description:* ${
@@ -2045,7 +2125,7 @@ Toggle notifications:
       });
     } catch (error) {
       logger.error("Error in handleCompanyActionMenu:", error);
-      ctx.reply("❌ Failed to load company actions.");
+      ctx.reply(t("msg__failed_to_load_company_actions", {}, userLanguage));
     }
   }
 
@@ -2054,7 +2134,8 @@ Toggle notifications:
       const companyId = ctx.callbackQuery.data.split("_")[3];
       const companyService = require("../services/companyService");
       const company = await companyService.getCompanyById(companyId);
-      if (!company) return ctx.reply("❌ Company not found.");
+      if (!company)
+        return ctx.reply(t("msg__company_not_found", {}, userLanguage));
       ctx.session.editCompanyId = companyId;
       ctx.session.editCompanyStep = null;
       ctx.session.editCompanyData = { ...company };
@@ -2125,7 +2206,7 @@ Toggle notifications:
       });
     } catch (error) {
       logger.error("Error in handleEditCompanyField:", error);
-      ctx.reply("❌ Failed to load edit options.");
+      ctx.reply(t("msg__failed_to_load_edit_options", {}, userLanguage));
     }
   }
 
@@ -2134,12 +2215,13 @@ Toggle notifications:
       const field = ctx.session.editCompanyStep;
       const companyId = ctx.session.editCompanyId;
       const companyService = require("../services/companyService");
-      if (!field || !companyId) return ctx.reply("❌ Invalid edit session.");
+      if (!field || !companyId)
+        return ctx.reply(t("msg__invalid_edit_session", {}, userLanguage));
       const value = ctx.message.text;
       const update = {};
       update[field] = value;
       await companyService.updateCompany(companyId, update, ctx.from.id);
-      ctx.reply("✅ Company updated successfully.");
+      ctx.reply(t("msg__company_updated_successfully", {}, userLanguage));
       // Show updated company details
       await this.handleCompanyActionMenu(ctx, companyId);
     } catch (error) {
@@ -2149,6 +2231,7 @@ Toggle notifications:
   }
 
   async handleAddProductStart(ctx, companyId) {
+    const userLanguage = ctx.session?.language || "en";
     logger.info(
       `[DEBUG] handleAddProductStart: companyId=`,
       companyId,
@@ -2167,6 +2250,7 @@ Toggle notifications:
   }
 
   async handleAddProductStep(ctx) {
+    const userLanguage = ctx.session?.language || "en";
     try {
       const step = ctx.session.addProductStep;
       const text = ctx.message.text;
@@ -2200,7 +2284,13 @@ Toggle notifications:
         case "category":
           ctx.session.addProductData.category = text;
           ctx.session.addProductStep = "status";
-          ctx.reply("Enter product status (instock, out_of_stock, low_stock):");
+          ctx.reply(
+            t(
+              "msg_enter_product_status_instock_outofstock_lowsto",
+              {},
+              userLanguage
+            )
+          );
           break;
         case "status":
           const validStatuses = ["instock", "out_of_stock", "low_stock"];
@@ -2244,7 +2334,7 @@ Toggle notifications:
     } else {
       ctx.reply(t("msg_added_to_favorites", {}, userLanguage));
     }
-    ctx.reply("⭐ Product favorite status updated.");
+    ctx.reply(t("msg__product_favorite_status_updated", {}, userLanguage));
   }
 
   async handleAddToCart(ctx) {
@@ -2302,6 +2392,7 @@ Toggle notifications:
   }
 
   async handleFavorites(ctx, pageArg) {
+    const userLanguage = ctx.session?.language || "en";
     const userService = require("../services/userService");
     const productService = require("../services/productService");
     const { Markup } = require("telegraf");
@@ -2318,7 +2409,9 @@ Toggle notifications:
     }
     const favorites = await userService.userService.getFavorites(ctx.from.id);
     if (!favorites.length)
-      return ctx.reply("⭐ You have no favorite products.");
+      return ctx.reply(
+        t("msg__you_have_no_favorite_products", {}, userLanguage)
+      );
 
     // Filter valid product IDs
     const validFavorites = [];
@@ -2330,7 +2423,9 @@ Toggle notifications:
       }
     }
     if (!validFavorites.length) {
-      return ctx.reply("⭐ You have no valid favorite products.");
+      return ctx.reply(
+        t("msg__you_have_no_valid_favorite_products", {}, userLanguage)
+      );
     }
     const totalPages = Math.ceil(validFavorites.length / ITEMS_PER_PAGE);
     if (page < 1) page = 1;
@@ -2374,7 +2469,7 @@ Toggle notifications:
   }
 
   async handleAddFavorite(ctx, productId) {
-    const userService = require("../services/userService");
+    const userLanguage = ctx.session?.language || "en";
     if (!productId)
       return ctx.reply(t("msg_no_product_specified", {}, userLanguage));
     await userService.userService.addFavorite(ctx.from.id, productId);
@@ -2387,7 +2482,7 @@ Toggle notifications:
   }
 
   async handleRemoveFavorite(ctx, productId) {
-    const userService = require("../services/userService");
+    const userLanguage = ctx.session?.language || "en";
     if (!productId) {
       if (ctx.callbackQuery) {
         productId = ctx.callbackQuery.data.replace("remove_favorite_", "");
@@ -2400,13 +2495,18 @@ Toggle notifications:
     await userService.userService.removeFavorite(ctx.from.id, productId);
     if (ctx.callbackQuery) {
       await ctx.answerCbQuery("❌ Removed from favorites!");
-      await ctx.reply("❌ Product removed from your favorites!");
+      await ctx.reply(
+        t("msg__product_removed_from_your_favorites", {}, userLanguage)
+      );
     } else {
-      ctx.reply("❌ Product removed from your favorites!");
+      ctx.reply(
+        t("msg__product_removed_from_your_favorites", {}, userLanguage)
+      );
     }
   }
 
   async handleCart(ctx, pageArg) {
+    const userLanguage = ctx.session?.language || "en";
     const userService = require("../services/userService");
     const productService = require("../services/productService");
     const { Markup } = require("telegraf");
@@ -2421,7 +2521,8 @@ Toggle notifications:
         parseInt(ctx.callbackQuery.data.replace("cart_page_", ""), 10) || 1;
     }
     const cart = await userService.userService.getCart(ctx.from.id);
-    if (!cart.length) return ctx.reply("🛒 Your cart is empty.");
+    if (!cart.length)
+      return ctx.reply(t("msg__your_cart_is_empty", {}, userLanguage));
     // Filter valid product IDs
     const validCart = [];
     for (const pid of cart) {
@@ -2433,7 +2534,9 @@ Toggle notifications:
       }
     }
     if (!validCart.length) {
-      return ctx.reply("🛒 You have no valid products in your cart.");
+      return ctx.reply(
+        t("msg__you_have_no_valid_products_in_your_cart", {}, userLanguage)
+      );
     }
     const totalPages = Math.ceil(validCart.length / ITEMS_PER_PAGE);
     if (page < 1) page = 1;
@@ -2477,7 +2580,7 @@ Toggle notifications:
   }
 
   async handleAddCart(ctx, productId) {
-    const userService = require("../services/userService");
+    const userLanguage = ctx.session?.language || "en";
     if (!productId)
       return ctx.reply(t("msg_no_product_specified", {}, userLanguage));
     await userService.userService.addToCart(ctx.from.id, productId);
@@ -2490,7 +2593,7 @@ Toggle notifications:
   }
 
   async handleRemoveCart(ctx, productId) {
-    const userService = require("../services/userService");
+    const userLanguage = ctx.session?.language || "en";
     if (!productId) {
       if (ctx.callbackQuery) {
         productId = ctx.callbackQuery.data.replace("remove_cart_", "");
@@ -2503,9 +2606,11 @@ Toggle notifications:
     await userService.userService.removeFromCart(ctx.from.id, productId);
     if (ctx.callbackQuery) {
       await ctx.answerCbQuery("❌ Removed from cart!");
-      await ctx.reply("❌ Product removed from your cart!");
+      await ctx.reply(
+        t("msg__product_removed_from_your_cart", {}, userLanguage)
+      );
     } else {
-      ctx.reply("❌ Product removed from your cart!");
+      ctx.reply(t("msg__product_removed_from_your_cart", {}, userLanguage));
     }
   }
 
@@ -2517,14 +2622,21 @@ Toggle notifications:
   async handleRequestWithdrawal(ctx) {
     const userService = require("../services/userService");
     const companyId = ctx.message.text.split(" ")[1];
-    if (!companyId) return ctx.reply("Usage: /requestwithdrawal <companyId>");
+    if (!companyId)
+      return ctx.reply(
+        t("msg_usage_requestwithdrawal_companyid", {}, userLanguage)
+      );
     try {
       await userService.userService.requestWithdrawal(ctx.from.id, companyId);
       ctx.reply(
-        "Withdrawal request submitted. Company and admins have been notified."
+        t(
+          "msg_withdrawal_request_submitted_company_and_admin",
+          {},
+          userLanguage
+        )
       );
     } catch (e) {
-      ctx.reply(`❌ ${e.message}`);
+      ctx.reply(t("msg__emessage", {}, userLanguage));
     }
   }
 
@@ -2534,7 +2646,11 @@ Toggle notifications:
       const codes = await referralService.getUserReferralCodes(ctx.from.id);
       if (!codes.length)
         return ctx.reply(
-          "❌ You have no referral codes yet. Make a purchase to get your first code!"
+          t(
+            "msg__you_have_no_referral_codes_yet_make_a_purchas",
+            {},
+            userLanguage
+          )
         );
       // Pagination
       const ITEMS_PER_PAGE = 5;
@@ -2591,7 +2707,7 @@ Toggle notifications:
       });
     } catch (error) {
       logger.error("Error in handleMyReferralCodes:", error);
-      ctx.reply("❌ Failed to load your referral codes.");
+      ctx.reply(t("msg__failed_to_load_your_referral_codes", {}, userLanguage));
     }
   }
 
@@ -2602,7 +2718,7 @@ Toggle notifications:
       const user = await userService.userService.getUserByTelegramId(
         telegramId
       );
-      const userLanguage = user?.language || "en";
+      const userLanguage = ctx.session?.language || user?.language || "en";
 
       // Get companies owned by the user
       const companies =
@@ -2702,7 +2818,6 @@ Toggle notifications:
       );
     } catch (error) {
       logger.error("Error in handleMyProducts:", error);
-      const userLanguage = "en"; // Fallback language
       await ctx.reply(t("msg_failed_load_products", {}, userLanguage));
     }
   }
@@ -2770,6 +2885,7 @@ Toggle notifications:
 
   async handleSellProduct(ctx) {
     try {
+      const userLanguage = ctx.session?.language || "en";
       const productId = ctx.callbackQuery.data.split("_")[2];
       const productService = require("../services/productService");
       const product = await productService.getProductById(productId);
@@ -2782,12 +2898,14 @@ Toggle notifications:
       ctx.reply(t("msg_enter_buyer_username", {}, userLanguage));
     } catch (error) {
       logger.error("Error in handleSellProduct:", error);
-      ctx.reply("❌ Failed to process sale.");
+      const userLanguage = ctx.session?.language || "en";
+      ctx.reply(t("msg__failed_to_process_sale", {}, userLanguage));
     }
   }
 
   async handleSellProductStep(ctx) {
     try {
+      const userLanguage = ctx.session?.language || "en";
       const step = ctx.session.sellStep;
       const productId = ctx.session.sellProductId;
       const productService = require("../services/productService");
@@ -2807,7 +2925,11 @@ Toggle notifications:
         const buyer = await userService.getUserByUsername(username, ctx.from);
         if (!buyer || !buyer.telegramId) {
           return ctx.reply(
-            "❌ Buyer not found. Please enter a valid Telegram username (without @):"
+            t(
+              "msg__buyer_not_found_please_enter_a_valid_telegram",
+              {},
+              userLanguage
+            )
           );
         }
         if (buyer.telegramId === ctx.from.id) {
@@ -2818,7 +2940,7 @@ Toggle notifications:
         ctx.session.sellBuyerId = buyer.telegramId;
         ctx.session.buyerUsername = username; // Store buyer username for receipts
         ctx.session.sellStep = "quantity";
-        ctx.reply("Enter quantity to sell:");
+        ctx.reply(t("msg_enter_quantity_to_sell", {}, userLanguage));
         return;
       }
       if (step === "quantity") {
@@ -2877,7 +2999,11 @@ Toggle notifications:
         // Defensive check for product and companyId
         if (!product || !product.companyId) {
           ctx.reply(
-            "❌ Could not validate referral code: missing company context. Please try again or contact support."
+            t(
+              "msg__could_not_validate_referral_code_missing_comp",
+              {},
+              userLanguage
+            )
           );
           return;
         }
@@ -2945,7 +3071,7 @@ Toggle notifications:
       }
     } catch (error) {
       logger.error("Error in handleSellProductStep:", error);
-      ctx.reply("❌ Failed to process sale.");
+      ctx.reply(t("msg__failed_to_process_sale", {}, userLanguage));
     }
   }
 
@@ -3128,7 +3254,9 @@ Toggle notifications:
       });
     } catch (error) {
       logger.error("Error in processSale:", error);
-      ctx.reply("❌ Failed to process sale. Please try again.");
+      ctx.reply(
+        t("msg__failed_to_process_sale_please_try_again", {}, userLanguage)
+      );
     }
   }
 
@@ -3137,7 +3265,8 @@ Toggle notifications:
       const field = ctx.session.editProductStep;
       const productId = ctx.session.editProductId;
       const productService = require("../services/productService");
-      if (!field || !productId) return ctx.reply("❌ Invalid edit session.");
+      if (!field || !productId)
+        return ctx.reply(t("msg__invalid_edit_session", {}, userLanguage));
       const value = ctx.message.text;
       const update = {};
       if (field === "price") {
@@ -3154,7 +3283,7 @@ Toggle notifications:
         update[field] = value;
       }
       await productService.updateProductFirestore(productId, update);
-      ctx.reply("✅ Product updated successfully.");
+      ctx.reply(t("msg__product_updated_successfully", {}, userLanguage));
       // Notify admins
       const updatedProduct = await productService.getProductById(productId);
       await getNotificationServiceInstance().sendAdminActionNotification(
@@ -3171,7 +3300,7 @@ Toggle notifications:
       await this.handleProductActionMenu(ctx, productId);
     } catch (error) {
       logger.error("Error in handleEditProductFieldInput:", error);
-      ctx.reply("❌ Failed to update product.");
+      ctx.reply(t("msg__failed_to_update_product", {}, userLanguage));
     }
   }
 
@@ -3186,12 +3315,16 @@ Toggle notifications:
       ctx.session.editProductStep = "title";
       ctx.session.editProductData = { ...product };
       ctx.reply(
-        `📝 *Edit Product*\n\nCurrent Title: ${product.title}\n\nEnter new title or type 'skip' to keep unchanged:`,
+        t(
+          "msg__edit_productnncurrent_title_producttitlennent",
+          {},
+          userLanguage
+        ),
         { parse_mode: "Markdown" }
       );
     } catch (error) {
       logger.error("Error in handleEditProduct:", error);
-      ctx.reply("❌ Failed to load product for editing.");
+      ctx.reply(t("msg__failed_to_load_product_for_editing", {}, userLanguage));
     }
   }
 
@@ -3201,7 +3334,7 @@ Toggle notifications:
       const productService = require("../services/productService");
       const deletedProduct = await productService.getProductById(productId);
       await productService.deleteProductFirestore(productId);
-      ctx.reply("🗑️ Product deleted successfully.");
+      ctx.reply(t("msg__product_deleted_successfully", {}, userLanguage));
       // Notify admins
       await getNotificationServiceInstance().sendAdminActionNotification(
         "Product Deleted",
@@ -3217,7 +3350,7 @@ Toggle notifications:
       await this.handleMyProducts(ctx);
     } catch (error) {
       logger.error("Error in handleDeleteProduct:", error);
-      ctx.reply("❌ Failed to delete product.");
+      ctx.reply(t("msg__failed_to_delete_product", {}, userLanguage));
     }
   }
 
@@ -3226,17 +3359,22 @@ Toggle notifications:
       const companyId = ctx.callbackQuery.data.split("_")[2];
       const companyService = require("../services/companyService");
       const company = await companyService.getCompanyById(companyId);
-      if (!company) return ctx.reply("❌ Company not found.");
+      if (!company)
+        return ctx.reply(t("msg__company_not_found", {}, userLanguage));
       ctx.session.editCompanyId = companyId;
       ctx.session.editCompanyStep = "name";
       ctx.session.editCompanyData = { ...company };
       ctx.reply(
-        `📝 *Edit Company*\n\nCurrent Name: ${company.name}\n\nEnter new name or type 'skip' to keep unchanged:`,
+        t(
+          "msg__edit_companynncurrent_name_companynamennenter",
+          {},
+          userLanguage
+        ),
         { parse_mode: "Markdown" }
       );
     } catch (error) {
       logger.error("Error in handleEditCompany:", error);
-      ctx.reply("❌ Failed to load company for editing.");
+      ctx.reply(t("msg__failed_to_load_company_for_editing", {}, userLanguage));
     }
   }
 
@@ -3245,12 +3383,12 @@ Toggle notifications:
       const companyId = ctx.callbackQuery.data.split("_")[2];
       const companyService = require("../services/companyService");
       await companyService.deleteCompany(companyId);
-      ctx.reply("🗑️ Company deleted successfully.");
+      ctx.reply(t("msg__company_deleted_successfully", {}, userLanguage));
       // Refresh company list
       await this.handleMyCompanies(ctx);
     } catch (error) {
       logger.error("Error in handleDeleteCompany:", error);
-      ctx.reply("❌ Failed to delete company.");
+      ctx.reply(t("msg__failed_to_delete_company", {}, userLanguage));
     }
   }
 
@@ -3261,7 +3399,7 @@ Toggle notifications:
       const user = await userService.userService.getUserByTelegramId(
         telegramId
       );
-      const userLanguage = user?.language || "en";
+      const userLanguage = ctx.session?.language || user?.language || "en";
 
       const companies =
         await require("../services/companyService").getCompaniesByOwner(
@@ -3343,7 +3481,7 @@ Toggle notifications:
       );
     } catch (error) {
       logger.error("Error in handleMyCompanies:", error);
-      const userLanguage = "en"; // Fallback language
+      const userLanguage = userLanguage; // Fallback language
       await ctx.reply(t("msg_failed_load_companies", {}, userLanguage));
     }
   }
@@ -3354,7 +3492,7 @@ Toggle notifications:
       const user = await userService.userService.getUserByTelegramId(
         ctx.from.id
       );
-      const userLanguage = user?.language || "en";
+      const userLanguage = ctx.session?.language || user?.language || "en";
 
       const productService = require("../services/productService");
       const product = await productService.getProductById(productId);
@@ -3430,7 +3568,11 @@ Toggle notifications:
       const companyStats = stats.companyStats && stats.companyStats[companyId];
       if (!companyStats || companyStats.earnings < minPayout) {
         return ctx.reply(
-          "❌ You are not eligible to withdraw from this company yet."
+          t(
+            "msg__you_are_not_eligible_to_withdraw_from_this_co",
+            {},
+            userLanguage
+          )
         );
       }
       // Create withdrawal request
@@ -3502,11 +3644,15 @@ Toggle notifications:
         });
       }
       ctx.reply(
-        "✅ Your withdrawal request has been sent for approval. You will be notified once it is processed."
+        t(
+          "msg__your_withdrawal_request_has_been_sent_for_app",
+          {},
+          userLanguage
+        )
       );
     } catch (error) {
       logger.error("Error in handleWithdrawCompany:", error);
-      ctx.reply("❌ Failed to request withdrawal.");
+      ctx.reply(t("msg__failed_to_request_withdrawal", {}, userLanguage));
     }
   }
 
@@ -3515,10 +3661,13 @@ Toggle notifications:
       const db = require("../config/database");
       const withdrawalRef = db.withdrawals().doc(withdrawalId);
       const withdrawalDoc = await withdrawalRef.get();
-      if (!withdrawalDoc.exists) return ctx.reply("❌ Withdrawal not found.");
+      if (!withdrawalDoc.exists)
+        return ctx.reply(t("msg__withdrawal_not_found", {}, userLanguage));
       const withdrawal = withdrawalDoc.data();
       if (withdrawal.status !== "pending")
-        return ctx.reply("❌ Withdrawal already processed.");
+        return ctx.reply(
+          t("msg__withdrawal_already_processed", {}, userLanguage)
+        );
       await withdrawalRef.update({
         status: "approved",
         approvedAt: new Date(),
@@ -3549,10 +3698,22 @@ Toggle notifications:
         )} has been *approved*!\n\nThank you for using our platform.`,
         { parse_mode: "Markdown" }
       );
-      ctx.reply(`✅ Withdrawal approved and user (${userDisplay}) notified.`);
+      ctx.reply(
+        t(
+          "msg__withdrawal_approved_and_user_userdisplay_noti",
+          {},
+          userLanguage
+        )
+      );
     } catch (error) {
       logger.error("Error in handleApproveWithdrawal:", error);
-      ctx.reply("❌ Failed to approve withdrawal. Please try again.");
+      ctx.reply(
+        t(
+          "msg__failed_to_approve_withdrawal_please_try_again",
+          {},
+          userLanguage
+        )
+      );
     }
   }
 
@@ -3561,10 +3722,13 @@ Toggle notifications:
       const db = require("../config/database");
       const withdrawalRef = db.withdrawals().doc(withdrawalId);
       const withdrawalDoc = await withdrawalRef.get();
-      if (!withdrawalDoc.exists) return ctx.reply("❌ Withdrawal not found.");
+      if (!withdrawalDoc.exists)
+        return ctx.reply(t("msg__withdrawal_not_found", {}, userLanguage));
       const withdrawal = withdrawalDoc.data();
       if (withdrawal.status !== "pending")
-        return ctx.reply("❌ Withdrawal already processed.");
+        return ctx.reply(
+          t("msg__withdrawal_already_processed", {}, userLanguage)
+        );
       await withdrawalRef.update({
         status: "declined",
         declinedAt: new Date(),
@@ -3595,17 +3759,29 @@ Toggle notifications:
         )} has been *declined*.\n\nIf you have questions, please contact support.`,
         { parse_mode: "Markdown" }
       );
-      ctx.reply(`❌ Withdrawal declined and user (${userDisplay}) notified.`);
+      ctx.reply(
+        t(
+          "msg__withdrawal_declined_and_user_userdisplay_noti",
+          {},
+          userLanguage
+        )
+      );
     } catch (error) {
       logger.error("Error in handleDenyWithdrawal:", error);
-      ctx.reply("❌ Failed to decline withdrawal. Please try again.");
+      ctx.reply(
+        t(
+          "msg__failed_to_decline_withdrawal_please_try_again",
+          {},
+          userLanguage
+        )
+      );
     }
   }
 
   async handleEditProfile(ctx) {
     const telegramId = ctx.from.id;
     const user = await userService.userService.getUserByTelegramId(telegramId);
-    const userLanguage = user.language || "en";
+    const userLanguage = ctx.session?.language || user.language || "en";
 
     ctx.session.editProfileStep = "first_name";
     ctx.session.editProfileData = {};
@@ -3617,7 +3793,7 @@ Toggle notifications:
   async handleEditProfileStep(ctx) {
     const telegramId = ctx.from.id;
     const user = await userService.userService.getUserByTelegramId(telegramId);
-    const userLanguage = user.language || "en";
+    const userLanguage = ctx.session?.language || user.language || "en";
 
     if (!ctx.session.editProfileStep) return;
     const step = ctx.session.editProfileStep;
@@ -3797,7 +3973,13 @@ Toggle notifications:
       });
     } catch (error) {
       logger.error("Error in handleLanguageSettings:", error);
-      ctx.reply("❌ Failed to load language settings. Please try again.");
+      ctx.reply(
+        t(
+          "msg__failed_to_load_language_settings_please_try_a",
+          {},
+          userLanguage
+        )
+      );
     }
   }
 
@@ -3823,7 +4005,9 @@ Toggle notifications:
       });
     } catch (error) {
       logger.error("Error in handleSetLanguage:", error);
-      ctx.reply("❌ Failed to change language. Please try again.");
+      ctx.reply(
+        t("msg__failed_to_change_language_please_try_again", {}, userLanguage)
+      );
     }
   }
 }

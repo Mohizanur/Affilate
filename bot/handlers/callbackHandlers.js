@@ -1,6 +1,7 @@
 console.log("callbackHandlers.js loaded");
 console.log("Entering handlers/callbackHandlers.js");
 const { Markup } = require("telegraf");
+const { t } = require("../../utils/localize");
 console.log("Loaded telegraf in callbackHandlers");
 const userService = require("../services/userService");
 console.log("Loaded userService in callbackHandlers");
@@ -17,6 +18,20 @@ console.log("Loaded userHandlers in callbackHandlers");
 const companyHandlers = require("./companyHandlers");
 console.log("Loaded companyHandlers in callbackHandlers");
 
+function blockIfBanned(ctx, user) {
+  if (user && (user.banned || user.isBanned)) {
+    ctx.reply(
+      t(
+        "msg__you_are_banned_from_using_this_bot",
+        {},
+        ctx.session?.language || "en"
+      )
+    );
+    return true;
+  }
+  return false;
+}
+
 class CallbackHandlers {
   async handleCallback(ctx) {
     try {
@@ -29,10 +44,7 @@ class CallbackHandlers {
       const user = await userService.userService.getUserByTelegramId(
         telegramId
       );
-      if (user && user.banned) {
-        await ctx.reply("🚫 You are banned from using this bot.");
-        return;
-      }
+      if (blockIfBanned(ctx, user)) return;
 
       const callbackData = ctx.callbackQuery.data;
       // Log callbackData and its char codes
@@ -71,6 +83,11 @@ class CallbackHandlers {
       if (callbackData.startsWith("add_cart_")) {
         const productId = callbackData.replace("add_cart_", "");
         return userHandlers.handleAddCart(ctx, productId);
+      }
+      // Handle Unban User dynamic callback
+      if (callbackData.startsWith("unban_user_")) {
+        const userId = callbackData.replace("unban_user_", "");
+        return adminHandlers.handleUnbanUser(ctx, userId);
       }
       // Remove from Favorites and Cart handlers
       if (callbackData.startsWith("remove_favorite_")) {
@@ -272,9 +289,17 @@ class CallbackHandlers {
                 withdrawalId,
                 ctx.from.id
               );
-              ctx.reply("✅ Withdrawal approved and processed by the company.");
+              ctx.reply(
+                t(
+                  "msg__withdrawal_approved_and_processed_by_the_comp",
+                  {},
+                  ctx.session?.language || "en"
+                )
+              );
             } catch (err) {
-              ctx.reply(`❌ ${err.message}`);
+              ctx.reply(
+                t("msg__errmessage", {}, ctx.session?.language || "en")
+              );
             }
             return;
           } else if (callbackData.startsWith("reject_withdrawal_")) {
@@ -303,7 +328,13 @@ class CallbackHandlers {
               return await userHandlers.handleViewProduct(ctx, productId);
             } catch (error) {
               console.error("Error in view_product callback:", error);
-              await ctx.reply("❌ Failed to load product. Please try again.");
+              await ctx.reply(
+                t(
+                  "msg__failed_to_load_product_please_try_again",
+                  {},
+                  ctx.session?.language || "en"
+                )
+              );
               return;
             }
           }
@@ -353,7 +384,13 @@ class CallbackHandlers {
             // Set session and prompt for new value
             const field = callbackData.replace("edit_field_", "");
             ctx.session.editProductStep = field;
-            ctx.reply(`Enter new value for ${field}:`);
+            ctx.reply(
+              t(
+                "msg_enter_new_value_for_field",
+                {},
+                ctx.session?.language || "en"
+              )
+            );
             return;
           }
           if (callbackData.startsWith("company_action_")) {
@@ -367,7 +404,13 @@ class CallbackHandlers {
             // Set session and prompt for new value
             const field = callbackData.replace("edit_companyfield_", "");
             ctx.session.editCompanyStep = field;
-            ctx.reply(`Enter new value for ${field}:`);
+            ctx.reply(
+              t(
+                "msg_enter_new_value_for_field",
+                {},
+                ctx.session?.language || "en"
+              )
+            );
             return;
           }
           // Unban user button (dynamic callback)
@@ -375,7 +418,16 @@ class CallbackHandlers {
             return adminHandlers.handleUnbanUserCallback(ctx);
           }
           if (callbackData.startsWith("ban_user_")) {
-            return adminHandlers.handleBanUserCallback(ctx);
+            const userId = callbackData.replace("ban_user_", "");
+            return adminHandlers.handleBanUser(ctx, userId);
+          }
+          if (callbackData.startsWith("demote_user_")) {
+            const userId = callbackData.replace("demote_user_", "");
+            return adminHandlers.handleDemoteUserId(ctx, userId);
+          }
+          if (callbackData.startsWith("promote_user_")) {
+            const userId = callbackData.replace("promote_user_", "");
+            return adminHandlers.handlePromoteUserId(ctx, userId);
           }
           if (callbackData.startsWith("company_analytics_")) {
             console.log(
@@ -492,7 +544,13 @@ class CallbackHandlers {
 
           if (callbackData === "sale_referral_yes") {
             ctx.session.recordSaleStep = "referral_code";
-            return ctx.reply("🔑 Please enter the referral code:");
+            return ctx.reply(
+              t(
+                "msg__please_enter_the_referral_code",
+                {},
+                ctx.session?.language || "en"
+              )
+            );
           }
 
           if (callbackData === "sale_referral_no") {
@@ -606,7 +664,19 @@ class CallbackHandlers {
             return userHandlers.handleCart(ctx, page);
           }
 
-          ctx.reply("❌ Unknown action. Please try again.");
+          if (callbackData.startsWith("admin_companies_")) {
+            const page =
+              parseInt(callbackData.replace("admin_companies_", "")) || 1;
+            return adminHandlers.handleAdminListCompanies(ctx, page);
+          }
+
+          ctx.reply(
+            t(
+              "msg__unknown_action_please_try_again",
+              {},
+              ctx.session?.language || "en"
+            )
+          );
       }
       // Text input routing for admin add/remove company steps
       if (ctx.session && ctx.session.adminAddCompanyStep) {
@@ -617,7 +687,13 @@ class CallbackHandlers {
       }
     } catch (error) {
       logger.error("Error in callback handler:", error);
-      ctx.reply("❌ Something went wrong. Please try again.");
+      ctx.reply(
+        t(
+          "msg__something_went_wrong_please_try_again",
+          {},
+          ctx.session?.language || "en"
+        )
+      );
     }
   }
 
@@ -633,14 +709,22 @@ class CallbackHandlers {
       );
 
       if (!user) {
-        return ctx.reply("❌ User not found.");
+        return ctx.reply(
+          t("msg__user_not_found", {}, ctx.session?.language || "en")
+        );
       }
 
       const profileMessage = `
 `;
     } catch (error) {
       logger.error("Error in profile handler:", error);
-      ctx.reply("❌ Something went wrong. Please try again.");
+      ctx.reply(
+        t(
+          "msg__something_went_wrong_please_try_again",
+          {},
+          ctx.session?.language || "en"
+        )
+      );
     }
   }
 }

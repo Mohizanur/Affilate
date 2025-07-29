@@ -1,3 +1,29 @@
+process.on("uncaughtException", (err) => {
+  console.error("UNCAUGHT EXCEPTION:", err);
+  // Don't exit for network-related errors
+  if (err.code === "ETIMEDOUT" || err.code === "ENOTFOUND") {
+    console.log("⚠️ Network error detected, continuing...");
+    return;
+  }
+  // For other exceptions, log but don't exit in development
+  if (process.env.NODE_ENV !== "production") {
+    console.log("⚠️ Uncaught exception logged, continuing in development...");
+    return;
+  }
+  // Only exit in production for non-network errors
+  console.error("FATAL ERROR - exiting process");
+  process.exit(1);
+});
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("UNHANDLED REJECTION:", reason);
+  // Don't exit the process for network-related errors
+  if (reason && reason.code === "ETIMEDOUT") {
+    console.log("⚠️ Network timeout detected, continuing...");
+    return; // Don't let the process exit
+  }
+  // For other unhandled rejections, log but don't exit
+  console.log("⚠️ Unhandled rejection logged, continuing...");
+});
 // Top-level error handlers and startup log
 // Note: More specific error handlers are defined in bot/index.js
 console.log("=== server.js starting ===");
@@ -88,7 +114,7 @@ app.use((err, req, res, next) => {
 console.log("Top of server.js");
 console.log("Before startServer()");
 
-async function startServer() {
+(async () => {
   try {
     console.log("Inside startServer, before startBot");
     const bot = await startBot(app); // Pass the Express app
@@ -96,7 +122,8 @@ async function startServer() {
 
     // After bot is initialized but before bot.launch()
     if (bot && bot.telegram && bot.telegram.setMyCommands) {
-      bot.telegram.setMyCommands([
+      try {
+        await bot.telegram.setMyCommands([
         { command: "start", description: "Start or restart the bot" },
         { command: "browse", description: "Browse products" },
         { command: "referrals", description: "My referrals & codes" },
@@ -111,6 +138,14 @@ async function startServer() {
         { command: "orders", description: "Your order history" },
         // Add more as needed for your elite UX
       ]);
+        console.log("✅ Bot commands set successfully");
+      } catch (error) {
+        console.log(
+          "⚠️ Could not set bot commands (network issue):",
+          error.message
+        );
+        console.log("📝 Bot will work without custom commands");
+      }
     }
 
     app.listen(PORT, () => {
@@ -141,12 +176,11 @@ async function startServer() {
       }
     });
   } catch (err) {
-    console.error("Fatal error in startServer:", err); // Added detailed error log
+    console.error("FATAL ERROR DURING STARTUP:", err);
     process.exit(1);
   }
-}
+})();
 
-startServer();
 console.log("After startServer() call");
 
 // Cleanup function for graceful shutdown

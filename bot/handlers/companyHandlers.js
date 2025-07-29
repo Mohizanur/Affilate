@@ -33,29 +33,23 @@ class CompanyHandlers {
           telegramId
         );
       if (!user.canRegisterCompany) {
-        return ctx.reply(
-          "❌ You are not eligible to register a company. Please contact an admin to request access."
-        );
+        return ctx.reply(t("msg__you_are_not_eligible_to_register_a_company_pl", {}, userLanguage));
       }
       // Check if already registered
       const existingCompany = await companyService.getCompanyByTelegramId(
         telegramId
       );
       if (existingCompany) {
-        return ctx.reply(
-          "✅ You are already registered as a company. Use /company_dashboard to access your dashboard."
-        );
+        return ctx.reply(t("msg__you_are_already_registered_as_a_company_use_c", {}, userLanguage));
       }
       ctx.session.registrationStep = "company_name";
-      ctx.reply(
-        "🏢 *Company Registration*\n\nPlease enter your company name:",
-        {
+      ctx.reply(t("msg__company_registrationnnplease_enter_your_compa", {}, userLanguage), {
           parse_mode: "Markdown",
         }
       );
     } catch (error) {
       logger.error("Error in company registration:", error);
-      ctx.reply("❌ Registration failed. Please try again.");
+      ctx.reply(t("msg__registration_failed_please_try_again", {}, userLanguage));
     }
   }
 
@@ -63,6 +57,7 @@ class CompanyHandlers {
     try {
       const step = ctx.session.registrationStep;
       const text = ctx.message.text;
+      const userLanguage = ctx.session?.language || ctx.from.language_code || "en";
 
       if (!ctx.session.companyData) {
         ctx.session.companyData = {};
@@ -72,62 +67,67 @@ class CompanyHandlers {
         case "company_name":
           ctx.session.companyData.name = text;
           ctx.session.registrationStep = "company_description";
-          ctx.reply("📝 Please provide a brief description of your company:");
+          ctx.reply(t("msg_enter_company_description", {}, userLanguage));
           break;
 
         case "company_description":
           ctx.session.companyData.description = text;
           ctx.session.registrationStep = "company_website";
-          ctx.reply("🌐 Please enter your company website (or type 'skip'):");
+          ctx.reply(t("msg_enter_company_website", {}, userLanguage));
           break;
 
         case "company_website":
           ctx.session.companyData.website = text === "skip" ? null : text;
           ctx.session.registrationStep = "company_phone";
-          ctx.reply("📞 Please enter your company phone number:");
+          ctx.reply(t("msg_enter_company_phone", {}, userLanguage));
           break;
 
         case "company_phone":
           ctx.session.companyData.phone = text;
           ctx.session.registrationStep = "commission_rate";
-          ctx.reply(
-            "💰 Please set your referrer commission rate (percentage, e.g., 10 for 10%):"
-          );
+          ctx.reply(t("msg_enter_company_commission_rate", {}, userLanguage));
           break;
 
         case "commission_rate":
           const rate = parseFloat(text);
           if (isNaN(rate) || rate < 1 || rate > 50) {
             return ctx.reply(
-              "❌ Please enter a valid commission rate between 1% and 50%:"
+              t("msg_enter_valid_commission_rate", {}, userLanguage)
             );
           }
 
           ctx.session.companyData.referrerCommissionRate = rate;
 
           // Show confirmation
-          const confirmationMessage = `
-🏢 *Company Registration Confirmation*
-
-📛 Name: ${ctx.session.companyData.name}
-📝 Description: ${ctx.session.companyData.description}
-🌐 Website: ${ctx.session.companyData.website || "Not provided"}
-📞 Phone: ${ctx.session.companyData.phone}
-💰 Commission Rate: ${rate}%
-
-Is this information correct?
-          `;
+          const confirmationMessage = `\n\ud83c\udfe2 *${t(
+            "msg_company_registration_confirmation",
+            {},
+            userLanguage
+          )}*\n\n\ud83d\udcdb ${t("msg_company_name", {}, userLanguage)}: ${
+            ctx.session.companyData.name
+          }\n\ud83d\udcdd ${t("msg_company_description", {}, userLanguage)}: ${
+            ctx.session.companyData.description
+          }\n\ud83c\udf10 ${t("msg_company_website", {}, userLanguage)}: ${
+            ctx.session.companyData.website ||
+            t("msg_not_set", {}, userLanguage)
+          }\n\ud83d\udcde ${t("msg_company_phone", {}, userLanguage)}: ${
+            ctx.session.companyData.phone
+          }\n\ud83d\udcb0 ${t(
+            "msg_company_commission_rate",
+            {},
+            userLanguage
+          )}: ${rate}%\n\n${t("msg_is_information_correct", {}, userLanguage)}`;
 
           const buttons = [
             [
               Markup.button.callback(
-                "✅ Confirm",
+                t("btn_confirm", {}, userLanguage),
                 "confirm_company_registration"
               ),
             ],
             [
               Markup.button.callback(
-                "❌ Cancel",
+                t("btn_cancel", {}, userLanguage),
                 "cancel_company_registration"
               ),
             ],
@@ -141,9 +141,7 @@ Is this information correct?
       }
     } catch (error) {
       logger.error("Error in registration step:", error);
-      ctx.reply(
-        "❌ Registration failed. Please try again with /register_company"
-      );
+      ctx.reply(t("msg__registration_failed_please_try_again_with_reg", {}, userLanguage));
     }
   }
 
@@ -164,22 +162,20 @@ Is this information correct?
       // Clear session
       delete ctx.session.companyData;
       delete ctx.session.registrationStep;
-      ctx.reply(
-        "🎉 Company registered and active! You can now add products and manage your dashboard."
-      );
+      ctx.reply(t("msg__company_registered_and_active_you_can_now_add", {}, userLanguage));
       if (ctx.callbackQuery) ctx.answerCbQuery();
       await getNotificationServiceInstance().sendAdminActionNotification(
         "Company Registered",
         {
-        company: companyData.name,
-        owner: telegramId,
-        time: new Date().toISOString(),
+          company: companyData.name,
+          owner: telegramId,
+          time: new Date().toISOString(),
           details: JSON.stringify(companyData),
         }
       );
     } catch (error) {
       logger.error("Error confirming company registration:", error);
-      ctx.reply("❌ Registration failed. Please try again.");
+      ctx.reply(t("msg__registration_failed_please_try_again", {}, userLanguage));
       if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
@@ -199,14 +195,14 @@ Is this information correct?
           "❌ You don't have permission to access this feature. Please register a company or contact an admin."
         );
       }
-      
+
       // If admin, show list of all companies to manage
       if (user.role === "admin") {
         const allCompanies = await companyService.getAllCompanies();
         if (!allCompanies || allCompanies.length === 0) {
-          return ctx.reply("No companies found in the system.");
+          return ctx.reply(t("msg_no_companies_found_in_the_system", {}, userLanguage));
         }
-        
+
         let message =
           "🏢 *Admin - Company Management*\n\nSelect a company to view its dashboard:\n\n";
         const buttons = allCompanies.map((comp) => {
@@ -233,13 +229,11 @@ Is this information correct?
           "❌ You have not registered a company yet. Use the 'Register Company' button to start."
         );
       }
-      
+
       const company = companies[0]; // Assuming one company per owner for now
 
       if (!company) {
-        return ctx.reply(
-          "❌ You are not registered as a company. Use /register_company first."
-        );
+        return ctx.reply(t("msg__you_are_not_registered_as_a_company_use_regis", {}, userLanguage));
       }
 
       const dashboardMessage = `
@@ -283,7 +277,7 @@ What would you like to do?
       });
     } catch (error) {
       logger.error("Error showing company dashboard:", error);
-      ctx.reply("❌ Failed to load dashboard. Please try again.");
+      ctx.reply(t("msg__failed_to_load_dashboard_please_try_again", {}, userLanguage));
     }
   }
 
@@ -295,9 +289,7 @@ What would you like to do?
         (await companyService.getCompanyByTelegramId(telegramId))?.id;
 
       if (!companyId) {
-        return ctx.reply(
-          "Could not identify the company. Please go back to the dashboard."
-        );
+        return ctx.reply(t("msg_could_not_identify_the_company_please_go_back_", {}, userLanguage));
       }
 
       const products = await productService.getCompanyProducts(companyId);
@@ -341,23 +333,23 @@ What would you like to do?
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error managing products:", error);
-      ctx.reply("❌ Failed to load products. Please try again.");
+      ctx.reply(t("msg__failed_to_load_products_please_try_again", {}, userLanguage));
       if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
 
   async handleAddProduct(ctx) {
     try {
+      const userLanguage = ctx.session?.language || ctx.from.language_code || "en";
       ctx.session.productCreation = {};
       ctx.session.productStep = "title";
-
-      ctx.reply("📦 *Add New Product*\n\nPlease enter the product title:", {
+      ctx.reply(t("msg_enter_product_name", {}, userLanguage), {
         parse_mode: "Markdown",
       });
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error starting add product:", error);
-      ctx.reply("❌ Failed to start product creation.");
+      ctx.reply(t("msg__failed_to_start_product_creation", {}, userLanguage));
       if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
@@ -366,6 +358,7 @@ What would you like to do?
     try {
       const step = ctx.session.productStep;
       const text = ctx.message.text;
+      const userLanguage = ctx.session?.language || ctx.from.language_code || "en";
 
       if (!ctx.session.productCreation) {
         ctx.session.productCreation = {};
@@ -375,26 +368,24 @@ What would you like to do?
         case "title":
           ctx.session.productCreation.title = text;
           ctx.session.productStep = "description";
-          ctx.reply("📝 Please enter the product description:");
+          ctx.reply(t("msg_enter_product_description", {}, userLanguage));
           break;
 
         case "description":
           ctx.session.productCreation.description = text;
           ctx.session.productStep = "price";
-          ctx.reply(
-            "💰 Please enter the product price (numbers only, e.g., 29.99):"
-          );
+          ctx.reply(t("msg_enter_product_price", {}, userLanguage));
           break;
 
         case "price":
           const price = parseFloat(text);
-          if (isNaN(price) || price <= 0) {
-            return ctx.reply("❌ Please enter a valid price (numbers only):");
+          if (isNaN(price) || price < 0) {
+            return ctx.reply(t("msg_enter_valid_price", {}, userLanguage));
           }
 
           ctx.session.productCreation.price = price;
           ctx.session.productStep = "category";
-          ctx.reply("🏷️ Please enter the product category:");
+          ctx.reply(t("msg_enter_product_category", {}, userLanguage));
           break;
 
         case "category":
@@ -402,27 +393,39 @@ What would you like to do?
 
           // Show confirmation
           const product = ctx.session.productCreation;
-          const confirmationMessage = `
-📦 *Product Confirmation*
-
-📛 Title: ${product.title}
-📝 Description: ${product.description}
-💰 Price: $${product.price}
-🏷️ Category: ${product.category}
-
-Create this product?
-          `;
-
+          const confirmationMessage = `\n\ud83d\udce6 *${t(
+            "msg_product_confirmation",
+            {},
+            userLanguage
+          )}*\n\n\ud83d\udcdb ${t("msg_product_name", {}, userLanguage)}: ${
+            product.title
+          }\n\ud83d\udcdd ${t("msg_product_description", {}, userLanguage)}: ${
+            product.description
+          }\n\ud83d\udcb0 ${t("msg_product_price", {}, userLanguage)}: $${
+            product.price
+          }\n\ud83c\udff7\ufe0f ${t(
+            "msg_product_category",
+            {},
+            userLanguage
+          )}: ${product.category}\n\n${t(
+            "msg_create_this_product",
+            {},
+            userLanguage
+          )}`;
           const buttons = [
             [
               Markup.button.callback(
-                "✅ Create Product",
+                t("btn_create_product", {}, userLanguage),
                 "confirm_product_creation"
               ),
             ],
-            [Markup.button.callback("❌ Cancel", "cancel_product_creation")],
+            [
+              Markup.button.callback(
+                t("btn_cancel", {}, userLanguage),
+                "cancel_product_creation"
+              ),
+            ],
           ];
-
           ctx.reply(confirmationMessage, {
             parse_mode: "Markdown",
             ...Markup.inlineKeyboard(buttons),
@@ -431,7 +434,7 @@ Create this product?
       }
     } catch (error) {
       logger.error("Error in product creation step:", error);
-      ctx.reply("❌ Product creation failed. Please try again.");
+      ctx.reply(t("msg__product_creation_failed_please_try_again", {}, userLanguage));
     }
   }
 
@@ -451,15 +454,15 @@ Create this product?
       delete ctx.session.productCreation;
       delete ctx.session.productStep;
 
-      ctx.reply("✅ Product created successfully!");
+      ctx.reply(t("msg__product_created_successfully", {}, userLanguage));
       if (ctx.callbackQuery) ctx.answerCbQuery();
       await getNotificationServiceInstance().sendAdminActionNotification(
         "Product Added",
         {
-        product: productData.title,
-        company: company.name,
-        owner: telegramId,
-        time: new Date().toISOString(),
+          product: productData.title,
+          company: company.name,
+          owner: telegramId,
+          time: new Date().toISOString(),
           details: JSON.stringify(productData),
         }
       );
@@ -468,7 +471,7 @@ Create this product?
       this.handleManageProducts(ctx);
     } catch (error) {
       logger.error("Error confirming product creation:", error);
-      ctx.reply("❌ Product creation failed. Please try again.");
+      ctx.reply(t("msg__product_creation_failed_please_try_again", {}, userLanguage));
       if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
@@ -477,18 +480,16 @@ Create this product?
     try {
       const productId = ctx.callbackQuery.data.split("_")[2];
       const product = await productService.getProductById(productId);
-      if (!product) return ctx.reply("❌ Product not found.");
+      if (!product) return ctx.reply(t("msg__product_not_found", {}, userLanguage));
       ctx.session.editProductId = productId;
       ctx.session.editProductStep = "title";
       ctx.session.editProductData = { ...product };
-      ctx.reply(
-        `📝 *Edit Product*\n\nCurrent Title: ${product.title}\n\nEnter new title or type 'skip' to keep unchanged:`,
-        { parse_mode: "Markdown" }
+      ctx.reply(t("msg__edit_productnncurrent_title_producttitlennent", {}, userLanguage), { parse_mode: "Markdown" }
       );
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error selecting product to edit:", error);
-      ctx.reply("❌ Failed to start edit.");
+      ctx.reply(t("msg__failed_to_start_edit", {}, userLanguage));
       if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
@@ -497,41 +498,34 @@ Create this product?
     try {
       const step = ctx.session.editProductStep;
       const text = ctx.message.text;
+      const userLanguage = ctx.session?.language || ctx.from.language_code || "en";
       if (!ctx.session.editProductData) return;
       switch (step) {
         case "title":
           if (text !== "skip") ctx.session.editProductData.title = text;
           ctx.session.editProductStep = "description";
-          ctx.reply(
-            `Current Description: ${ctx.session.editProductData.description}\n\nEnter new description or type 'skip':`
-          );
+          ctx.reply(t("msg_current_description_ctxsessioneditproductdatad", {}, userLanguage));
           break;
         case "description":
           if (text !== "skip") ctx.session.editProductData.description = text;
           ctx.session.editProductStep = "price";
-          ctx.reply(
-            `Current Price: $${ctx.session.editProductData.price}\n\nEnter new price or type 'skip':`
-          );
+          ctx.reply(t("msg_current_price_ctxsessioneditproductdatapricenn", {}, userLanguage));
           break;
         case "price":
           if (text !== "skip") {
             const price = parseFloat(text);
             if (isNaN(price) || price <= 0)
-              return ctx.reply("❌ Please enter a valid price:");
+              return ctx.reply(t("msg__please_enter_a_valid_price", {}, userLanguage));
             ctx.session.editProductData.price = price;
           }
           ctx.session.editProductStep = "category";
-          ctx.reply(
-            `Current Category: ${ctx.session.editProductData.category}\n\nEnter new category or type 'skip':`
-          );
+          ctx.reply(t("msg_current_category_ctxsessioneditproductdatacate", {}, userLanguage));
           break;
         case "category":
           if (text !== "skip") ctx.session.editProductData.category = text;
           // Show confirmation
           const p = ctx.session.editProductData;
-          ctx.reply(
-            `*Confirm Product Update*\n\nTitle: ${p.title}\nDescription: ${p.description}\nPrice: $${p.price}\nCategory: ${p.category}\n\nType 'confirm' to save or 'cancel' to abort.`,
-            { parse_mode: "Markdown" }
+          ctx.reply(t("msg_confirm_product_updatenntitle_ptitlendescripti", {}, userLanguage), { parse_mode: "Markdown" }
           );
           ctx.session.editProductStep = "confirm";
           break;
@@ -541,9 +535,9 @@ Create this product?
               ctx.session.editProductId,
               ctx.session.editProductData
             );
-            ctx.reply("✅ Product updated successfully!");
+            ctx.reply(t("msg__product_updated_successfully", {}, userLanguage));
           } else {
-            ctx.reply("❌ Edit cancelled.");
+            ctx.reply(t("msg__edit_cancelled", {}, userLanguage));
           }
           delete ctx.session.editProductId;
           delete ctx.session.editProductStep;
@@ -552,7 +546,7 @@ Create this product?
       }
     } catch (error) {
       logger.error("Error editing product:", error);
-      ctx.reply("❌ Failed to edit product. Please try again.");
+      ctx.reply(t("msg__failed_to_edit_product_please_try_again", {}, userLanguage));
     }
   }
 
@@ -566,7 +560,7 @@ Create this product?
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error starting delete product:", error);
-      ctx.reply("❌ Failed to start delete.");
+      ctx.reply(t("msg__failed_to_start_delete", {}, userLanguage));
       if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
@@ -577,14 +571,14 @@ Create this product?
       const text = ctx.message.text;
       if (text.toLowerCase() === "delete") {
         await productService.deleteProduct(ctx.session.deleteProductId);
-        ctx.reply("✅ Product deleted successfully!");
+        ctx.reply(t("msg__product_deleted_successfully", {}, userLanguage));
       } else {
-        ctx.reply("❌ Delete cancelled.");
+        ctx.reply(t("msg__delete_cancelled", {}, userLanguage));
       }
       delete ctx.session.deleteProductId;
     } catch (error) {
       logger.error("Error confirming delete product:", error);
-      ctx.reply("❌ Failed to delete product. Please try again.");
+      ctx.reply(t("msg__failed_to_delete_product_please_try_again", {}, userLanguage));
     }
   }
 
@@ -637,7 +631,7 @@ ${referralData.topReferrers
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error showing company referrals:", error);
-      ctx.reply("❌ Failed to load referral data. Please try again.");
+      ctx.reply(t("msg__failed_to_load_referral_data_please_try_again", {}, userLanguage));
       if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
@@ -692,7 +686,7 @@ ${referralData.topReferrers
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error showing company analytics:", error);
-      ctx.reply("❌ Failed to load analytics. Please try again.");
+      ctx.reply(t("msg__failed_to_load_analytics_please_try_again", {}, userLanguage));
       if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
@@ -742,7 +736,7 @@ ${referralData.topReferrers
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error showing company settings:", error);
-      ctx.reply("❌ Failed to load settings. Please try again.");
+      ctx.reply(t("msg__failed_to_load_settings_please_try_again", {}, userLanguage));
       if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
@@ -751,16 +745,14 @@ ${referralData.topReferrers
     try {
       const telegramId = ctx.from.id;
       const company = await companyService.getCompanyByTelegramId(telegramId);
-      if (!company) return ctx.reply("❌ Company not found.");
+      if (!company) return ctx.reply(t("msg__company_not_found", {}, userLanguage));
       ctx.session.editCompanyStep = "name";
       ctx.session.editCompanyData = { ...company };
-      ctx.reply(
-        `🏢 *Edit Company Profile*\n\nCurrent Name: ${company.name}\n\nEnter new name or type 'skip' to keep unchanged:`,
-        { parse_mode: "Markdown" }
+      ctx.reply(t("msg__edit_company_profilenncurrent_name_companynam", {}, userLanguage), { parse_mode: "Markdown" }
       );
     } catch (error) {
       logger.error("Error starting company profile edit:", error);
-      ctx.reply("❌ Failed to start profile edit.");
+      ctx.reply(t("msg__failed_to_start_profile_edit", {}, userLanguage));
     }
   }
 
@@ -768,52 +760,39 @@ ${referralData.topReferrers
     try {
       const step = ctx.session.editCompanyStep;
       const text = ctx.message.text;
+      const userLanguage = ctx.session?.language || ctx.from.language_code || "en";
       if (!ctx.session.editCompanyData) return;
       switch (step) {
         case "name":
           if (text !== "skip") ctx.session.editCompanyData.name = text;
           ctx.session.editCompanyStep = "description";
-          ctx.reply(
-            `Current Description: ${ctx.session.editCompanyData.description}\n\nEnter new description or type 'skip':`
-          );
+          ctx.reply(t("msg_current_description_ctxsessioneditcompanydatad", {}, userLanguage));
           break;
         case "description":
           if (text !== "skip") ctx.session.editCompanyData.description = text;
           ctx.session.editCompanyStep = "website";
-          ctx.reply(
-            `Current Website: ${
-              ctx.session.editCompanyData.website || "Not set"
-            }\n\nEnter new website or type 'skip':`
-          );
+          ctx.reply(t("msg_current_website_ctxsessioneditcompanydatawebsi", {}, userLanguage));
           break;
         case "website":
           if (text !== "skip") ctx.session.editCompanyData.website = text;
           ctx.session.editCompanyStep = "phone";
-          ctx.reply(
-            `Current Phone: ${ctx.session.editCompanyData.phone}\n\nEnter new phone or type 'skip':`
-          );
+          ctx.reply(t("msg_current_phone_ctxsessioneditcompanydataphonenn", {}, userLanguage));
           break;
         case "phone":
           if (text !== "skip") ctx.session.editCompanyData.phone = text;
           ctx.session.editCompanyStep = "commission_rate";
-          ctx.reply(
-            `Current Commission Rate: ${ctx.session.editCompanyData.referrerCommissionRate}%\n\nEnter new commission rate (1-50) or type 'skip':`
-          );
+          ctx.reply(t("msg_current_commission_rate_ctxsessioneditcompanyd", {}, userLanguage));
           break;
         case "commission_rate":
           if (text !== "skip") {
             const rate = parseFloat(text);
             if (isNaN(rate) || rate < 1 || rate > 50)
-              return ctx.reply(
-                "❌ Please enter a valid commission rate (1-50):"
-              );
+              return ctx.reply(t("msg__please_enter_a_valid_commission_rate_150", {}, userLanguage));
             ctx.session.editCompanyData.referrerCommissionRate = rate;
           }
           // Show confirmation
           const c = ctx.session.editCompanyData;
-          ctx.reply(
-            `*Confirm Company Profile Update*\n\nName: ${c.name}\nDescription: ${c.description}\nWebsite: ${c.website}\nPhone: ${c.phone}\nCommission Rate: ${c.referrerCommissionRate}%\n\nType 'confirm' to save or 'cancel' to abort.`,
-            { parse_mode: "Markdown" }
+          ctx.reply(t("msg_confirm_company_profile_updatennname_cnamendes", {}, userLanguage), { parse_mode: "Markdown" }
           );
           ctx.session.editCompanyStep = "confirm";
           break;
@@ -823,9 +802,9 @@ ${referralData.topReferrers
               ctx.session.editCompanyData.id,
               ctx.session.editCompanyData
             );
-            ctx.reply("✅ Company profile updated successfully!");
+            ctx.reply(t("msg__company_profile_updated_successfully", {}, userLanguage));
           } else {
-            ctx.reply("❌ Edit cancelled.");
+            ctx.reply(t("msg__edit_cancelled", {}, userLanguage));
           }
           delete ctx.session.editCompanyStep;
           delete ctx.session.editCompanyData;
@@ -833,7 +812,7 @@ ${referralData.topReferrers
       }
     } catch (error) {
       logger.error("Error editing company profile:", error);
-      ctx.reply("❌ Failed to edit company profile. Please try again.");
+      ctx.reply(t("msg__failed_to_edit_company_profile_please_try_aga", {}, userLanguage));
     }
   }
 
@@ -841,25 +820,26 @@ ${referralData.topReferrers
   async handleCancelCompanyRegistration(ctx) {
     delete ctx.session.companyData;
     delete ctx.session.registrationStep;
-    ctx.reply("❌ Company registration cancelled.");
+    ctx.reply(t("msg__company_registration_cancelled", {}, userLanguage));
     if (ctx.callbackQuery) ctx.answerCbQuery();
   }
 
   async handleCancelProductCreation(ctx) {
     delete ctx.session.productCreation;
     delete ctx.session.productStep;
-    ctx.reply("❌ Product creation cancelled.");
+    ctx.reply(t("msg__product_creation_cancelled", {}, userLanguage));
     if (ctx.callbackQuery) ctx.answerCbQuery();
   }
 
   async handleSellProductStart(ctx) {
     ctx.session.sellProductStep = "search";
-    ctx.reply("🔎 Enter product name or keyword to search:");
+    ctx.reply(t("msg__enter_product_name_or_keyword_to_search", {}, userLanguage));
   }
 
   async handleSellProductStep(ctx) {
     const step = ctx.session.sellProductStep;
     const text = ctx.message.text;
+    const userLanguage = ctx.session?.language || ctx.from.language_code || "en";
     if (!ctx.session.sellProductData) ctx.session.sellProductData = {};
     switch (step) {
       case "search":
@@ -872,12 +852,14 @@ ${referralData.topReferrers
           p.title.toLowerCase().includes(text.toLowerCase())
         );
         if (!matches.length)
-          return ctx.reply("❌ No products found. Try another keyword.");
+          return ctx.reply(t("msg__no_products_found_try_another_keyword", {}, userLanguage));
         ctx.session.sellProductData.matches = matches;
         ctx.session.sellProductStep = "select";
         let msg = "Select a product to sell:\n";
         matches.forEach((p, i) => {
-          msg += `${i + 1}. ${p.title} ($${p.price})\n`;
+          msg += `${i + 1}. ${p.title} ($${p.price}) - Qty: ${
+            p.quantity ?? "N/A"
+          }\n`;
         });
         ctx.reply(msg + "\nSend the product number:");
         break;
@@ -885,27 +867,25 @@ ${referralData.topReferrers
         const idx = parseInt(text) - 1;
         const matchList = ctx.session.sellProductData.matches || [];
         if (isNaN(idx) || idx < 0 || idx >= matchList.length)
-          return ctx.reply("❌ Invalid selection.");
+          return ctx.reply(t("msg__invalid_selection", {}, userLanguage));
         ctx.session.sellProductData.product = matchList[idx];
         ctx.session.sellProductStep = "buyer_username";
-        ctx.reply("Enter buyer Telegram username (without @):");
+        ctx.reply(t("msg_enter_buyer_telegram_username_without_", {}, userLanguage));
         break;
       case "buyer_username":
         ctx.session.sellProductData.buyerUsername = text.replace(/^@/, "");
         ctx.session.sellProductStep = "buyer_phone";
-        ctx.reply("Enter buyer phone number:");
+        ctx.reply(t("msg_enter_buyer_phone_number", {}, userLanguage));
         break;
       case "buyer_phone":
         ctx.session.sellProductData.buyerPhone = text;
         ctx.session.sellProductStep = "confirm";
         const p = ctx.session.sellProductData.product;
-        ctx.reply(
-          `Confirm sale of ${p.title} ($${p.price}) to @${ctx.session.sellProductData.buyerUsername} (${ctx.session.sellProductData.buyerPhone})? Type "confirm" to proceed or "cancel" to abort.`
-        );
+        ctx.reply(t("msg_confirm_sale_of_ptitle_pprice_qty_pquantity_na", {}, userLanguage));
         break;
       case "confirm":
         if (text.trim().toLowerCase() !== "confirm") {
-          ctx.reply("❌ Sale cancelled.");
+          ctx.reply(t("msg__sale_cancelled", {}, userLanguage));
           ctx.session.sellProductStep = null;
           ctx.session.sellProductData = null;
           return;
@@ -921,6 +901,10 @@ ${referralData.topReferrers
           buyerUsername,
           ctx.from
         );
+        if (!buyer) {
+          ctx.reply(t("msg__buyer_not_found_please_check_the_username_and", {}, userLanguage));
+          return;
+        }
         // Update user info if changed
         if (buyer && ctx.from) {
           const updates = {};
@@ -965,12 +949,12 @@ ${referralData.topReferrers
           buyer.telegramId,
           `🎉 You bought ${product.title} from ${company.name}! Your referral code: ${code}`
         );
-        ctx.reply("✅ Sale recorded and referral code sent to buyer.");
+        ctx.reply(t("msg__sale_recorded_and_referral_code_sent_to_buyer", {}, userLanguage));
         ctx.session.sellProductStep = null;
         ctx.session.sellProductData = null;
         break;
       default:
-        ctx.reply("❌ Invalid step. Please start again.");
+        ctx.reply(t("msg__invalid_step_please_start_again", {}, userLanguage));
         ctx.session.sellProductStep = null;
         ctx.session.sellProductData = null;
     }
@@ -982,11 +966,11 @@ ${referralData.topReferrers
       const productId = ctx.callbackQuery.data.split("_")[2];
       ctx.session.sellProductId = productId;
       ctx.session.sellStep = "user";
-      ctx.reply("Is this sale with a referral code? (Yes/No):");
+      ctx.reply(t("msg_is_this_sale_with_a_referral_code_yesno", {}, userLanguage));
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error starting sell flow:", error);
-      ctx.reply("❌ Failed to start sell flow.");
+      ctx.reply(t("msg__failed_to_start_sell_flow", {}, userLanguage));
       if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
@@ -997,6 +981,7 @@ ${referralData.topReferrers
       const productId = ctx.session.sellProductId;
       const step = ctx.session.sellStep;
       const text = ctx.message.text.trim();
+      const userLanguage = ctx.session?.language || ctx.from.language_code || "en";
       if (step === "user") {
         // Lookup user by Telegram ID or phone
         let user = null;
@@ -1006,19 +991,13 @@ ${referralData.topReferrers
           user = await userService.getUserByPhone(text);
         }
         if (!user) {
-          ctx.reply(
-            "❌ User not found. Enter a valid Telegram ID or phone number:"
-          );
+          ctx.reply(t("msg__user_not_found_enter_a_valid_telegram_id_or_p", {}, userLanguage));
           return;
         }
         ctx.session.sellUserId = user.telegramId;
         ctx.session.sellStep = "confirm";
         const product = await productService.getProductById(productId);
-        ctx.reply(
-          `Confirm sale of *${product.title}* ($${product.price}) to @${
-            user.username || user.telegramId
-          }?\nType 'confirm' to proceed or 'cancel' to abort.`,
-          { parse_mode: "Markdown" }
+        ctx.reply(t("msg_confirm_sale_of_producttitle_productprice_to_u", {}, userLanguage), { parse_mode: "Markdown" }
         );
         return;
       }
@@ -1035,7 +1014,7 @@ ${referralData.topReferrers
             customerInfo: {},
           };
           await require("../services/orderService").createOrder(orderData);
-          ctx.reply("✅ Sale completed and user notified!");
+          ctx.reply(t("msg__sale_completed_and_user_notified", {}, userLanguage));
           // Notify user
           await notificationService.sendNotification(
             ctx.session.sellUserId,
@@ -1050,7 +1029,7 @@ ${referralData.topReferrers
             );
           }
         } else {
-          ctx.reply("❌ Sale cancelled.");
+          ctx.reply(t("msg__sale_cancelled", {}, userLanguage));
         }
         delete ctx.session.sellProductId;
         delete ctx.session.sellStep;
@@ -1058,7 +1037,7 @@ ${referralData.topReferrers
       }
     } catch (error) {
       logger.error("Error in sell flow:", error);
-      ctx.reply("❌ Failed to complete sale.");
+      ctx.reply(t("msg__failed_to_complete_sale", {}, userLanguage));
     }
   }
 }

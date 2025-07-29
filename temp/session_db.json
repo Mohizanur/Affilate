@@ -1,17 +1,3 @@
 {
-  "sessions": [
-    {
-      "id": "5186537254:5186537254",
-      "data": {
-        "pendingWithdrawal": {
-          "companyId": "a55bfc77-3145-41c5-9d6c-da92cbd0a9a1",
-          "amount": 60
-        },
-        "searchType": "user",
-        "waitingForSearch": true,
-        "state": null,
-        "editSetting": null
-      }
-    }
-  ]
+  "sessions": []
 }
