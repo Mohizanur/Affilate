@@ -103,23 +103,36 @@ class AdminService {
 
   async getCompanyAnalytics() {
     try {
-      // Firestore: get all companies, count by status
       const companiesSnap = await databaseService.companies().get();
-      let total = 0,
-        approved = 0,
-        pending = 0,
-        rejected = 0;
-      companiesSnap.forEach((doc) => {
-        const c = doc.data();
-        total++;
-        if (c.status === "approved") approved++;
-        else if (c.status === "pending") pending++;
-        else if (c.status === "rejected") rejected++;
-      });
-      return { total, approved, pending, rejected };
+      const analytics = [];
+
+      for (const doc of companiesSnap.docs) {
+        const company = doc.data();
+        const companyId = doc.id;
+
+        // Get company's products count
+        const productsSnap = await databaseService
+          .getDb()
+          .collection("products")
+          .where("companyId", "==", companyId)
+          .get();
+
+        analytics.push({
+          id: companyId,
+          name: company.name,
+          ownerUsername: company.ownerUsername || company.telegramId,
+          platformFees: company.billingBalance || 0,
+          withdrawable: company.billingBalance || 0,
+          lifetimeRevenue: company.billingBalance || 0,
+          productCount: productsSnap.size,
+          hasWithdrawable: (company.billingBalance || 0) > 0,
+        });
+      }
+
+      return analytics;
     } catch (error) {
       logger.error("Error getting company analytics:", error);
-      throw error;
+      return [];
     }
   }
 
@@ -626,24 +639,24 @@ class AdminService {
         databaseService.users().get(),
         databaseService.companies().where("status", "==", "approved").get(),
       ]);
-      
+
       // Calculate total platform fees from all companies
       let totalPlatformFees = 0;
       let totalWithdrawable = 0;
-      
+
       for (const doc of companiesSnap.docs) {
         const company = doc.data();
-        totalPlatformFees += company.platformFees || 0;
-        totalWithdrawable += company.withdrawable || 0;
+        totalPlatformFees += company.billingBalance || 0;
+        totalWithdrawable += company.billingBalance || 0;
       }
-      
+
       const totalUsers = usersSnap.size;
       const totalCompanies = companiesSnap.size;
-      return { 
-        totalUsers, 
-        totalCompanies, 
-        totalPlatformFees, 
-        totalWithdrawable 
+      return {
+        totalUsers,
+        totalCompanies,
+        totalPlatformFees,
+        totalWithdrawable,
       };
     } catch (error) {
       logger.error("Error getting quick stats (Firestore):", error);
@@ -1072,10 +1085,11 @@ class AdminService {
         const company = doc.data();
         const companyId = doc.id;
 
-        // Get company's platform fees and withdrawals
-        const platformFees = company.platformFees || 0;
-        const withdrawable = company.withdrawable || 0;
-        const lifetimeRevenue = company.lifetimeRevenue || 0;
+        // Calculate platform fees from existing data
+        // For now, use billingBalance as a proxy for platform fees
+        const platformFees = company.billingBalance || 0;
+        const withdrawable = company.billingBalance || 0; // Same as platform fees for now
+        const lifetimeRevenue = company.billingBalance || 0; // Same for now
 
         totalPlatformFees += platformFees;
         totalWithdrawable += withdrawable;
@@ -1129,12 +1143,12 @@ class AdminService {
         analytics.push({
           id: companyId,
           name: company.name,
-          ownerUsername: company.ownerUsername,
-          platformFees: company.platformFees || 0,
-          withdrawable: company.withdrawable || 0,
-          lifetimeRevenue: company.lifetimeRevenue || 0,
+          ownerUsername: company.ownerUsername || company.telegramId,
+          platformFees: company.billingBalance || 0,
+          withdrawable: company.billingBalance || 0,
+          lifetimeRevenue: company.billingBalance || 0,
           productCount: productsSnap.size,
-          hasWithdrawable: (company.withdrawable || 0) > 0,
+          hasWithdrawable: (company.billingBalance || 0) > 0,
         });
       }
 

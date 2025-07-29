@@ -648,11 +648,11 @@ class AdminHandlers {
 `;
       msg += `📋 Description: ${company.description || "N/A"}
 `;
-      msg += `💰 Platform Fees: $${(company.platformFees || 0).toFixed(2)}
+      msg += `💰 Platform Fees: $${(company.billingBalance || 0).toFixed(2)}
 `;
-      msg += `💳 Withdrawable: $${(company.withdrawable || 0).toFixed(2)}
+      msg += `💳 Withdrawable: $${(company.billingBalance || 0).toFixed(2)}
 `;
-      msg += `📈 Lifetime Revenue: $${(company.lifetimeRevenue || 0).toFixed(2)}
+      msg += `📈 Lifetime Revenue: $${(company.billingBalance || 0).toFixed(2)}
 `;
       msg += `📦 Products: ${companyAnalytic?.productCount || 0}
 `;
@@ -670,12 +670,12 @@ class AdminHandlers {
       ];
 
       // Add withdrawal button if company has withdrawable amount
-      if (company.withdrawable && company.withdrawable > 0) {
+      if (company.billingBalance && company.billingBalance > 0) {
         buttons.unshift([
           Markup.button.callback(
-            `💳 Withdraw $${company.withdrawable.toFixed(2)}`,
+            `💳 Withdraw $${company.billingBalance.toFixed(2)}`, 
             `admin_withdraw_company_${companyId}`
-          ),
+          )
         ]);
       }
 
