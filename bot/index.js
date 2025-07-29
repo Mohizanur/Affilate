@@ -1,4 +1,4 @@
-require('dotenv').config();
+require("dotenv").config();
 console.log("Loaded bot/index.js");
 console.log(
   "Loaded BOT_TOKEN:",
@@ -93,6 +93,10 @@ function registerHandlers(bot) {
 
   // Register the main text handler for all text messages
   bot.on("text", (ctx) => messageHandlers.handleTextMessage(ctx));
+  // Register handlers for media messages
+  bot.on("photo", (ctx) => messageHandlers.handlePhotoMessage(ctx));
+  bot.on("video", (ctx) => messageHandlers.handleVideoMessage(ctx));
+  bot.on("document", (ctx) => messageHandlers.handleDocumentMessage(ctx));
   // Register handler for contact messages (phone number sharing)
   bot.on("contact", (ctx) => userHandlers.handlePhoneContact(ctx));
   // Register handler for callback queries (inline keyboard button presses)

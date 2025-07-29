@@ -935,7 +935,41 @@ class AdminHandlers {
   }
 
   async handleSystemSettings(ctx) {
-    ctx.reply("Not implemented: handleSystemSettings");
+    try {
+      if (!(await this.isAdminAsync(ctx.from.id)))
+        return ctx.reply(
+          t("msg__access_denied", {}, ctx.session?.language || "en")
+        );
+      // Example settings, replace with real fetch if available
+      const settings = {
+        platformFee: 5,
+        referralBonus: 2,
+        buyerBonus: 1,
+        language: "en",
+        maintenance: false,
+      };
+      let msg = `⚙️ *System Settings*\n\n`;
+      msg += `• Platform Fee: ${settings.platformFee}%\n`;
+      msg += `• Referral Bonus: ${settings.referralBonus}%\n`;
+      msg += `• Buyer Bonus: ${settings.buyerBonus}%\n`;
+      msg += `• Language: ${settings.language}\n`;
+      msg += `• Maintenance Mode: ${settings.maintenance ? "ON" : "OFF"}\n`;
+      const buttons = [
+        [Markup.button.callback("Edit Platform Fee", "edit_platform_fee")],
+        [Markup.button.callback("Edit Referral Bonus", "edit_referral_bonus")],
+        [Markup.button.callback("Edit Buyer Bonus", "edit_buyer_bonus")],
+        [Markup.button.callback("Toggle Maintenance", "toggle_maintenance")],
+      ];
+      ctx.reply(msg, {
+        parse_mode: "Markdown",
+        ...Markup.inlineKeyboard(buttons),
+      });
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    } catch (error) {
+      logger.error("Error in system settings:", error);
+      ctx.reply("❌ Failed to load system settings.");
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    }
   }
 
   async handleEditPlatformFee(ctx) {
@@ -963,7 +997,37 @@ class AdminHandlers {
   }
 
   async handlePlatformAnalyticsDashboard(ctx, page = 1) {
-    ctx.reply("Not implemented: handlePlatformAnalyticsDashboard");
+    try {
+      if (!(await this.isAdminAsync(ctx.from.id)))
+        return ctx.reply(
+          t("msg__access_denied", {}, ctx.session?.language || "en")
+        );
+      const analytics = await adminService.getAnalytics();
+      const dashboard = await adminService.getDashboardData();
+      let msg = `📊 *Platform Analytics*
+
+`;
+      msg += `👥 *Users:* ${analytics.users.total}\n`;
+      msg += `🏢 *Companies:* ${analytics.companies.total}\n`;
+      msg += `📦 *Orders:* ${analytics.orders.total}\n`;
+      msg += `💰 *Revenue:* $${analytics.revenue.total?.toFixed(2) || 0}\n`;
+      msg += `📈 *Active Users (7d):* ${analytics.users.active}\n`;
+      msg += `⭐ *Referrers:* ${analytics.users.referrers}\n`;
+      msg += `\n*Recent Users:*\n`;
+      dashboard.recentUsers?.forEach((u) => {
+        msg += `• ${u.username || u.first_name || u.id} (${u.id})\n`;
+      });
+      msg += `\n*System Alerts:*\n`;
+      dashboard.systemAlerts?.forEach((a) => {
+        msg += `• [${a.priority}] ${a.message}\n`;
+      });
+      ctx.reply(msg, { parse_mode: "Markdown" });
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    } catch (error) {
+      logger.error("Error in platform analytics dashboard:", error);
+      ctx.reply("❌ Failed to load analytics.");
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    }
   }
 
   async handleMaintenanceMode(ctx) {
@@ -1050,7 +1114,133 @@ class AdminHandlers {
   }
 
   async handleBackupSystem(ctx) {
-    ctx.reply("Not implemented: handleBackupSystem");
+    try {
+      if (!(await this.isAdminAsync(ctx.from.id)))
+        return ctx.reply(
+          t("msg__access_denied", {}, ctx.session?.language || "en")
+        );
+
+      ctx.reply("📊 Generating PDF backup...");
+
+      const users = await userService.getAllUsers();
+      const companies = await companyService.getAllCompanies();
+
+      // Create PDF
+      const PDFDocument = require("pdfkit");
+      const doc = new PDFDocument();
+      const chunks = [];
+
+      doc.on("data", (chunk) => chunks.push(chunk));
+      doc.on("end", async () => {
+        try {
+          const pdfBuffer = Buffer.concat(chunks);
+
+          // Send PDF as document
+          await ctx.replyWithDocument({
+            source: pdfBuffer,
+            filename: `backup_${new Date().toISOString().split("T")[0]}.pdf`,
+            caption: `📊 System Backup Report\n\n📅 Generated: ${new Date().toLocaleString()}\n👥 Users: ${
+              users.length
+            }\n🏢 Companies: ${companies.length}`,
+          });
+
+          if (ctx.callbackQuery) ctx.answerCbQuery();
+        } catch (error) {
+          logger.error("Error sending PDF:", error);
+          ctx.reply("❌ Failed to send PDF backup.");
+          if (ctx.callbackQuery) ctx.answerCbQuery();
+        }
+      });
+
+      // Add content to PDF
+      doc.fontSize(20).text("System Backup Report", { align: "center" });
+      doc.moveDown();
+      doc
+        .fontSize(12)
+        .text(`Generated: ${new Date().toLocaleString()}`, { align: "center" });
+      doc.moveDown(2);
+
+      // Users section
+      doc.fontSize(16).text("Users", { underline: true });
+      doc.moveDown();
+      if (users.length === 0) {
+        doc.fontSize(10).text("No users found.");
+      } else {
+        users.forEach((user, index) => {
+          doc
+            .fontSize(10)
+            .text(
+              `${index + 1}. ${user.firstName || "N/A"} ${
+                user.lastName || "N/A"
+              }`
+            );
+          doc
+            .fontSize(8)
+            .text(
+              `   ID: ${user.id} | Phone: ${user.phone || "N/A"} | Balance: ${
+                user.coinBalance || 0
+              }`
+            );
+          doc
+            .fontSize(8)
+            .text(
+              `   Role: ${user.role || "user"} | Created: ${
+                user.createdAt
+                  ? new Date(user.createdAt).toLocaleDateString()
+                  : "N/A"
+              }`
+            );
+          doc.moveDown(0.5);
+        });
+      }
+
+      doc.moveDown(2);
+
+      // Companies section
+      doc.fontSize(16).text("Companies", { underline: true });
+      doc.moveDown();
+      if (companies.length === 0) {
+        doc.fontSize(10).text("No companies found.");
+      } else {
+        companies.forEach((company, index) => {
+          doc.fontSize(10).text(`${index + 1}. ${company.name || "N/A"}`);
+          doc
+            .fontSize(8)
+            .text(
+              `   ID: ${company.id} | Email: ${
+                company.email || "N/A"
+              } | Website: ${company.website || "N/A"}`
+            );
+          doc
+            .fontSize(8)
+            .text(`   Description: ${company.description || "N/A"}`);
+          doc
+            .fontSize(8)
+            .text(
+              `   Created: ${
+                company.createdAt
+                  ? new Date(company.createdAt).toLocaleDateString()
+                  : "N/A"
+              }`
+            );
+          doc.moveDown(0.5);
+        });
+      }
+
+      // Add summary
+      doc.moveDown(2);
+      doc.fontSize(14).text("Summary", { underline: true });
+      doc.moveDown();
+      doc.fontSize(10).text(`Total Users: ${users.length}`);
+      doc.fontSize(10).text(`Total Companies: ${companies.length}`);
+      doc.fontSize(10).text(`Backup Date: ${new Date().toLocaleString()}`);
+
+      doc.end();
+    } catch (error) {
+      logger.error("Error in backup system:", error);
+      ctx.reply("❌ Failed to export data.");
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    }
   }
 
   async handleCompanyApproveWithdrawal(ctx, withdrawalId) {
@@ -1082,19 +1272,280 @@ class AdminHandlers {
   }
 
   async handleBroadcast(ctx) {
-    ctx.reply("Not implemented: handleBroadcast");
+    try {
+      if (!(await this.isAdminAsync(ctx.from.id)))
+        return ctx.reply(
+          t("msg__access_denied", {}, ctx.session?.language || "en")
+        );
+
+      const buttons = [
+        [Markup.button.callback("📝 Text Message", "broadcast_text")],
+        [Markup.button.callback("🖼️ Photo", "broadcast_photo")],
+        [Markup.button.callback("📹 Video", "broadcast_video")],
+        [Markup.button.callback("📄 Document", "broadcast_document")],
+        [Markup.button.callback("🔙 Back", "admin_panel")],
+      ];
+
+      ctx.reply(
+        "📢 *Broadcast Message*\n\nSelect the type of message to send:",
+        {
+          parse_mode: "Markdown",
+          ...Markup.inlineKeyboard(buttons),
+        }
+      );
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    } catch (error) {
+      logger.error("Error in broadcast:", error);
+      ctx.reply("❌ Failed to start broadcast.");
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    }
   }
 
   async handleBroadcastType(ctx) {
-    ctx.reply("Not implemented: handleBroadcastType");
+    try {
+      const callbackData = ctx.callbackQuery?.data;
+      if (!callbackData) return;
+
+      const type = callbackData.replace("broadcast_", "");
+      ctx.session.broadcastType = type;
+      ctx.session.broadcastStep = "awaiting_content";
+
+      let message = "";
+      switch (type) {
+        case "text":
+          message = "📝 Enter the text message to broadcast:";
+          break;
+        case "photo":
+          message = "🖼️ Send the photo to broadcast (with optional caption):";
+          break;
+        case "video":
+          message = "📹 Send the video to broadcast (with optional caption):";
+          break;
+        case "document":
+          message =
+            "📄 Send the document to broadcast (with optional caption):";
+          break;
+        default:
+          message = "❌ Invalid broadcast type.";
+      }
+
+      const buttons = [[Markup.button.callback("🔙 Back", "admin_broadcast")]];
+
+      ctx.reply(message, {
+        ...Markup.inlineKeyboard(buttons),
+      });
+      ctx.answerCbQuery();
+    } catch (error) {
+      logger.error("Error in broadcast type selection:", error);
+      ctx.reply("❌ Failed to set broadcast type.");
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    }
   }
 
   async handleBroadcastMessage(ctx, messageText) {
-    ctx.reply("Not implemented: handleBroadcastMessage");
+    try {
+      if (!(await this.isAdminAsync(ctx.from.id)))
+        return ctx.reply(
+          t("msg__access_denied", {}, ctx.session?.language || "en")
+        );
+
+      if (!messageText || messageText.trim().length === 0) {
+        return ctx.reply("❌ Message cannot be empty. Please try again.");
+      }
+
+      ctx.session.broadcastMessage = messageText;
+      ctx.session.broadcastStep = "confirm";
+
+      const buttons = [
+        [Markup.button.callback("✅ Send Broadcast", "confirm_broadcast")],
+        [Markup.button.callback("❌ Cancel", "admin_broadcast")],
+      ];
+
+      ctx.reply(
+        `📢 *Broadcast Preview:*\n\n${messageText}\n\nSend this message to all users?`,
+        {
+          parse_mode: "Markdown",
+          ...Markup.inlineKeyboard(buttons),
+        }
+      );
+    } catch (error) {
+      logger.error("Error in broadcast message:", error);
+      ctx.reply("❌ Failed to process broadcast message.");
+    }
   }
 
   async handleBroadcastMedia(ctx) {
-    ctx.reply("Not implemented: handleBroadcastMedia");
+    try {
+      if (!(await this.isAdminAsync(ctx.from.id)))
+        return ctx.reply(
+          t("msg__access_denied", {}, ctx.session?.language || "en")
+        );
+
+      const type = ctx.session.broadcastType;
+      let mediaData = {};
+
+      switch (type) {
+        case "photo":
+          if (!ctx.message?.photo) {
+            return ctx.reply("❌ Please send a photo.");
+          }
+          mediaData = {
+            type: "photo",
+            fileId: ctx.message.photo[ctx.message.photo.length - 1].file_id,
+            caption: ctx.message.caption || "",
+          };
+          break;
+        case "video":
+          if (!ctx.message?.video) {
+            return ctx.reply("❌ Please send a video.");
+          }
+          mediaData = {
+            type: "video",
+            fileId: ctx.message.video.file_id,
+            caption: ctx.message.caption || "",
+          };
+          break;
+        case "document":
+          if (!ctx.message?.document) {
+            return ctx.reply("❌ Please send a document.");
+          }
+          mediaData = {
+            type: "document",
+            fileId: ctx.message.document.file_id,
+            caption: ctx.message.caption || "",
+          };
+          break;
+        default:
+          return ctx.reply("❌ Invalid media type.");
+      }
+
+      ctx.session.broadcastMedia = mediaData;
+      ctx.session.broadcastStep = "confirm";
+
+      const buttons = [
+        [Markup.button.callback("✅ Send Broadcast", "confirm_broadcast")],
+        [Markup.button.callback("❌ Cancel", "admin_broadcast")],
+      ];
+
+      const previewText = mediaData.caption
+        ? `\n\nCaption: ${mediaData.caption}`
+        : "";
+      ctx.reply(
+        `📢 *Broadcast Preview:*\n\nType: ${type.toUpperCase()}${previewText}\n\nSend this ${type} to all users?`,
+        {
+          parse_mode: "Markdown",
+          ...Markup.inlineKeyboard(buttons),
+        }
+      );
+    } catch (error) {
+      logger.error("Error in broadcast media:", error);
+      ctx.reply("❌ Failed to process broadcast media.");
+    }
+  }
+
+  async handleConfirmBroadcast(ctx) {
+    try {
+      if (!(await this.isAdminAsync(ctx.from.id)))
+        return ctx.reply(
+          t("msg__access_denied", {}, ctx.session?.language || "en")
+        );
+
+      const type = ctx.session.broadcastType;
+      const { getBot } = require("../index");
+      const bot = getBot();
+
+      // Get all users
+      const usersSnap = await require("../config/database").users().get();
+      let sent = 0,
+        failed = 0,
+        total = 0;
+      const failedUsers = [];
+
+      ctx.reply("📤 Starting broadcast...");
+
+      for (const doc of usersSnap.docs) {
+        const user = doc.data();
+        if (!user.telegramId) continue;
+        total++;
+
+        try {
+          switch (type) {
+            case "text":
+              await bot.telegram.sendMessage(
+                user.telegramId,
+                ctx.session.broadcastMessage
+              );
+              break;
+            case "photo":
+              await bot.telegram.sendPhoto(
+                user.telegramId,
+                ctx.session.broadcastMedia.fileId,
+                {
+                  caption: ctx.session.broadcastMedia.caption || undefined,
+                }
+              );
+              break;
+            case "video":
+              await bot.telegram.sendVideo(
+                user.telegramId,
+                ctx.session.broadcastMedia.fileId,
+                {
+                  caption: ctx.session.broadcastMedia.caption || undefined,
+                }
+              );
+              break;
+            case "document":
+              await bot.telegram.sendDocument(
+                user.telegramId,
+                ctx.session.broadcastMedia.fileId,
+                {
+                  caption: ctx.session.broadcastMedia.caption || undefined,
+                }
+              );
+              break;
+          }
+          sent++;
+        } catch (err) {
+          failed++;
+          failedUsers.push(user.telegramId);
+          console.error(
+            `Broadcast failed for user ${user.telegramId}:`,
+            err.message
+          );
+        }
+
+        // Small delay to avoid Telegram rate limits
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+
+      // Clear session
+      delete ctx.session.broadcastType;
+      delete ctx.session.broadcastStep;
+      delete ctx.session.broadcastMessage;
+      delete ctx.session.broadcastMedia;
+
+      const resultMessage = `📢 *Broadcast Complete*\n\n✅ Sent: ${sent}\n❌ Failed: ${failed}\n📊 Total: ${total}`;
+
+      if (failedUsers.length > 0) {
+        resultMessage += `\n\nFailed users: ${failedUsers
+          .slice(0, 10)
+          .join(", ")}${failedUsers.length > 10 ? "..." : ""}`;
+      }
+
+      const buttons = [
+        [Markup.button.callback("🔙 Back to Admin Panel", "admin_panel")],
+      ];
+
+      ctx.reply(resultMessage, {
+        parse_mode: "Markdown",
+        ...Markup.inlineKeyboard(buttons),
+      });
+      ctx.answerCbQuery();
+    } catch (error) {
+      logger.error("Error in confirm broadcast:", error);
+      ctx.reply("❌ Failed to send broadcast.");
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    }
   }
 
   async handlePayoutManagement(ctx) {

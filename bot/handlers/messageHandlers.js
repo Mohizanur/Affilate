@@ -12,7 +12,13 @@ const userHandlers = require("./userHandlers");
 
 function blockIfBanned(ctx, user) {
   if (user && (user.banned || user.isBanned)) {
-    ctx.reply(t("msg__you_are_banned_from_using_this_bot", {}, ctx.session?.language || "en"));
+    ctx.reply(
+      t(
+        "msg__you_are_banned_from_using_this_bot",
+        {},
+        ctx.session?.language || "en"
+      )
+    );
     return true;
   }
   return false;
@@ -41,8 +47,13 @@ class MessageHandlers {
       if (ctx.session && ctx.session.adminRemoveCompanyStep) {
         return adminHandlers.handleAdminRemoveCompanyStep(ctx);
       }
-      if (ctx.session && ctx.session.waitingForBroadcast) {
-        return adminHandlers.handleBroadcastMessage(ctx, messageText);
+      if (ctx.session && ctx.session.broadcastStep === "awaiting_content") {
+        const type = ctx.session.broadcastType;
+        if (type === "text") {
+          return adminHandlers.handleBroadcastMessage(ctx, ctx.message.text);
+        } else {
+          return adminHandlers.handleBroadcastMedia(ctx);
+        }
       }
       if (
         ctx.session &&
@@ -83,12 +94,16 @@ class MessageHandlers {
         return userHandlers.handleMyReferralCodes(ctx);
       }
 
-      ctx.reply(
-        t(ctx, 'unknown_command')
-      );
+      ctx.reply(t(ctx, "unknown_command"));
     } catch (error) {
       logger.error("Error in handleTextMessage:", error);
-      ctx.reply(t("msg__something_went_wrong_please_try_again", {}, ctx.session?.language || "en"));
+      ctx.reply(
+        t(
+          "msg__something_went_wrong_please_try_again",
+          {},
+          ctx.session?.language || "en"
+        )
+      );
     }
   }
 
@@ -125,7 +140,13 @@ class MessageHandlers {
         case "awaiting_fee_calculator_amount": {
           const amount = parseFloat(messageText);
           if (isNaN(amount) || amount <= 0) {
-            return ctx.reply(t("msg__please_enter_a_valid_amount", {}, ctx.session?.language || "en"));
+            return ctx.reply(
+              t(
+                "msg__please_enter_a_valid_amount",
+                {},
+                ctx.session?.language || "en"
+              )
+            );
           }
           // Fetch dynamic settings
           const settings = await getPlatformSettings();
@@ -151,50 +172,106 @@ Purchase Amount: $${amount.toFixed(2)}
         }
         default:
           ctx.session.state = null;
-          ctx.reply(t("msg__session_expired_please_start_over", {}, ctx.session?.language || "en"));
+          ctx.reply(
+            t(
+              "msg__session_expired_please_start_over",
+              {},
+              ctx.session?.language || "en"
+            )
+          );
       }
     } catch (error) {
       logger.error("Error in handleSessionState:", error);
-      ctx.reply(t("msg__something_went_wrong_please_try_again", {}, ctx.session?.language || "en"));
+      ctx.reply(
+        t(
+          "msg__something_went_wrong_please_try_again",
+          {},
+          ctx.session?.language || "en"
+        )
+      );
     }
   }
 
   async handleCompanyName(ctx, companyName) {
     if (companyName.length < 2 || companyName.length > 100) {
-      return ctx.reply(t("msg__company_name_must_be_between_2_and_100_charac", {}, ctx.session?.language || "en"));
+      return ctx.reply(
+        t(
+          "msg__company_name_must_be_between_2_and_100_charac",
+          {},
+          ctx.session?.language || "en"
+        )
+      );
     }
     ctx.session.companyData = { name: companyName };
     ctx.session.state = "awaiting_company_description";
-    ctx.reply(t("msg__company_name_savednnnow_please_provide_a_brie", {}, ctx.session?.language || "en"));
+    ctx.reply(
+      t(
+        "msg__company_name_savednnnow_please_provide_a_brie",
+        {},
+        ctx.session?.language || "en"
+      )
+    );
   }
 
   async handleCompanyDescription(ctx, description) {
     if (description.length < 10 || description.length > 500) {
-      return ctx.reply(t("msg__description_must_be_between_10_and_500_charac", {}, ctx.session?.language || "en"));
+      return ctx.reply(
+        t(
+          "msg__description_must_be_between_10_and_500_charac",
+          {},
+          ctx.session?.language || "en"
+        )
+      );
     }
     ctx.session.companyData.description = description;
     ctx.session.state = "awaiting_company_website";
-    ctx.reply(t("msg__description_savednnplease_provide_your_compan", {}, ctx.session?.language || "en"));
+    ctx.reply(
+      t(
+        "msg__description_savednnplease_provide_your_compan",
+        {},
+        ctx.session?.language || "en"
+      )
+    );
   }
 
   async handleCompanyWebsite(ctx, website) {
     const urlRegex = /^https?:\/\/.+\..+/;
     if (!urlRegex.test(website)) {
-      return ctx.reply(t("msg__please_provide_a_valid_website_url_starting_w", {}, ctx.session?.language || "en"));
+      return ctx.reply(
+        t(
+          "msg__please_provide_a_valid_website_url_starting_w",
+          {},
+          ctx.session?.language || "en"
+        )
+      );
     }
     ctx.session.companyData.website = website;
     ctx.session.state = "awaiting_company_email";
-    ctx.reply(t("msg__website_savednnfinally_please_provide_your_bu", {}, ctx.session?.language || "en"));
+    ctx.reply(
+      t(
+        "msg__website_savednnfinally_please_provide_your_bu",
+        {},
+        ctx.session?.language || "en"
+      )
+    );
   }
 
   async handleCompanyEmail(ctx, email) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      return ctx.reply(t("msg__please_provide_a_valid_email_address", {}, ctx.session?.language || "en"));
+      return ctx.reply(
+        t(
+          "msg__please_provide_a_valid_email_address",
+          {},
+          ctx.session?.language || "en"
+        )
+      );
     }
     try {
       const telegramId = ctx.from.id;
-      const user = await userService.userService.getUserByTelegramId(telegramId);
+      const user = await userService.userService.getUserByTelegramId(
+        telegramId
+      );
       if (blockIfBanned(ctx, user)) return;
 
       const companyData = {
@@ -223,7 +300,13 @@ Purchase Amount: $${amount.toFixed(2)}
       ctx.reply(successMessage, { parse_mode: "Markdown" });
     } catch (error) {
       logger.error("Error in handleCompanyEmail:", error);
-      ctx.reply(t("msg__failed_to_submit_registration_please_try_agai", {}, ctx.session?.language || "en"));
+      ctx.reply(
+        t(
+          "msg__failed_to_submit_registration_please_try_agai",
+          {},
+          ctx.session?.language || "en"
+        )
+      );
     }
   }
 
@@ -234,10 +317,22 @@ Purchase Amount: $${amount.toFixed(2)}
       const user = await userService.getUserByTelegramId(ctx.from.id);
       if (blockIfBanned(ctx, user)) return;
       const balance = user.coinBalance || 0;
-      ctx.reply(t("msg__payment_details_savednnhow_much_would_you_lik", {}, ctx.session?.language || "en"));
+      ctx.reply(
+        t(
+          "msg__payment_details_savednnhow_much_would_you_lik",
+          {},
+          ctx.session?.language || "en"
+        )
+      );
     } catch (error) {
       logger.error("Error in handleWithdrawalDetails:", error);
-      ctx.reply(t("msg__failed_to_save_withdrawal_details_please_try_", {}, ctx.session?.language || "en"));
+      ctx.reply(
+        t(
+          "msg__failed_to_save_withdrawal_details_please_try_",
+          {},
+          ctx.session?.language || "en"
+        )
+      );
     }
   }
 
@@ -245,7 +340,13 @@ Purchase Amount: $${amount.toFixed(2)}
     try {
       const amount = parseFloat(amountText);
       if (isNaN(amount) || amount <= 0) {
-        return ctx.reply(t("msg__please_enter_a_valid_amount", {}, ctx.session?.language || "en"));
+        return ctx.reply(
+          t(
+            "msg__please_enter_a_valid_amount",
+            {},
+            ctx.session?.language || "en"
+          )
+        );
       }
       const user = await userService.getUserByTelegramId(ctx.from.id);
       if (blockIfBanned(ctx, user)) return;
@@ -281,7 +382,13 @@ Use /start to return to the main menu.
         ctx.from.id
       );
       if (!user) {
-        return ctx.reply(t("msg__you_are_not_registered_in_the_system", {}, ctx.session?.language || "en"));
+        return ctx.reply(
+          t(
+            "msg__you_are_not_registered_in_the_system",
+            {},
+            ctx.session?.language || "en"
+          )
+        );
       }
       if (blockIfBanned(ctx, user)) return;
 
@@ -289,15 +396,29 @@ Use /start to return to the main menu.
         referralCode
       );
       if (!referral) {
-        return ctx.reply(t("msg__invalid_referral_code", {}, ctx.session?.language || "en"));
+        return ctx.reply(
+          t("msg__invalid_referral_code", {}, ctx.session?.language || "en")
+        );
       }
 
       if (referral.usedByTelegramId) {
-        return ctx.reply(t("msg__this_referral_code_has_already_been_used", {}, ctx.session?.language || "en"));
+        return ctx.reply(
+          t(
+            "msg__this_referral_code_has_already_been_used",
+            {},
+            ctx.session?.language || "en"
+          )
+        );
       }
 
       if (referral.userId === user.id) {
-        return ctx.reply(t("msg__you_cannot_use_your_own_referral_code", {}, ctx.session?.language || "en"));
+        return ctx.reply(
+          t(
+            "msg__you_cannot_use_your_own_referral_code",
+            {},
+            ctx.session?.language || "en"
+          )
+        );
       }
 
       await userService.userService.addCoinBalance(user.id, 10); // Example reward
@@ -315,7 +436,106 @@ Use /start to return to the main menu.
       ctx.reply(successMessage, { parse_mode: "Markdown" });
     } catch (error) {
       logger.error("Error in handleReferralCodeUsage:", error);
-      ctx.reply(t("msg__something_went_wrong_please_try_again", {}, ctx.session?.language || "en"));
+      ctx.reply(
+        t(
+          "msg__something_went_wrong_please_try_again",
+          {},
+          ctx.session?.language || "en"
+        )
+      );
+    }
+  }
+
+  async handlePhotoMessage(ctx) {
+    try {
+      const telegramId = ctx.from.id;
+      const user = await userService.userService.getUserByTelegramId(
+        telegramId
+      );
+      if (blockIfBanned(ctx, user)) return;
+
+      // Handle broadcast media
+      if (
+        ctx.session &&
+        ctx.session.broadcastStep === "awaiting_content" &&
+        ctx.session.broadcastType === "photo"
+      ) {
+        return adminHandlers.handleBroadcastMedia(ctx);
+      }
+
+      // Default response for photo messages
+      ctx.reply(t("msg__photo_received", {}, ctx.session?.language || "en"));
+    } catch (error) {
+      logger.error("Error in handlePhotoMessage:", error);
+      ctx.reply(
+        t(
+          "msg__something_went_wrong_please_try_again",
+          {},
+          ctx.session?.language || "en"
+        )
+      );
+    }
+  }
+
+  async handleVideoMessage(ctx) {
+    try {
+      const telegramId = ctx.from.id;
+      const user = await userService.userService.getUserByTelegramId(
+        telegramId
+      );
+      if (blockIfBanned(ctx, user)) return;
+
+      // Handle broadcast media
+      if (
+        ctx.session &&
+        ctx.session.broadcastStep === "awaiting_content" &&
+        ctx.session.broadcastType === "video"
+      ) {
+        return adminHandlers.handleBroadcastMedia(ctx);
+      }
+
+      // Default response for video messages
+      ctx.reply(t("msg__video_received", {}, ctx.session?.language || "en"));
+    } catch (error) {
+      logger.error("Error in handleVideoMessage:", error);
+      ctx.reply(
+        t(
+          "msg__something_went_wrong_please_try_again",
+          {},
+          ctx.session?.language || "en"
+        )
+      );
+    }
+  }
+
+  async handleDocumentMessage(ctx) {
+    try {
+      const telegramId = ctx.from.id;
+      const user = await userService.userService.getUserByTelegramId(
+        telegramId
+      );
+      if (blockIfBanned(ctx, user)) return;
+
+      // Handle broadcast media
+      if (
+        ctx.session &&
+        ctx.session.broadcastStep === "awaiting_content" &&
+        ctx.session.broadcastType === "document"
+      ) {
+        return adminHandlers.handleBroadcastMedia(ctx);
+      }
+
+      // Default response for document messages
+      ctx.reply(t("msg__document_received", {}, ctx.session?.language || "en"));
+    } catch (error) {
+      logger.error("Error in handleDocumentMessage:", error);
+      ctx.reply(
+        t(
+          "msg__something_went_wrong_please_try_again",
+          {},
+          ctx.session?.language || "en"
+        )
+      );
     }
   }
 }

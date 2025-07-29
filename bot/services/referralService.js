@@ -3,6 +3,7 @@ const databaseService = require("../config/database");
 const { v4: uuidv4 } = require("uuid");
 const logger = require("../../utils/logger");
 const { getNotificationServiceInstance } = require("./notificationService");
+const adminService = require("./adminService");
 
 class ReferralService {
   // Helper: Get user doc and data, throw if not found
@@ -306,16 +307,68 @@ class ReferralService {
         .referralCodes()
         .doc(snap.docs[0].id)
         .update({ active: false, usedBy: buyerTelegramId, usedAt: new Date() });
+      // Platform fee logic
+      let platformFee = 0;
+      let feePercent = 0;
+      if (amount && typeof amount === "number") {
+        // Fetch platform fee percent from settings
+        const settings = await adminService.getPlatformSettings();
+        feePercent = settings.platformFeePercent || 1.5;
+        platformFee = amount * (feePercent / 100);
+        // Add platform fee to admin balance (first admin user found)
+        const adminSnap = await databaseService
+          .users()
+          .where("role", "==", "admin")
+          .limit(1)
+          .get();
+        if (!adminSnap.empty) {
+          const adminDoc = adminSnap.docs[0];
+          const adminBalance = adminDoc.data().coinBalance || 0;
+          await adminDoc.ref.update({
+            coinBalance: adminBalance + platformFee,
+          });
+        } else {
+          // Optionally, store in a global admin balance document
+          const globalDoc = await databaseService
+            .getDb()
+            .collection("settings")
+            .doc("admin_balance")
+            .get();
+          const globalBalance = globalDoc.exists
+            ? globalDoc.data().balance || 0
+            : 0;
+          await databaseService
+            .getDb()
+            .collection("settings")
+            .doc("admin_balance")
+            .set({ balance: globalBalance + platformFee }, { merge: true });
+        }
+      }
       // Update referrer's coinBalance
       if (amount && typeof amount === "number") {
+        // Fetch platform settings for all percentages
+        const settings = await adminService.getPlatformSettings();
+        const refPercent = settings.referralCommissionPercent || 2;
+        const buyerPercent = settings.referralDiscountPercent || 1;
+        // Referrer reward
         const referrerRef = databaseService
           .users()
           .doc(refCode.userId.toString());
         const referrerDoc = await referrerRef.get();
         if (referrerDoc.exists) {
           const currentBalance = referrerDoc.data().coinBalance || 0;
-          const reward = amount * 0.02;
+          const reward = amount * (refPercent / 100);
           await referrerRef.update({ coinBalance: currentBalance + reward });
+        }
+        // Buyer discount (optional: store as a field or notify buyer)
+        const buyerRef = databaseService
+          .users()
+          .doc(buyerTelegramId.toString());
+        const buyerDoc = await buyerRef.get();
+        if (buyerDoc.exists) {
+          const buyerDiscount = amount * (buyerPercent / 100);
+          const buyerBalance = buyerDoc.data().coinBalance || 0;
+          await buyerRef.update({ coinBalance: buyerBalance + buyerDiscount });
         }
       }
       // // Notify referrer
