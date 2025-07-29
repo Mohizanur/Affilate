@@ -687,6 +687,39 @@ class UserService {
       throw error;
     }
   }
+
+  async getPendingWithdrawals() {
+    try {
+      const withdrawalsSnapshot = await databaseService
+        .withdrawals()
+        .where("status", "==", "pending")
+        .get();
+      return withdrawalsSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+    } catch (error) {
+      logger.error("Error getting pending withdrawals:", error);
+      throw error;
+    }
+  }
+
+  async getRecentUsers(limit = 10) {
+    try {
+      const usersSnapshot = await databaseService
+        .users()
+        .orderBy("createdAt", "desc")
+        .limit(limit)
+        .get();
+      return usersSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+    } catch (error) {
+      logger.error("Error getting recent users:", error);
+      throw error;
+    }
+  }
 }
 
 async function getAllUsers() {

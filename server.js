@@ -72,6 +72,10 @@ app.use(
     credentials: true,
   })
 );
+
+// Trust proxy for rate limiting behind proxies (like Render)
+app.set("trust proxy", 1);
+
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -124,20 +128,20 @@ console.log("Before startServer()");
     if (bot && bot.telegram && bot.telegram.setMyCommands) {
       try {
         await bot.telegram.setMyCommands([
-        { command: "start", description: "Start or restart the bot" },
-        { command: "browse", description: "Browse products" },
-        { command: "referrals", description: "My referrals & codes" },
-        { command: "favorites", description: "View your favorite products" },
-        { command: "cart", description: "View your cart" },
-        { command: "profile", description: "Your profile & settings" },
-        { command: "leaderboard", description: "Top referrers" },
-        { command: "help", description: "Help & support" },
-        { command: "company", description: "Company dashboard (owners)" },
-        { command: "admin", description: "Admin panel (admins)" },
-        { command: "withdraw", description: "Request a withdrawal" },
-        { command: "orders", description: "Your order history" },
-        // Add more as needed for your elite UX
-      ]);
+          { command: "start", description: "Start or restart the bot" },
+          { command: "browse", description: "Browse products" },
+          { command: "referrals", description: "My referrals & codes" },
+          { command: "favorites", description: "View your favorite products" },
+          { command: "cart", description: "View your cart" },
+          { command: "profile", description: "Your profile & settings" },
+          { command: "leaderboard", description: "Top referrers" },
+          { command: "help", description: "Help & support" },
+          { command: "company", description: "Company dashboard (owners)" },
+          { command: "admin", description: "Admin panel (admins)" },
+          { command: "withdraw", description: "Request a withdrawal" },
+          { command: "orders", description: "Your order history" },
+          // Add more as needed for your elite UX
+        ]);
         console.log("✅ Bot commands set successfully");
       } catch (error) {
         console.log(
