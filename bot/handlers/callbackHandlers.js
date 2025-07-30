@@ -19,7 +19,15 @@ const companyHandlers = require("./companyHandlers");
 console.log("Loaded companyHandlers in callbackHandlers");
 
 function blockIfBanned(ctx, user) {
+  console.log("Checking if user is banned:", {
+    telegramId: ctx.from.id,
+    user: user,
+    banned: user?.banned,
+    isBanned: user?.isBanned
+  });
+  
   if (user && (user.banned || user.isBanned)) {
+    console.log("User is banned, blocking access");
     ctx.reply(
       t(
         "msg__you_are_banned_from_using_this_bot",
@@ -29,6 +37,13 @@ function blockIfBanned(ctx, user) {
     );
     return true;
   }
+  
+  if (!user) {
+    console.log("User not found in database, blocking access");
+    ctx.reply("❌ Access denied.");
+    return true;
+  }
+  
   return false;
 }
 
