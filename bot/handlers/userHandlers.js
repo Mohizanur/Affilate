@@ -3613,14 +3613,25 @@ Toggle notifications:
 
   async handleWithdrawCompany(ctx, companyId) {
     try {
+      console.log("handleWithdrawCompany called with companyId:", companyId);
       const telegramId = ctx.from.id;
-      const stats =
-        await require("../services/referralService").getUserReferralStats(
-          telegramId
-        );
+      console.log("User telegramId:", telegramId);
+      
+      const stats = await require("../services/referralService").getUserReferralStats(telegramId);
+      console.log("User stats:", JSON.stringify(stats, null, 2));
+      
       const minPayout = parseFloat(process.env.MIN_PAYOUT_AMOUNT || "10");
+      console.log("Min payout:", minPayout);
+      
       const companyStats = stats.companyStats && stats.companyStats[companyId];
+      console.log("Company stats for", companyId, ":", companyStats);
+      
       if (!companyStats || companyStats.earnings < minPayout) {
+        console.log("User not eligible for withdrawal:", {
+          hasCompanyStats: !!companyStats,
+          earnings: companyStats?.earnings,
+          minPayout: minPayout
+        });
         return ctx.reply(
           t(
             "msg__you_are_not_eligible_to_withdraw_from_this_co",
@@ -3629,6 +3640,8 @@ Toggle notifications:
           )
         );
       }
+      
+      console.log("User is eligible for withdrawal, proceeding...");
       // Create withdrawal request
       const withdrawal = {
         userId: telegramId,
