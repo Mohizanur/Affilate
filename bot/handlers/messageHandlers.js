@@ -132,7 +132,7 @@ class MessageHandlers {
           return adminHandlers.handleAllUsersMenu(ctx, 1, messageText);
         case "awaiting_all_companies_search":
           ctx.session.state = null;
-          return adminHandlers.handleAllCompaniesMenu(ctx, 1, messageText);
+          return adminHandlers.handleAdminListCompanies(ctx, 1, messageText);
         case "awaiting_platform_fee":
         case "awaiting_referral_bonus":
         case "awaiting_buyer_bonus":

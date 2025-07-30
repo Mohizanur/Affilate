@@ -669,11 +669,7 @@ class AdminHandlers {
       ctx.session.state = "awaiting_all_users_search";
 
       ctx.reply(
-        t(
-          "msg__enter_user_id_username_or_phone_number_to_sea",
-          {},
-          ctx.session?.language || "en"
-        )
+        "🔍 **Search Users**\n\nEnter user ID, username, phone number, or name to search:"
       );
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
@@ -962,11 +958,7 @@ class AdminHandlers {
       ctx.session.state = "awaiting_all_companies_search";
 
       ctx.reply(
-        t(
-          "msg__enter_company_name_or_id_to_search",
-          {},
-          ctx.session?.language || "en"
-        )
+        "🔍 **Search Companies**\n\nEnter company name, ID, email, phone, or owner ID to search:"
       );
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
@@ -1849,47 +1841,104 @@ class AdminHandlers {
         });
       }
 
-      // Create CSV content
-      let csvContent =
-        "ID,Telegram ID,First Name,Last Name,Username,Phone,Email,Role,Is Admin,Is Banned,Balance,Created At,Last Active\n";
+      // Create PDF
+      const PDFDocument = require("pdfkit");
+      const doc = new PDFDocument();
+      const chunks = [];
 
-      users.forEach((user) => {
-        const row = [
-          user.id,
-          user.telegramId,
-          `"${user.firstName}"`,
-          `"${user.lastName}"`,
-          `"${user.username}"`,
-          `"${user.phone}"`,
-          `"${user.email}"`,
-          user.role,
-          user.isAdmin ? "Yes" : "No",
-          user.isBanned ? "Yes" : "No",
-          user.balance,
-          user.createdAt,
-          user.lastActive,
-        ].join(",");
-        csvContent += row + "\n";
+      doc.on("data", (chunk) => chunks.push(chunk));
+      doc.on("end", async () => {
+        const buffer = Buffer.concat(chunks);
+
+        await ctx.reply("📊 *User Export Complete*", {
+          parse_mode: "Markdown",
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback("🔙 Back to Users", "admin_users_1")],
+          ]),
+        });
+
+        // Send the PDF file
+        await ctx.replyWithDocument({
+          source: buffer,
+          filename: `users_export_${
+            new Date().toISOString().split("T")[0]
+          }.pdf`,
+          caption: `📊 User Export - ${
+            users.length
+          } users exported on ${new Date().toLocaleString()}`,
+        });
       });
 
-      // Create buffer and send as document
-      const buffer = Buffer.from(csvContent, "utf-8");
+      // Add content to PDF
+      doc.fontSize(20).text("User Export Report", { align: "center" });
+      doc.moveDown();
+      doc.fontSize(12).text(`Generated on: ${new Date().toLocaleString()}`);
+      doc.fontSize(12).text(`Total Users: ${users.length}`);
+      doc.moveDown(2);
 
-      await ctx.reply("📊 *User Export Complete*", {
-        parse_mode: "Markdown",
-        ...Markup.inlineKeyboard([
-          [Markup.button.callback("🔙 Back to Users", "admin_users_1")],
-        ]),
+      // Add table headers
+      const headers = [
+        "ID",
+        "Name",
+        "Username",
+        "Phone",
+        "Role",
+        "Admin",
+        "Banned",
+        "Balance",
+        "Created",
+      ];
+      const columnWidths = [60, 80, 60, 80, 40, 30, 30, 50, 80];
+      let x = 50;
+
+      headers.forEach((header, i) => {
+        doc.fontSize(10).text(header, x, doc.y);
+        x += columnWidths[i];
+      });
+      doc.moveDown();
+
+      // Add user data
+      users.forEach((user, index) => {
+        if (doc.y > 700) {
+          // New page if near bottom
+          doc.addPage();
+          x = 50;
+          headers.forEach((header, i) => {
+            doc.fontSize(10).text(header, x, doc.y);
+            x += columnWidths[i];
+          });
+          doc.moveDown();
+        }
+
+        x = 50;
+        doc.fontSize(8).text(user.id.substring(0, 8), x);
+        x += columnWidths[0];
+        doc.fontSize(8).text(`${user.firstName} ${user.lastName}`, x);
+        x += columnWidths[1];
+        doc.fontSize(8).text(user.username || "N/A", x);
+        x += columnWidths[2];
+        doc.fontSize(8).text(user.phone || "N/A", x);
+        x += columnWidths[3];
+        doc.fontSize(8).text(user.role, x);
+        x += columnWidths[4];
+        doc.fontSize(8).text(user.isAdmin ? "Yes" : "No", x);
+        x += columnWidths[5];
+        doc.fontSize(8).text(user.isBanned ? "Yes" : "No", x);
+        x += columnWidths[6];
+        doc.fontSize(8).text(`$${user.balance.toFixed(2)}`, x);
+        x += columnWidths[7];
+        doc
+          .fontSize(8)
+          .text(
+            user.createdAt
+              ? new Date(user.createdAt).toLocaleDateString()
+              : "N/A",
+            x
+          );
+        doc.moveDown();
       });
 
-      // Send the CSV file
-      await ctx.replyWithDocument({
-        source: buffer,
-        filename: `users_export_${new Date().toISOString().split("T")[0]}.csv`,
-        caption: `📊 User Export - ${
-          users.length
-        } users exported on ${new Date().toLocaleString()}`,
-      });
+      doc.end();
 
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
@@ -1900,7 +1949,164 @@ class AdminHandlers {
   }
 
   async handleExportCompanies(ctx) {
-    ctx.reply("Not implemented: handleExportCompanies");
+    try {
+      if (!(await this.isAdminAsync(ctx.from.id)))
+        return ctx.reply(
+          t("msg__access_denied", {}, ctx.session?.language || "en")
+        );
+
+      // Get all companies
+      const companies = await companyService.getAllCompanies();
+      const companiesData = [];
+
+      for (const company of companies) {
+        // Get owner username
+        let ownerUsername = "N/A";
+        if (company.telegramId) {
+          try {
+            const owner = await userService.userService.getUserByTelegramId(
+              company.telegramId
+            );
+            ownerUsername =
+              owner?.username || owner?.firstName || `@${company.telegramId}`;
+          } catch (e) {
+            ownerUsername = `@${company.telegramId}`;
+          }
+        }
+
+        // Get product count
+        let productCount = 0;
+        try {
+          const products = await productService.getProductsByCompany(
+            company.id
+          );
+          productCount = products.length;
+        } catch (e) {
+          productCount = 0;
+        }
+
+        companiesData.push({
+          id: company.id,
+          name: company.name,
+          owner: ownerUsername,
+          email: company.email || "N/A",
+          phone: company.phone || "N/A",
+          status: company.status || "active",
+          products: productCount,
+          createdAt: company.createdAt
+            ? new Date(company.createdAt).toISOString()
+            : "",
+          description: company.description || "N/A",
+        });
+      }
+
+      // Create PDF
+      const PDFDocument = require("pdfkit");
+      const doc = new PDFDocument();
+      const chunks = [];
+
+      doc.on("data", (chunk) => chunks.push(chunk));
+      doc.on("end", async () => {
+        const buffer = Buffer.concat(chunks);
+
+        await ctx.reply("📊 *Company Export Complete*", {
+          parse_mode: "Markdown",
+          ...Markup.inlineKeyboard([
+            [
+              Markup.button.callback(
+                "🔙 Back to Companies",
+                "admin_companies_1"
+              ),
+            ],
+          ]),
+        });
+
+        // Send the PDF file
+        await ctx.replyWithDocument({
+          source: buffer,
+          filename: `companies_export_${
+            new Date().toISOString().split("T")[0]
+          }.pdf`,
+          caption: `📊 Company Export - ${
+            companiesData.length
+          } companies exported on ${new Date().toLocaleString()}`,
+        });
+      });
+
+      // Add content to PDF
+      doc.fontSize(20).text("Company Export Report", { align: "center" });
+      doc.moveDown();
+      doc.fontSize(12).text(`Generated on: ${new Date().toLocaleString()}`);
+      doc.fontSize(12).text(`Total Companies: ${companiesData.length}`);
+      doc.moveDown(2);
+
+      // Add table headers
+      const headers = [
+        "ID",
+        "Name",
+        "Owner",
+        "Email",
+        "Phone",
+        "Status",
+        "Products",
+        "Created",
+      ];
+      const columnWidths = [60, 100, 80, 100, 80, 40, 40, 80];
+      let x = 30;
+
+      headers.forEach((header, i) => {
+        doc.fontSize(10).text(header, x, doc.y);
+        x += columnWidths[i];
+      });
+      doc.moveDown();
+
+      // Add company data
+      companiesData.forEach((company, index) => {
+        if (doc.y > 700) {
+          // New page if near bottom
+          doc.addPage();
+          x = 30;
+          headers.forEach((header, i) => {
+            doc.fontSize(10).text(header, x, doc.y);
+            x += columnWidths[i];
+          });
+          doc.moveDown();
+        }
+
+        x = 30;
+        doc.fontSize(8).text(company.id.substring(0, 8), x);
+        x += columnWidths[0];
+        doc.fontSize(8).text(company.name, x);
+        x += columnWidths[1];
+        doc.fontSize(8).text(company.owner, x);
+        x += columnWidths[2];
+        doc.fontSize(8).text(company.email, x);
+        x += columnWidths[3];
+        doc.fontSize(8).text(company.phone, x);
+        x += columnWidths[4];
+        doc.fontSize(8).text(company.status, x);
+        x += columnWidths[5];
+        doc.fontSize(8).text(company.products.toString(), x);
+        x += columnWidths[6];
+        doc
+          .fontSize(8)
+          .text(
+            company.createdAt
+              ? new Date(company.createdAt).toLocaleDateString()
+              : "N/A",
+            x
+          );
+        doc.moveDown();
+      });
+
+      doc.end();
+
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    } catch (error) {
+      logger.error("Error exporting companies:", error);
+      ctx.reply("❌ Failed to export companies. Please try again.");
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    }
   }
 
   async handleAdminRequestWithdrawal(ctx, companyId) {
