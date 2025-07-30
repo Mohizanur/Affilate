@@ -257,7 +257,11 @@ class AdminService {
 
   async getRevenueAnalytics() {
     try {
-      // Calculate revenue from referrals instead of orders
+      // Get dynamic settings
+      const settings = await this.getPlatformSettings();
+      const commissionRate = settings.referralCommissionPercent / 100 || 0.025; // Default 2.5%
+      const platformFeeRate = settings.platformFeePercent / 100 || 0.015; // Default 1.5%
+
       const referralsSnap = await databaseService.referrals().get();
       let totalRevenue = 0;
       let totalCommissions = 0;
@@ -268,12 +272,12 @@ class AdminService {
         const amount = referral.amount || 0;
         totalRevenue += amount;
 
-        // Calculate commissions (assuming 2.5% commission rate)
-        const commission = amount * 0.025;
+        // Calculate commissions using dynamic rate
+        const commission = amount * commissionRate;
         totalCommissions += commission;
 
-        // Calculate platform revenue (1.5% platform fee)
-        const platformFee = amount * 0.015;
+        // Calculate platform revenue using dynamic rate
+        const platformFee = amount * platformFeeRate;
         platformRevenue += platformFee;
       });
 

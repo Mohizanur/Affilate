@@ -33,23 +33,43 @@ class CompanyHandlers {
           telegramId
         );
       if (!user.canRegisterCompany) {
-        return ctx.reply(t("msg__you_are_not_eligible_to_register_a_company_pl", {}, userLanguage));
+        return ctx.reply(
+          t(
+            "msg__you_are_not_eligible_to_register_a_company_pl",
+            {},
+            userLanguage
+          )
+        );
       }
       // Check if already registered
       const existingCompany = await companyService.getCompanyByTelegramId(
         telegramId
       );
       if (existingCompany) {
-        return ctx.reply(t("msg__you_are_already_registered_as_a_company_use_c", {}, userLanguage));
+        return ctx.reply(
+          t(
+            "msg__you_are_already_registered_as_a_company_use_c",
+            {},
+            userLanguage
+          )
+        );
       }
       ctx.session.registrationStep = "company_name";
-      ctx.reply(t("msg__company_registrationnnplease_enter_your_compa", {}, userLanguage), {
+      ctx.reply(
+        t(
+          "msg__company_registrationnnplease_enter_your_compa",
+          {},
+          userLanguage
+        ),
+        {
           parse_mode: "Markdown",
         }
       );
     } catch (error) {
       logger.error("Error in company registration:", error);
-      ctx.reply(t("msg__registration_failed_please_try_again", {}, userLanguage));
+      ctx.reply(
+        t("msg__registration_failed_please_try_again", {}, userLanguage)
+      );
     }
   }
 
@@ -57,7 +77,8 @@ class CompanyHandlers {
     try {
       const step = ctx.session.registrationStep;
       const text = ctx.message.text;
-      const userLanguage = ctx.session?.language || ctx.from.language_code || "en";
+      const userLanguage =
+        ctx.session?.language || ctx.from.language_code || "en";
 
       if (!ctx.session.companyData) {
         ctx.session.companyData = {};
@@ -141,7 +162,13 @@ class CompanyHandlers {
       }
     } catch (error) {
       logger.error("Error in registration step:", error);
-      ctx.reply(t("msg__registration_failed_please_try_again_with_reg", {}, userLanguage));
+      ctx.reply(
+        t(
+          "msg__registration_failed_please_try_again_with_reg",
+          {},
+          userLanguage
+        )
+      );
     }
   }
 
@@ -162,7 +189,13 @@ class CompanyHandlers {
       // Clear session
       delete ctx.session.companyData;
       delete ctx.session.registrationStep;
-      ctx.reply(t("msg__company_registered_and_active_you_can_now_add", {}, userLanguage));
+      ctx.reply(
+        t(
+          "msg__company_registered_and_active_you_can_now_add",
+          {},
+          userLanguage
+        )
+      );
       if (ctx.callbackQuery) ctx.answerCbQuery();
       await getNotificationServiceInstance().sendAdminActionNotification(
         "Company Registered",
@@ -175,7 +208,9 @@ class CompanyHandlers {
       );
     } catch (error) {
       logger.error("Error confirming company registration:", error);
-      ctx.reply(t("msg__registration_failed_please_try_again", {}, userLanguage));
+      ctx.reply(
+        t("msg__registration_failed_please_try_again", {}, userLanguage)
+      );
       if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
@@ -200,7 +235,9 @@ class CompanyHandlers {
       if (user.role === "admin") {
         const allCompanies = await companyService.getAllCompanies();
         if (!allCompanies || allCompanies.length === 0) {
-          return ctx.reply(t("msg_no_companies_found_in_the_system", {}, userLanguage));
+          return ctx.reply(
+            t("msg_no_companies_found_in_the_system", {}, userLanguage)
+          );
         }
 
         let message =
@@ -233,7 +270,13 @@ class CompanyHandlers {
       const company = companies[0]; // Assuming one company per owner for now
 
       if (!company) {
-        return ctx.reply(t("msg__you_are_not_registered_as_a_company_use_regis", {}, userLanguage));
+        return ctx.reply(
+          t(
+            "msg__you_are_not_registered_as_a_company_use_regis",
+            {},
+            userLanguage
+          )
+        );
       }
 
       const dashboardMessage = `
@@ -277,7 +320,9 @@ What would you like to do?
       });
     } catch (error) {
       logger.error("Error showing company dashboard:", error);
-      ctx.reply(t("msg__failed_to_load_dashboard_please_try_again", {}, userLanguage));
+      ctx.reply(
+        t("msg__failed_to_load_dashboard_please_try_again", {}, userLanguage)
+      );
     }
   }
 
@@ -289,7 +334,13 @@ What would you like to do?
         (await companyService.getCompanyByTelegramId(telegramId))?.id;
 
       if (!companyId) {
-        return ctx.reply(t("msg_could_not_identify_the_company_please_go_back_", {}, userLanguage));
+        return ctx.reply(
+          t(
+            "msg_could_not_identify_the_company_please_go_back_",
+            {},
+            userLanguage
+          )
+        );
       }
 
       const products = await productService.getCompanyProducts(companyId);
@@ -333,14 +384,17 @@ What would you like to do?
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error managing products:", error);
-      ctx.reply(t("msg__failed_to_load_products_please_try_again", {}, userLanguage));
+      ctx.reply(
+        t("msg__failed_to_load_products_please_try_again", {}, userLanguage)
+      );
       if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
 
   async handleAddProduct(ctx) {
     try {
-      const userLanguage = ctx.session?.language || ctx.from.language_code || "en";
+      const userLanguage =
+        ctx.session?.language || ctx.from.language_code || "en";
       ctx.session.productCreation = {};
       ctx.session.productStep = "title";
       ctx.reply(t("msg_enter_product_name", {}, userLanguage), {
@@ -358,7 +412,8 @@ What would you like to do?
     try {
       const step = ctx.session.productStep;
       const text = ctx.message.text;
-      const userLanguage = ctx.session?.language || ctx.from.language_code || "en";
+      const userLanguage =
+        ctx.session?.language || ctx.from.language_code || "en";
 
       if (!ctx.session.productCreation) {
         ctx.session.productCreation = {};
@@ -434,7 +489,9 @@ What would you like to do?
       }
     } catch (error) {
       logger.error("Error in product creation step:", error);
-      ctx.reply(t("msg__product_creation_failed_please_try_again", {}, userLanguage));
+      ctx.reply(
+        t("msg__product_creation_failed_please_try_again", {}, userLanguage)
+      );
     }
   }
 
@@ -471,7 +528,9 @@ What would you like to do?
       this.handleManageProducts(ctx);
     } catch (error) {
       logger.error("Error confirming product creation:", error);
-      ctx.reply(t("msg__product_creation_failed_please_try_again", {}, userLanguage));
+      ctx.reply(
+        t("msg__product_creation_failed_please_try_again", {}, userLanguage)
+      );
       if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
@@ -480,11 +539,18 @@ What would you like to do?
     try {
       const productId = ctx.callbackQuery.data.split("_")[2];
       const product = await productService.getProductById(productId);
-      if (!product) return ctx.reply(t("msg__product_not_found", {}, userLanguage));
+      if (!product)
+        return ctx.reply(t("msg__product_not_found", {}, userLanguage));
       ctx.session.editProductId = productId;
       ctx.session.editProductStep = "title";
       ctx.session.editProductData = { ...product };
-      ctx.reply(t("msg__edit_productnncurrent_title_producttitlennent", {}, userLanguage), { parse_mode: "Markdown" }
+      ctx.reply(
+        t(
+          "msg__edit_productnncurrent_title_producttitlennent",
+          {},
+          userLanguage
+        ),
+        { parse_mode: "Markdown" }
       );
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
@@ -498,34 +564,61 @@ What would you like to do?
     try {
       const step = ctx.session.editProductStep;
       const text = ctx.message.text;
-      const userLanguage = ctx.session?.language || ctx.from.language_code || "en";
+      const userLanguage =
+        ctx.session?.language || ctx.from.language_code || "en";
       if (!ctx.session.editProductData) return;
       switch (step) {
         case "title":
           if (text !== "skip") ctx.session.editProductData.title = text;
           ctx.session.editProductStep = "description";
-          ctx.reply(t("msg_current_description_ctxsessioneditproductdatad", {}, userLanguage));
+          ctx.reply(
+            t(
+              "msg_current_description_ctxsessioneditproductdatad",
+              {},
+              userLanguage
+            )
+          );
           break;
         case "description":
           if (text !== "skip") ctx.session.editProductData.description = text;
           ctx.session.editProductStep = "price";
-          ctx.reply(t("msg_current_price_ctxsessioneditproductdatapricenn", {}, userLanguage));
+          ctx.reply(
+            t(
+              "msg_current_price_ctxsessioneditproductdatapricenn",
+              {},
+              userLanguage
+            )
+          );
           break;
         case "price":
           if (text !== "skip") {
             const price = parseFloat(text);
             if (isNaN(price) || price <= 0)
-              return ctx.reply(t("msg__please_enter_a_valid_price", {}, userLanguage));
+              return ctx.reply(
+                t("msg__please_enter_a_valid_price", {}, userLanguage)
+              );
             ctx.session.editProductData.price = price;
           }
           ctx.session.editProductStep = "category";
-          ctx.reply(t("msg_current_category_ctxsessioneditproductdatacate", {}, userLanguage));
+          ctx.reply(
+            t(
+              "msg_current_category_ctxsessioneditproductdatacate",
+              {},
+              userLanguage
+            )
+          );
           break;
         case "category":
           if (text !== "skip") ctx.session.editProductData.category = text;
           // Show confirmation
           const p = ctx.session.editProductData;
-          ctx.reply(t("msg_confirm_product_updatenntitle_ptitlendescripti", {}, userLanguage), { parse_mode: "Markdown" }
+          ctx.reply(
+            t(
+              "msg_confirm_product_updatenntitle_ptitlendescripti",
+              {},
+              userLanguage
+            ),
+            { parse_mode: "Markdown" }
           );
           ctx.session.editProductStep = "confirm";
           break;
@@ -546,7 +639,9 @@ What would you like to do?
       }
     } catch (error) {
       logger.error("Error editing product:", error);
-      ctx.reply(t("msg__failed_to_edit_product_please_try_again", {}, userLanguage));
+      ctx.reply(
+        t("msg__failed_to_edit_product_please_try_again", {}, userLanguage)
+      );
     }
   }
 
@@ -578,7 +673,9 @@ What would you like to do?
       delete ctx.session.deleteProductId;
     } catch (error) {
       logger.error("Error confirming delete product:", error);
-      ctx.reply(t("msg__failed_to_delete_product_please_try_again", {}, userLanguage));
+      ctx.reply(
+        t("msg__failed_to_delete_product_please_try_again", {}, userLanguage)
+      );
     }
   }
 
@@ -631,7 +728,13 @@ ${referralData.topReferrers
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error showing company referrals:", error);
-      ctx.reply(t("msg__failed_to_load_referral_data_please_try_again", {}, userLanguage));
+      ctx.reply(
+        t(
+          "msg__failed_to_load_referral_data_please_try_again",
+          {},
+          userLanguage
+        )
+      );
       if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
@@ -686,7 +789,9 @@ ${referralData.topReferrers
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error showing company analytics:", error);
-      ctx.reply(t("msg__failed_to_load_analytics_please_try_again", {}, userLanguage));
+      ctx.reply(
+        t("msg__failed_to_load_analytics_please_try_again", {}, userLanguage)
+      );
       if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
@@ -736,7 +841,9 @@ ${referralData.topReferrers
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error showing company settings:", error);
-      ctx.reply(t("msg__failed_to_load_settings_please_try_again", {}, userLanguage));
+      ctx.reply(
+        t("msg__failed_to_load_settings_please_try_again", {}, userLanguage)
+      );
       if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }
@@ -745,10 +852,17 @@ ${referralData.topReferrers
     try {
       const telegramId = ctx.from.id;
       const company = await companyService.getCompanyByTelegramId(telegramId);
-      if (!company) return ctx.reply(t("msg__company_not_found", {}, userLanguage));
+      if (!company)
+        return ctx.reply(t("msg__company_not_found", {}, userLanguage));
       ctx.session.editCompanyStep = "name";
       ctx.session.editCompanyData = { ...company };
-      ctx.reply(t("msg__edit_company_profilenncurrent_name_companynam", {}, userLanguage), { parse_mode: "Markdown" }
+      ctx.reply(
+        t(
+          "msg__edit_company_profilenncurrent_name_companynam",
+          {},
+          userLanguage
+        ),
+        { parse_mode: "Markdown" }
       );
     } catch (error) {
       logger.error("Error starting company profile edit:", error);
@@ -760,39 +874,76 @@ ${referralData.topReferrers
     try {
       const step = ctx.session.editCompanyStep;
       const text = ctx.message.text;
-      const userLanguage = ctx.session?.language || ctx.from.language_code || "en";
+      const userLanguage =
+        ctx.session?.language || ctx.from.language_code || "en";
       if (!ctx.session.editCompanyData) return;
       switch (step) {
         case "name":
           if (text !== "skip") ctx.session.editCompanyData.name = text;
           ctx.session.editCompanyStep = "description";
-          ctx.reply(t("msg_current_description_ctxsessioneditcompanydatad", {}, userLanguage));
+          ctx.reply(
+            t(
+              "msg_current_description_ctxsessioneditcompanydatad",
+              {},
+              userLanguage
+            )
+          );
           break;
         case "description":
           if (text !== "skip") ctx.session.editCompanyData.description = text;
           ctx.session.editCompanyStep = "website";
-          ctx.reply(t("msg_current_website_ctxsessioneditcompanydatawebsi", {}, userLanguage));
+          ctx.reply(
+            t(
+              "msg_current_website_ctxsessioneditcompanydatawebsi",
+              {},
+              userLanguage
+            )
+          );
           break;
         case "website":
           if (text !== "skip") ctx.session.editCompanyData.website = text;
           ctx.session.editCompanyStep = "phone";
-          ctx.reply(t("msg_current_phone_ctxsessioneditcompanydataphonenn", {}, userLanguage));
+          ctx.reply(
+            t(
+              "msg_current_phone_ctxsessioneditcompanydataphonenn",
+              {},
+              userLanguage
+            )
+          );
           break;
         case "phone":
           if (text !== "skip") ctx.session.editCompanyData.phone = text;
           ctx.session.editCompanyStep = "commission_rate";
-          ctx.reply(t("msg_current_commission_rate_ctxsessioneditcompanyd", {}, userLanguage));
+          ctx.reply(
+            t(
+              "msg_current_commission_rate_ctxsessioneditcompanyd",
+              {},
+              userLanguage
+            )
+          );
           break;
         case "commission_rate":
           if (text !== "skip") {
             const rate = parseFloat(text);
             if (isNaN(rate) || rate < 1 || rate > 50)
-              return ctx.reply(t("msg__please_enter_a_valid_commission_rate_150", {}, userLanguage));
+              return ctx.reply(
+                t(
+                  "msg__please_enter_a_valid_commission_rate_150",
+                  {},
+                  userLanguage
+                )
+              );
             ctx.session.editCompanyData.referrerCommissionRate = rate;
           }
           // Show confirmation
           const c = ctx.session.editCompanyData;
-          ctx.reply(t("msg_confirm_company_profile_updatennname_cnamendes", {}, userLanguage), { parse_mode: "Markdown" }
+          ctx.reply(
+            t(
+              "msg_confirm_company_profile_updatennname_cnamendes",
+              {},
+              userLanguage
+            ),
+            { parse_mode: "Markdown" }
           );
           ctx.session.editCompanyStep = "confirm";
           break;
@@ -802,7 +953,9 @@ ${referralData.topReferrers
               ctx.session.editCompanyData.id,
               ctx.session.editCompanyData
             );
-            ctx.reply(t("msg__company_profile_updated_successfully", {}, userLanguage));
+            ctx.reply(
+              t("msg__company_profile_updated_successfully", {}, userLanguage)
+            );
           } else {
             ctx.reply(t("msg__edit_cancelled", {}, userLanguage));
           }
@@ -812,7 +965,13 @@ ${referralData.topReferrers
       }
     } catch (error) {
       logger.error("Error editing company profile:", error);
-      ctx.reply(t("msg__failed_to_edit_company_profile_please_try_aga", {}, userLanguage));
+      ctx.reply(
+        t(
+          "msg__failed_to_edit_company_profile_please_try_aga",
+          {},
+          userLanguage
+        )
+      );
     }
   }
 
@@ -833,13 +992,16 @@ ${referralData.topReferrers
 
   async handleSellProductStart(ctx) {
     ctx.session.sellProductStep = "search";
-    ctx.reply(t("msg__enter_product_name_or_keyword_to_search", {}, userLanguage));
+    ctx.reply(
+      t("msg__enter_product_name_or_keyword_to_search", {}, userLanguage)
+    );
   }
 
   async handleSellProductStep(ctx) {
     const step = ctx.session.sellProductStep;
     const text = ctx.message.text;
-    const userLanguage = ctx.session?.language || ctx.from.language_code || "en";
+    const userLanguage =
+      ctx.session?.language || ctx.from.language_code || "en";
     if (!ctx.session.sellProductData) ctx.session.sellProductData = {};
     switch (step) {
       case "search":
@@ -852,7 +1014,9 @@ ${referralData.topReferrers
           p.title.toLowerCase().includes(text.toLowerCase())
         );
         if (!matches.length)
-          return ctx.reply(t("msg__no_products_found_try_another_keyword", {}, userLanguage));
+          return ctx.reply(
+            t("msg__no_products_found_try_another_keyword", {}, userLanguage)
+          );
         ctx.session.sellProductData.matches = matches;
         ctx.session.sellProductStep = "select";
         let msg = "Select a product to sell:\n";
@@ -870,7 +1034,9 @@ ${referralData.topReferrers
           return ctx.reply(t("msg__invalid_selection", {}, userLanguage));
         ctx.session.sellProductData.product = matchList[idx];
         ctx.session.sellProductStep = "buyer_username";
-        ctx.reply(t("msg_enter_buyer_telegram_username_without_", {}, userLanguage));
+        ctx.reply(
+          t("msg_enter_buyer_telegram_username_without_", {}, userLanguage)
+        );
         break;
       case "buyer_username":
         ctx.session.sellProductData.buyerUsername = text.replace(/^@/, "");
@@ -881,7 +1047,13 @@ ${referralData.topReferrers
         ctx.session.sellProductData.buyerPhone = text;
         ctx.session.sellProductStep = "confirm";
         const p = ctx.session.sellProductData.product;
-        ctx.reply(t("msg_confirm_sale_of_ptitle_pprice_qty_pquantity_na", {}, userLanguage));
+        ctx.reply(
+          t(
+            "msg_confirm_sale_of_ptitle_pprice_qty_pquantity_na",
+            {},
+            userLanguage
+          )
+        );
         break;
       case "confirm":
         if (text.trim().toLowerCase() !== "confirm") {
@@ -902,7 +1074,13 @@ ${referralData.topReferrers
           ctx.from
         );
         if (!buyer) {
-          ctx.reply(t("msg__buyer_not_found_please_check_the_username_and", {}, userLanguage));
+          ctx.reply(
+            t(
+              "msg__buyer_not_found_please_check_the_username_and",
+              {},
+              userLanguage
+            )
+          );
           return;
         }
         // Update user info if changed
@@ -933,23 +1111,28 @@ ${referralData.topReferrers
           companyId,
           buyer.telegramId
         );
-        // Record the sale (order)
-        await require("../services/orderService").createOrder({
-          userId: buyer.telegramId,
-          productId: product.id,
+        // Record the sale as a referral
+        await referralService.createReferral({
+          referrerTelegramId: null, // No referrer for direct sales
+          buyerTelegramId: buyer.telegramId,
           companyId,
+          productId: product.id,
           amount: product.price,
           referralCode: null,
-          customerInfo: { username: buyerUsername, phone: buyerPhone },
-          status: "approved",
-          createdAt: new Date(),
+          status: "completed",
         });
         // Notify buyer
         ctx.telegram.sendMessage(
           buyer.telegramId,
           `🎉 You bought ${product.title} from ${company.name}! Your referral code: ${code}`
         );
-        ctx.reply(t("msg__sale_recorded_and_referral_code_sent_to_buyer", {}, userLanguage));
+        ctx.reply(
+          t(
+            "msg__sale_recorded_and_referral_code_sent_to_buyer",
+            {},
+            userLanguage
+          )
+        );
         ctx.session.sellProductStep = null;
         ctx.session.sellProductData = null;
         break;
@@ -966,7 +1149,9 @@ ${referralData.topReferrers
       const productId = ctx.callbackQuery.data.split("_")[2];
       ctx.session.sellProductId = productId;
       ctx.session.sellStep = "user";
-      ctx.reply(t("msg_is_this_sale_with_a_referral_code_yesno", {}, userLanguage));
+      ctx.reply(
+        t("msg_is_this_sale_with_a_referral_code_yesno", {}, userLanguage)
+      );
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error starting sell flow:", error);
@@ -981,7 +1166,8 @@ ${referralData.topReferrers
       const productId = ctx.session.sellProductId;
       const step = ctx.session.sellStep;
       const text = ctx.message.text.trim();
-      const userLanguage = ctx.session?.language || ctx.from.language_code || "en";
+      const userLanguage =
+        ctx.session?.language || ctx.from.language_code || "en";
       if (step === "user") {
         // Lookup user by Telegram ID or phone
         let user = null;
@@ -991,13 +1177,25 @@ ${referralData.topReferrers
           user = await userService.getUserByPhone(text);
         }
         if (!user) {
-          ctx.reply(t("msg__user_not_found_enter_a_valid_telegram_id_or_p", {}, userLanguage));
+          ctx.reply(
+            t(
+              "msg__user_not_found_enter_a_valid_telegram_id_or_p",
+              {},
+              userLanguage
+            )
+          );
           return;
         }
         ctx.session.sellUserId = user.telegramId;
         ctx.session.sellStep = "confirm";
         const product = await productService.getProductById(productId);
-        ctx.reply(t("msg_confirm_sale_of_producttitle_productprice_to_u", {}, userLanguage), { parse_mode: "Markdown" }
+        ctx.reply(
+          t(
+            "msg_confirm_sale_of_producttitle_productprice_to_u",
+            {},
+            userLanguage
+          ),
+          { parse_mode: "Markdown" }
         );
         return;
       }
@@ -1005,16 +1203,19 @@ ${referralData.topReferrers
         if (text.toLowerCase() === "confirm") {
           // Create order for user
           const product = await productService.getProductById(productId);
-          const orderData = {
-            userId: ctx.session.sellUserId,
-            productId: productId,
+          // Record the sale as a referral
+          await referralService.createReferral({
+            referrerTelegramId: null, // No referrer for direct sales
+            buyerTelegramId: ctx.session.sellUserId,
             companyId: product.companyId,
+            productId: productId,
             amount: product.price,
             referralCode: null,
-            customerInfo: {},
-          };
-          await require("../services/orderService").createOrder(orderData);
-          ctx.reply(t("msg__sale_completed_and_user_notified", {}, userLanguage));
+            status: "completed",
+          });
+          ctx.reply(
+            t("msg__sale_completed_and_user_notified", {}, userLanguage)
+          );
           // Notify user
           await notificationService.sendNotification(
             ctx.session.sellUserId,

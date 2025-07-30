@@ -526,30 +526,35 @@ class UserHandlers {
     try {
       const productId = ctx.callbackQuery.data.split("_")[2];
       const telegramId = ctx.from.id;
-      const orderId = await orderService.processPurchase(telegramId, productId);
+
+      // Get product details
+      const product = await productService.getProductById(productId);
+      if (!product) {
+        return ctx.reply(t("msg_product_not_found", {}, userLanguage));
+      }
+
+      // Create referral record for tracking (without referral code)
+      await referralService.createReferral({
+        referrerTelegramId: null, // No referrer
+        buyerTelegramId: telegramId,
+        companyId: product.companyId,
+        productId: productId,
+        amount: product.price,
+        referralCode: null,
+        status: "completed",
+      });
+
       ctx.reply(
         t(
-          "msg__order_placed_successfully_order_id_orderidsub",
+          "msg__purchase_recorded_successfully_you_can_now_visit_the_store",
           {},
           userLanguage
         )
       );
-      ctx.session.waitingForProofOrderId = orderId;
-      // Get companyId from product
-      // The following code is commented out to prevent duplicate referral code messages:
-      // const product = await productService.getProductById(productId);
-      // if (product && product.companyId) {
-      //   const newReferralCode = await referralService.generateReferralCode(
-      //     product.companyId,
-      //     telegramId
-      //   );
-      //   ctx.reply(
-      //     `🔗 Here is your new referral code for this company: <code>${newReferralCode}</code>   (Click to copy)\nShare it with friends to earn rewards!`,
-      //     {
-      //       parse_mode: "HTML",
-      //     }
-      //   );
-      // }
+
+      // Clear session
+      delete ctx.session.waitingForReferralCode;
+      delete ctx.session.purchaseProductId;
     } catch (error) {
       logger.error("Error processing purchase without referral:", error);
       ctx.reply(t("msg_failed_process_purchase", {}, userLanguage));
@@ -603,22 +608,27 @@ class UserHandlers {
         }
         return;
       }
-      const orderId = await orderService.processPurchase(
-        telegramId,
-        productId,
-        referralCode
-      );
+      // Create referral record with referral code
+      await referralService.createReferral({
+        referrerTelegramId: codeData.referrerId,
+        buyerTelegramId: telegramId,
+        companyId: product.companyId,
+        productId: productId,
+        amount: product.price,
+        referralCode: referralCode,
+        status: "completed",
+      });
+
       // Clear session
       delete ctx.session.waitingForReferralCode;
       delete ctx.session.purchaseProductId;
       ctx.reply(
         t(
-          "msg__order_placed_successfully_with_referral_code_",
+          "msg__purchase_recorded_with_referral_code_visit_store",
           {},
           userLanguage
         )
       );
-      ctx.session.waitingForProofOrderId = orderId;
       // The following code is commented out to prevent duplicate referral code messages:
       // const companyId = codeData.companyId; // Get companyId from validated code
       // const newReferralCode = await referralService.generateReferralCode(
@@ -645,30 +655,15 @@ class UserHandlers {
 
   async handleProofUpload(ctx) {
     try {
-      if (!ctx.session.waitingForProofOrderId) return;
-      const orderId = ctx.session.waitingForProofOrderId;
-      let fileId = null;
-      if (ctx.message.photo) {
-        fileId = ctx.message.photo[ctx.message.photo.length - 1].file_id;
-      } else if (ctx.message.document) {
-        fileId = ctx.message.document.file_id;
-      }
-      if (!fileId) {
-        return ctx.reply(t("msg_upload_proof", {}, userLanguage));
-      }
-      await orderService.attachProofToOrder(orderId, fileId);
-      delete ctx.session.waitingForProofOrderId;
+      // This function is not needed for referral platform
+      // Users buy in-person, no proof upload required
       ctx.reply(
-        t(
-          "msg__proof_of_purchase_uploaded_your_order_will_be",
-          {},
-          userLanguage
-        )
+        t("msg__proof_upload_not_needed_referral_platform", {}, userLanguage)
       );
     } catch (error) {
-      logger.error("Error uploading proof:", error);
+      logger.error("Error in proof upload:", error);
       ctx.reply(
-        t("msg__failed_to_upload_proof_please_try_again", {}, userLanguage)
+        t("msg__something_went_wrong_please_try_again", {}, userLanguage)
       );
     }
   }
@@ -1355,46 +1350,13 @@ class UserHandlers {
       const user = await userService.getUserByTelegramId(telegramId);
       const userLanguage = ctx.session?.language || user.language || "en";
 
-      const orders = await orderService.getUserOrders(telegramId);
-
-      let message = t("msg_order_history_title", {}, userLanguage);
-
-      if (orders.length === 0) {
-        message += t("msg_no_orders_yet", {}, userLanguage);
-      } else {
-        orders.forEach((order, index) => {
-          const statusIcon =
-            order.status === "approved"
-              ? "✅"
-              : order.status === "pending"
-              ? "⏳"
-              : "❌";
-
-          message += t(
-            "msg_order_entry",
-            {
-              index: index + 1,
-              statusIcon,
-              date: toDateSafe(order.createdAt)?.toLocaleDateString(),
-              productTitle: order.productTitle,
-              price: order.finalPrice || order.amount,
-              companyName:
-                order.company_name || t("msg_no_description", {}, userLanguage),
-              referralCode: order.referralCode
-                ? t("msg_used_code", { code: order.referralCode }, userLanguage)
-                : "",
-              rewardApplied:
-                order.status === "approved"
-                  ? t("msg_reward_applied", {}, userLanguage)
-                  : "",
-              proofUploaded: order.proofFileId
-                ? t("msg_proof_uploaded", {}, userLanguage)
-                : "",
-            },
-            userLanguage
-          );
-        });
-      }
+      // This function is not needed for referral platform
+      // Users buy in-person, no order history
+      const message = t(
+        "msg__no_order_history_referral_platform",
+        {},
+        userLanguage
+      );
 
       const buttons = [
         [
@@ -1417,7 +1379,13 @@ class UserHandlers {
       });
     } catch (error) {
       logger.error("Error showing order history:", error);
-      ctx.reply(t("msg_failed_load_orders", {}, userLanguage || "en"));
+      ctx.reply(
+        t(
+          "msg__something_went_wrong_please_try_again",
+          {},
+          userLanguage || "en"
+        )
+      );
     }
   }
 

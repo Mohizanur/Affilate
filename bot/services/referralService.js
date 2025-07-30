@@ -209,6 +209,10 @@ class ReferralService {
   async getReferralStats(userId) {
     if (!userId) throw new Error("User ID is required for referral stats");
     try {
+      // Get dynamic settings for commission rate
+      const settings = await adminService.getPlatformSettings();
+      const commissionRate = settings.referralCommissionPercent / 100 || 0.025; // Default 2.5%
+
       // Aggregate stats from referrals
       const referralsSnap = await databaseService
         .referrals()
@@ -221,8 +225,8 @@ class ReferralService {
       let totalReferrals = referrals.length;
       const now = new Date();
       for (const ref of referrals) {
-        // No orderId logic, use ref.amount directly
-        const earning = (ref.amount || 0) * 0.025; // 2.5% commission
+        // Use dynamic commission rate
+        const earning = (ref.amount || 0) * commissionRate;
         totalEarnings += earning;
         // This month
         const createdAt =
@@ -488,7 +492,11 @@ class ReferralService {
           let earnings = 0;
           const detailedReferrals = [];
           for (const ref of referrals) {
-            earnings += (ref.amount || 0) * 0.025; // 2.5% commission
+            // Use dynamic commission rate
+            const settings = await adminService.getPlatformSettings();
+            const commissionRate =
+              settings.referralCommissionPercent / 100 || 0.025;
+            earnings += (ref.amount || 0) * commissionRate;
             detailedReferrals.push({
               amount: ref.amount || 0,
               product_title: ref.product_title || ref.productId || "",

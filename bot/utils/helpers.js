@@ -12,7 +12,7 @@ async function getPlatformSettings() {
   const doc = await databaseService
     .getDb()
     .collection("settings")
-    .doc("platform")
+    .doc("system")
     .get();
   let settings = doc.exists ? doc.data() : {};
   settings.platformFeePercent = settings.platformFeePercent ?? 1.5;
