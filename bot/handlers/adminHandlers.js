@@ -1506,9 +1506,9 @@ class AdminHandlers {
           };
 
           await ctx.reply(msg, {
-          parse_mode: "Markdown",
+            parse_mode: "Markdown",
             reply_markup: keyboard,
-        });
+          });
         } catch (error) {
           console.error(`Error sending message:`, error);
           // Fallback: send without buttons
@@ -1677,10 +1677,10 @@ class AdminHandlers {
       const users = await userService.getAllUsers();
       const companies = await companyService.getAllCompanies();
 
-      // Create PDF
+      // Create PDF with improved styling
       const PDFDocument = require("pdfkit");
       const doc = new PDFDocument({
-        margin: 40,
+        margin: 30,
         size: "A4",
       });
       const chunks = [];
@@ -1709,21 +1709,29 @@ class AdminHandlers {
         }
       });
 
-      // Add professional header with styling
-      doc.rect(0, 0, 595, 80).fill("#2c3e50");
-      doc.fontSize(24).fillColor("white").text("System Backup Report", 40, 30);
+      // Create attractive header with gradient background
+      const headerHeight = 100;
+      doc.rect(0, 0, 595, headerHeight).fill("#2c3e50");
+      doc
+        .fontSize(28)
+        .fillColor("white")
+        .font("Helvetica-Bold")
+        .text("🔄 System Backup Report", 30, 25);
       doc
         .fontSize(12)
-        .text(`Generated: ${new Date().toLocaleString()}`, 40, 60);
+        .font("Helvetica")
+        .text(`📅 Generated: ${new Date().toLocaleString()}`, 30, 60);
       doc
         .fontSize(12)
-        .text(`Total Records: ${users.length + companies.length}`, 300, 60);
+        .text(`📊 Total Records: ${users.length + companies.length}`, 30, 75);
+      doc.fontSize(12).text(`📄 Report Type: Complete System Export`, 300, 60);
+      doc.fontSize(12).text(`🔧 Full Backup`, 300, 75);
 
       // Reset colors
       doc.fillColor("black");
-      doc.moveDown(4);
+      doc.moveDown(6);
 
-      // Add summary statistics in a nice box
+      // Add summary statistics in attractive boxes
       const adminCount = users.filter((u) => u.isAdmin).length;
       const bannedCount = users.filter((u) => u.isBanned || u.banned).length;
       const activeCompanies = companies.filter(
@@ -1733,117 +1741,314 @@ class AdminHandlers {
         (sum, u) => sum + (u.referralBalance || u.coinBalance || 0),
         0
       );
+      const activeUsers = users.length - bannedCount;
 
-      doc.rect(40, 120, 515, 100).stroke("#3498db").lineWidth(2);
-      doc.fontSize(16).font("Helvetica-Bold").text("System Overview", 60, 140);
+      // Summary boxes
+      const boxWidth = 130;
+      const boxHeight = 60;
+      const startX = 30;
+      const startY = 140;
+
+      // Box 1: Total Users
       doc
-        .fontSize(12)
-        .font("Helvetica")
-        .text(`• Total Users: ${users.length}`, 60, 165);
-      doc.fontSize(12).text(`• Administrators: ${adminCount}`, 60, 180);
-      doc.fontSize(12).text(`• Banned Users: ${bannedCount}`, 60, 195);
+        .rect(startX, startY, boxWidth, boxHeight)
+        .fill("#3498db")
+        .stroke("#2980b9");
       doc
-        .fontSize(12)
-        .text(`• Total User Balance: $${totalBalance.toFixed(2)}`, 60, 210);
-      doc.fontSize(12).text(`• Total Companies: ${companies.length}`, 60, 225);
-      doc.fontSize(12).text(`• Active Companies: ${activeCompanies}`, 60, 240);
+        .fontSize(16)
+        .fillColor("white")
+        .font("Helvetica-Bold")
+        .text("Total Users", startX + 10, startY + 10);
+      doc.fontSize(24).text(users.length.toString(), startX + 10, startY + 30);
+
+      // Box 2: Active Users
+      doc
+        .rect(startX + boxWidth + 10, startY, boxWidth, boxHeight)
+        .fill("#27ae60")
+        .stroke("#229954");
+      doc
+        .fontSize(16)
+        .text("Active Users", startX + boxWidth + 20, startY + 10);
+      doc
+        .fontSize(24)
+        .text(activeUsers.toString(), startX + boxWidth + 20, startY + 30);
+
+      // Box 3: Total Companies
+      doc
+        .rect(startX + (boxWidth + 10) * 2, startY, boxWidth, boxHeight)
+        .fill("#e74c3c")
+        .stroke("#c0392b");
+      doc
+        .fontSize(16)
+        .text(
+          "Total Companies",
+          startX + (boxWidth + 10) * 2 + 10,
+          startY + 10
+        );
+      doc
+        .fontSize(24)
+        .text(
+          companies.length.toString(),
+          startX + (boxWidth + 10) * 2 + 10,
+          startY + 30
+        );
+
+      // Box 4: Total Balance
+      doc
+        .rect(startX + (boxWidth + 10) * 3, startY, boxWidth, boxHeight)
+        .fill("#f39c12")
+        .stroke("#e67e22");
+      doc
+        .fontSize(16)
+        .text("Total Balance", startX + (boxWidth + 10) * 3 + 10, startY + 10);
+      doc
+        .fontSize(20)
+        .text(
+          `$${totalBalance.toFixed(2)}`,
+          startX + (boxWidth + 10) * 3 + 10,
+          startY + 30
+        );
 
       doc.moveDown(4);
 
-      // Users section
-      doc.fontSize(18).font('Helvetica-Bold').text("Users", 40, 280);
-      doc.moveDown(0.5);
-      
-      if (users.length === 0) {
-        doc.fontSize(12).font('Helvetica').text("No users found.", 60, 300);
-      } else {
-        let userY = 300;
-        users.forEach((user, index) => {
-          if (userY > 700) {
-            doc.addPage();
-            userY = 50;
-            doc.fontSize(18).font('Helvetica-Bold').text("Users (Continued)", 40, userY);
-            userY += 30;
-          }
+      // Users section with professional table
+      const tableStartY = 250;
+      const userColWidths = [60, 120, 80, 80, 60, 60, 60, 80];
+      const userHeaders = [
+        "ID",
+        "Name",
+        "Username",
+        "Phone",
+        "Role",
+        "Admin",
+        "Banned",
+        "Balance",
+      ];
 
-          // Safe date conversion
-          let createdDate = "N/A";
-          try {
-            if (user.createdAt) {
-              const date = user.createdAt.toDate ? user.createdAt.toDate() : new Date(user.createdAt);
-              if (!isNaN(date.getTime())) {
-                createdDate = date.toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric'
-                });
-              }
+      // Users table header
+      doc
+        .fontSize(16)
+        .font("Helvetica-Bold")
+        .text("👥 Users Overview", 30, tableStartY - 20);
+      doc.rect(30, tableStartY, 535, 30).fill("#34495e").stroke("#2c3e50");
+      doc.fontSize(11).fillColor("white").font("Helvetica-Bold");
+
+      let currentX = 35;
+      userHeaders.forEach((header, index) => {
+        doc.text(header, currentX, tableStartY + 8);
+        currentX += userColWidths[index];
+      });
+
+      // Reset colors for data rows
+      doc.fillColor("black");
+      doc.fontSize(9).font("Helvetica");
+
+      // Add user data with alternating row colors
+      let currentY = tableStartY + 35;
+      users.forEach((user, index) => {
+        // Check if we need a new page
+        if (currentY > 750) {
+          doc.addPage();
+          currentY = 50;
+
+          // Repeat header on new page
+          doc
+            .fontSize(16)
+            .font("Helvetica-Bold")
+            .text("👥 Users Overview (Continued)", 30, currentY - 20);
+          doc.rect(30, currentY, 535, 30).fill("#34495e").stroke("#2c3e50");
+          doc.fontSize(11).fillColor("white").font("Helvetica-Bold");
+          let headerX = 35;
+          userHeaders.forEach((header, headerIndex) => {
+            doc.text(header, headerX, currentY + 8);
+            headerX += userColWidths[headerIndex];
+          });
+          doc.fillColor("black");
+          doc.fontSize(9).font("Helvetica");
+          currentY += 35;
+        }
+
+        // Safe date conversion
+        let createdDate = "N/A";
+        try {
+          if (user.createdAt) {
+            const date = user.createdAt.toDate
+              ? user.createdAt.toDate()
+              : new Date(user.createdAt);
+            if (!isNaN(date.getTime())) {
+              createdDate = date.toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+              });
             }
-          } catch (e) {
-            createdDate = "N/A";
           }
+        } catch (e) {
+          createdDate = "N/A";
+        }
 
-          // User box
-          doc.rect(60, userY, 475, 40).fill('#f8f9fa').stroke('#dee2e6');
-          doc.fontSize(12).font('Helvetica-Bold').fillColor('black').text(`${index + 1}. ${user.firstName || "N/A"} ${user.lastName || "N/A"}`, 70, userY + 5);
-          doc.fontSize(10).font('Helvetica').text(`ID: ${user.id} | Username: ${user.username || "N/A"} | Phone: ${user.phone || "N/A"}`, 70, userY + 20);
-          doc.fontSize(10).text(`Role: ${user.role || "user"} | Admin: ${user.isAdmin ? "Yes" : "No"} | Banned: ${user.isBanned || user.banned ? "Yes" : "No"} | Balance: $${(user.referralBalance || user.coinBalance || 0).toFixed(2)} | Created: ${createdDate}`, 70, userY + 32);
-          
-          userY += 50;
+        // Alternate row colors
+        const rowColor = index % 2 === 0 ? "#f8f9fa" : "#ffffff";
+        doc.rect(30, currentY, 535, 25).fill(rowColor).stroke("#dee2e6");
+
+        // Add row data
+        const rowData = [
+          user.id?.substring(0, 8) || "N/A",
+          `${user.firstName || user.first_name || ""} ${
+            user.lastName || user.last_name || ""
+          }`.trim() || "N/A",
+          user.username || "N/A",
+          user.phone || "N/A",
+          user.role || "user",
+          user.isAdmin ? "✅" : "❌",
+          user.isBanned || user.banned ? "🚫" : "✅",
+          `$${(user.referralBalance || user.coinBalance || 0).toFixed(2)}`,
+        ];
+
+        let dataX = 35;
+        rowData.forEach((data, dataIndex) => {
+          doc.text(data, dataX, currentY + 8);
+          dataX += userColWidths[dataIndex];
         });
 
-        // Companies section
-        doc.fontSize(18).font('Helvetica-Bold').text("Companies", 40, userY + 20);
-        doc.moveDown(0.5);
-        
-        if (companies.length === 0) {
-          doc.fontSize(12).font('Helvetica').text("No companies found.", 60, userY + 40);
-        } else {
-          let companyY = userY + 40;
-          companies.forEach((company, index) => {
-            if (companyY > 700) {
-              doc.addPage();
-              companyY = 50;
-              doc.fontSize(18).font('Helvetica-Bold').text("Companies (Continued)", 40, companyY);
-              companyY += 30;
-            }
+        currentY += 30;
+      });
 
-            // Safe date conversion
-            let createdDate = "N/A";
-            try {
-              if (company.createdAt) {
-                const date = company.createdAt.toDate ? company.createdAt.toDate() : new Date(company.createdAt);
-                if (!isNaN(date.getTime())) {
-                  createdDate = date.toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric'
-                  });
-                }
-              }
-            } catch (e) {
-              createdDate = "N/A";
-            }
+      // Companies section with professional table
+      currentY += 20;
+      doc
+        .fontSize(16)
+        .font("Helvetica-Bold")
+        .text("🏢 Companies Overview", 30, currentY);
+      currentY += 20;
 
-            // Company box
-            doc.rect(60, companyY, 475, 40).fill('#f8f9fa').stroke('#dee2e6');
-            doc.fontSize(12).font('Helvetica-Bold').fillColor('black').text(`${index + 1}. ${company.name || "N/A"}`, 70, companyY + 5);
-            doc.fontSize(10).font('Helvetica').text(`ID: ${company.id} | Email: ${company.email || "N/A"} | Phone: ${company.phone || "N/A"}`, 70, companyY + 20);
-            doc.fontSize(10).text(`Status: ${company.status || "active"} | Created: ${createdDate} | Description: ${company.description || "N/A"}`, 70, companyY + 32);
-            
-            companyY += 50;
+      const companyColWidths = [60, 120, 100, 100, 60, 60, 80];
+      const companyHeaders = [
+        "ID",
+        "Company Name",
+        "Owner",
+        "Email",
+        "Status",
+        "Products",
+        "Created",
+      ];
+
+      // Companies table header
+      doc.rect(30, currentY, 535, 30).fill("#34495e").stroke("#2c3e50");
+      doc.fontSize(11).fillColor("white").font("Helvetica-Bold");
+
+      currentX = 35;
+      companyHeaders.forEach((header, index) => {
+        doc.text(header, currentX, currentY + 8);
+        currentX += companyColWidths[index];
+      });
+
+      // Reset colors for data rows
+      doc.fillColor("black");
+      doc.fontSize(9).font("Helvetica");
+
+      // Add company data with alternating row colors
+      currentY += 35;
+      companies.forEach((company, index) => {
+        // Check if we need a new page
+        if (currentY > 750) {
+          doc.addPage();
+          currentY = 50;
+
+          // Repeat header on new page
+          doc
+            .fontSize(16)
+            .font("Helvetica-Bold")
+            .text("🏢 Companies Overview (Continued)", 30, currentY - 20);
+          doc.rect(30, currentY, 535, 30).fill("#34495e").stroke("#2c3e50");
+          doc.fontSize(11).fillColor("white").font("Helvetica-Bold");
+          let headerX = 35;
+          companyHeaders.forEach((header, headerIndex) => {
+            doc.text(header, headerX, currentY + 8);
+            headerX += companyColWidths[headerIndex];
           });
-
-          // Add final summary
-          doc.moveDown(2);
-          doc.rect(40, doc.y + 20, 515, 60).stroke('#27ae60').lineWidth(2);
-          doc.fontSize(14).font('Helvetica-Bold').text("Backup Summary", 60, doc.y + 40);
-          doc.fontSize(12).font('Helvetica').text(`Total Users: ${users.length}`, 60, doc.y + 60);
-          doc.fontSize(12).text(`Total Companies: ${companies.length}`, 60, doc.y + 75);
-          doc.fontSize(12).text(`Backup Date: ${new Date().toLocaleString()}`, 60, doc.y + 90);
-          doc.fontSize(12).text(`Backup Type: Full System Export`, 60, doc.y + 105);
+          doc.fillColor("black");
+          doc.fontSize(9).font("Helvetica");
+          currentY += 35;
         }
-      }
+
+        // Safe date conversion
+        let createdDate = "N/A";
+        try {
+          if (company.createdAt) {
+            const date = company.createdAt.toDate
+              ? company.createdAt.toDate()
+              : new Date(company.createdAt);
+            if (!isNaN(date.getTime())) {
+              createdDate = date.toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
+              });
+            }
+          }
+        } catch (e) {
+          createdDate = "N/A";
+        }
+
+        // Alternate row colors
+        const rowColor = index % 2 === 0 ? "#f8f9fa" : "#ffffff";
+        doc.rect(30, currentY, 535, 25).fill(rowColor).stroke("#dee2e6");
+
+        // Add row data
+        const rowData = [
+          company.id?.substring(0, 8) || "N/A",
+          company.name || "N/A",
+          company.telegramId ? `@${company.telegramId}` : "N/A",
+          company.email || "N/A",
+          company.status === "active" ? "✅ Active" : "❌ Inactive",
+          "0", // Placeholder for products count
+          createdDate,
+        ];
+
+        let dataX = 35;
+        rowData.forEach((data, dataIndex) => {
+          doc.text(data, dataX, currentY + 8);
+          dataX += companyColWidths[dataIndex];
+        });
+
+        currentY += 30;
+      });
+
+      // Add comprehensive footer with backup summary
+      doc.moveDown(2);
+      doc
+        .rect(30, currentY + 20, 535, 100)
+        .fill("#ecf0f1")
+        .stroke("#bdc3c7");
+      doc
+        .fontSize(14)
+        .fillColor("black")
+        .font("Helvetica-Bold")
+        .text("📊 Backup Summary", 40, currentY + 40);
+      doc.fontSize(10).font("Helvetica");
+      doc.text(
+        `• Total Users: ${users.length} (${activeUsers} active, ${bannedCount} banned)`,
+        40,
+        currentY + 60
+      );
+      doc.text(
+        `• Total Companies: ${companies.length} (${activeCompanies} active)`,
+        40,
+        currentY + 75
+      );
+      doc.text(
+        `• Total System Balance: $${totalBalance.toFixed(2)}`,
+        40,
+        currentY + 90
+      );
+      doc.text(`• Administrators: ${adminCount}`, 40, currentY + 105);
+      doc.text(
+        `• Backup Date: ${new Date().toLocaleString()}`,
+        40,
+        currentY + 120
+      );
+      doc.text(`• Backup Type: Full System Export`, 40, currentY + 135);
 
       doc.end();
     } catch (error) {
@@ -1891,10 +2096,10 @@ class AdminHandlers {
               ? user.createdAt.toDate()
               : new Date(user.createdAt);
             if (!isNaN(createdDate.getTime())) {
-              createdAt = createdDate.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
+              createdAt = createdDate.toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
               });
             }
           }
@@ -1908,10 +2113,10 @@ class AdminHandlers {
               ? user.last_active.toDate()
               : new Date(user.last_active);
             if (!isNaN(lastActiveDate.getTime())) {
-              lastActive = lastActiveDate.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
+              lastActive = lastActiveDate.toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
               });
             }
           }
@@ -1936,11 +2141,11 @@ class AdminHandlers {
         });
       }
 
-      // Create PDF
+      // Create PDF with improved styling
       const PDFDocument = require("pdfkit");
-      const doc = new PDFDocument({ 
-        margin: 50,
-        size: 'A4'
+      const doc = new PDFDocument({
+        margin: 30,
+        size: "A4",
       });
       const chunks = [];
 
@@ -1958,67 +2163,218 @@ class AdminHandlers {
         // Send the PDF file
         await ctx.replyWithDocument({
           source: buffer,
-          filename: `users_export_${new Date().toISOString().split("T")[0]}.pdf`,
-          caption: `📊 **User Export Report**\n\n📅 Generated: ${new Date().toLocaleString()}\n👥 Total Users: ${users.length}\n📄 Format: PDF`,
+          filename: `users_export_${
+            new Date().toISOString().split("T")[0]
+          }.pdf`,
+          caption: `📊 **User Export Report**\n\n📅 Generated: ${new Date().toLocaleString()}\n👥 Total Users: ${
+            users.length
+          }\n📄 Format: PDF`,
         });
       });
 
-      // Add professional header
-      doc.fontSize(24).font('Helvetica-Bold').text("User Export Report", { align: "center" });
-      doc.moveDown(0.5);
-      doc.fontSize(12).font('Helvetica').text(`Generated: ${new Date().toLocaleString()}`, { align: "center" });
-      doc.fontSize(12).text(`Total Users: ${users.length}`, { align: "center" });
-      doc.moveDown(2);
+      // Create attractive header with gradient background
+      const headerHeight = 100;
+      doc.rect(0, 0, 595, headerHeight).fill("#2c3e50");
+      doc
+        .fontSize(28)
+        .fillColor("white")
+        .font("Helvetica-Bold")
+        .text("👥 User Export Report", 30, 25);
+      doc
+        .fontSize(12)
+        .font("Helvetica")
+        .text(`📅 Generated: ${new Date().toLocaleString()}`, 30, 60);
+      doc.fontSize(12).text(`👥 Total Users: ${users.length}`, 30, 75);
+      doc.fontSize(12).text(`📄 Report Type: Detailed User Analysis`, 300, 60);
+      doc.fontSize(12).text(`🔧 Admin Export`, 300, 75);
 
-      // Add summary statistics
-      const adminCount = users.filter(u => u.isAdmin).length;
-      const bannedCount = users.filter(u => u.isBanned).length;
+      // Reset colors
+      doc.fillColor("black");
+      doc.moveDown(6);
+
+      // Add summary statistics in attractive boxes
+      const adminCount = users.filter((u) => u.isAdmin).length;
+      const bannedCount = users.filter((u) => u.isBanned).length;
       const totalBalance = users.reduce((sum, u) => sum + u.balance, 0);
+      const activeUsers = users.length - bannedCount;
 
-      doc.fontSize(16).font('Helvetica-Bold').text("Summary Statistics", { underline: true });
-      doc.moveDown(0.5);
-      doc.fontSize(12).font('Helvetica').text(`• Total Users: ${users.length}`);
-      doc.fontSize(12).text(`• Administrators: ${adminCount}`);
-      doc.fontSize(12).text(`• Banned Users: ${bannedCount}`);
-      doc.fontSize(12).text(`• Total Balance: $${totalBalance.toFixed(2)}`);
-      doc.moveDown(2);
+      // Summary boxes
+      const boxWidth = 130;
+      const boxHeight = 60;
+      const startX = 30;
+      const startY = 140;
 
-      // Create table with proper headers
-      const headers = ["ID", "Name", "Username", "Phone", "Role", "Admin", "Banned", "Balance", "Created"];
-      
-      // Draw table header
-      doc.fontSize(12).font('Helvetica-Bold').text(headers.join("  "), { align: "left" });
-      doc.moveDown(0.5);
-      
-      // Draw separator line
-      doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-      doc.moveDown(0.5);
+      // Box 1: Total Users
+      doc
+        .rect(startX, startY, boxWidth, boxHeight)
+        .fill("#3498db")
+        .stroke("#2980b9");
+      doc
+        .fontSize(16)
+        .fillColor("white")
+        .font("Helvetica-Bold")
+        .text("Total Users", startX + 10, startY + 10);
+      doc.fontSize(24).text(users.length.toString(), startX + 10, startY + 30);
 
-      // Add user data
+      // Box 2: Active Users
+      doc
+        .rect(startX + boxWidth + 10, startY, boxWidth, boxHeight)
+        .fill("#27ae60")
+        .stroke("#229954");
+      doc
+        .fontSize(16)
+        .text("Active Users", startX + boxWidth + 20, startY + 10);
+      doc
+        .fontSize(24)
+        .text(activeUsers.toString(), startX + boxWidth + 20, startY + 30);
+
+      // Box 3: Administrators
+      doc
+        .rect(startX + (boxWidth + 10) * 2, startY, boxWidth, boxHeight)
+        .fill("#e74c3c")
+        .stroke("#c0392b");
+      doc
+        .fontSize(16)
+        .text("Admins", startX + (boxWidth + 10) * 2 + 10, startY + 10);
+      doc
+        .fontSize(24)
+        .text(
+          adminCount.toString(),
+          startX + (boxWidth + 10) * 2 + 10,
+          startY + 30
+        );
+
+      // Box 4: Total Balance
+      doc
+        .rect(startX + (boxWidth + 10) * 3, startY, boxWidth, boxHeight)
+        .fill("#f39c12")
+        .stroke("#e67e22");
+      doc
+        .fontSize(16)
+        .text("Total Balance", startX + (boxWidth + 10) * 3 + 10, startY + 10);
+      doc
+        .fontSize(20)
+        .text(
+          `$${totalBalance.toFixed(2)}`,
+          startX + (boxWidth + 10) * 3 + 10,
+          startY + 30
+        );
+
+      doc.moveDown(4);
+
+      // Create professional table with proper styling
+      const tableStartY = 250;
+      const colWidths = [60, 120, 80, 80, 60, 60, 60, 80];
+      const headers = [
+        "ID",
+        "Name",
+        "Username",
+        "Phone",
+        "Role",
+        "Admin",
+        "Banned",
+        "Balance",
+      ];
+
+      // Table header with styling
+      doc.rect(30, tableStartY, 535, 30).fill("#34495e").stroke("#2c3e50");
+      doc.fontSize(11).fillColor("white").font("Helvetica-Bold");
+
+      let currentX = 35;
+      headers.forEach((header, index) => {
+        doc.text(header, currentX, tableStartY + 8);
+        currentX += colWidths[index];
+      });
+
+      // Reset colors for data rows
+      doc.fillColor("black");
+      doc.fontSize(9).font("Helvetica");
+
+      // Add user data with alternating row colors
+      let currentY = tableStartY + 35;
       users.forEach((user, index) => {
-        if (doc.y > 700) {
+        // Check if we need a new page
+        if (currentY > 750) {
           doc.addPage();
-          doc.fontSize(12).font('Helvetica-Bold').text(headers.join("  "), { align: "left" });
-          doc.moveDown(0.5);
-          doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-          doc.moveDown(0.5);
+          currentY = 50;
+
+          // Repeat header on new page
+          doc.rect(30, currentY, 535, 30).fill("#34495e").stroke("#2c3e50");
+          doc.fontSize(11).fillColor("white").font("Helvetica-Bold");
+          let headerX = 35;
+          headers.forEach((header, headerIndex) => {
+            doc.text(header, headerX, currentY + 8);
+            headerX += colWidths[headerIndex];
+          });
+          doc.fillColor("black");
+          doc.fontSize(9).font("Helvetica");
+          currentY += 35;
         }
 
+        // Alternate row colors
+        const rowColor = index % 2 === 0 ? "#f8f9fa" : "#ffffff";
+        doc.rect(30, currentY, 535, 25).fill(rowColor).stroke("#dee2e6");
+
+        // Add row data
         const rowData = [
           user.id.substring(0, 8),
           `${user.firstName} ${user.lastName}`.trim() || "N/A",
           user.username || "N/A",
           user.phone || "N/A",
           user.role,
-          user.isAdmin ? "Yes" : "No",
-          user.isBanned ? "Yes" : "No",
+          user.isAdmin ? "✅" : "❌",
+          user.isBanned ? "🚫" : "✅",
           `$${user.balance.toFixed(2)}`,
-          user.createdAt
         ];
 
-        doc.fontSize(10).font('Helvetica').text(rowData.join("  "));
-        doc.moveDown(0.3);
+        let dataX = 35;
+        rowData.forEach((data, dataIndex) => {
+          doc.text(data, dataX, currentY + 8);
+          dataX += colWidths[dataIndex];
+        });
+
+        currentY += 30;
       });
+
+      // Add footer with additional statistics
+      doc.moveDown(2);
+      doc
+        .rect(30, currentY + 20, 535, 80)
+        .fill("#ecf0f1")
+        .stroke("#bdc3c7");
+      doc
+        .fontSize(14)
+        .fillColor("black")
+        .font("Helvetica-Bold")
+        .text("📊 Additional Statistics", 40, currentY + 40);
+      doc.fontSize(10).font("Helvetica");
+      doc.text(
+        `• Average Balance per User: $${(totalBalance / users.length).toFixed(
+          2
+        )}`,
+        40,
+        currentY + 60
+      );
+      doc.text(
+        `• Banned Users: ${bannedCount} (${(
+          (bannedCount / users.length) *
+          100
+        ).toFixed(1)}%)`,
+        40,
+        currentY + 75
+      );
+      doc.text(
+        `• Admin Percentage: ${((adminCount / users.length) * 100).toFixed(
+          1
+        )}%`,
+        40,
+        currentY + 90
+      );
+      doc.text(
+        `• Report Generated: ${new Date().toLocaleString()}`,
+        40,
+        currentY + 105
+      );
 
       doc.end();
 
@@ -2077,10 +2433,10 @@ class AdminHandlers {
               ? company.createdAt.toDate()
               : new Date(company.createdAt);
             if (!isNaN(createdDate.getTime())) {
-              createdAt = createdDate.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
+              createdAt = createdDate.toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
               });
             }
           }
@@ -2101,11 +2457,11 @@ class AdminHandlers {
         });
       }
 
-      // Create PDF
+      // Create PDF with improved styling
       const PDFDocument = require("pdfkit");
-      const doc = new PDFDocument({ 
-        margin: 50,
-        size: 'A4'
+      const doc = new PDFDocument({
+        margin: 30,
+        size: "A4",
       });
       const chunks = [];
 
@@ -2128,66 +2484,231 @@ class AdminHandlers {
         // Send the PDF file
         await ctx.replyWithDocument({
           source: buffer,
-          filename: `companies_export_${new Date().toISOString().split("T")[0]}.pdf`,
-          caption: `📊 **Company Export Report**\n\n📅 Generated: ${new Date().toLocaleString()}\n🏢 Total Companies: ${companiesData.length}\n📄 Format: PDF`,
+          filename: `companies_export_${
+            new Date().toISOString().split("T")[0]
+          }.pdf`,
+          caption: `📊 **Company Export Report**\n\n📅 Generated: ${new Date().toLocaleString()}\n🏢 Total Companies: ${
+            companiesData.length
+          }\n📄 Format: PDF`,
         });
       });
 
-      // Add professional header
-      doc.fontSize(24).font('Helvetica-Bold').text("Company Export Report", { align: "center" });
-      doc.moveDown(0.5);
-      doc.fontSize(12).font('Helvetica').text(`Generated: ${new Date().toLocaleString()}`, { align: "center" });
-      doc.fontSize(12).text(`Total Companies: ${companiesData.length}`, { align: "center" });
-      doc.moveDown(2);
+      // Create attractive header with gradient background
+      const headerHeight = 100;
+      doc.rect(0, 0, 595, headerHeight).fill("#2c3e50");
+      doc
+        .fontSize(28)
+        .fillColor("white")
+        .font("Helvetica-Bold")
+        .text("🏢 Company Export Report", 30, 25);
+      doc
+        .fontSize(12)
+        .font("Helvetica")
+        .text(`📅 Generated: ${new Date().toLocaleString()}`, 30, 60);
+      doc
+        .fontSize(12)
+        .text(`🏢 Total Companies: ${companiesData.length}`, 30, 75);
+      doc
+        .fontSize(12)
+        .text(`📄 Report Type: Detailed Company Analysis`, 300, 60);
+      doc.fontSize(12).text(`🔧 Admin Export`, 300, 75);
 
-      // Add summary statistics
-      const activeCount = companiesData.filter(c => c.status === 'active').length;
-      const totalProducts = companiesData.reduce((sum, c) => sum + c.products, 0);
-      const avgProducts = companiesData.length > 0 ? (totalProducts / companiesData.length).toFixed(1) : 0;
+      // Reset colors
+      doc.fillColor("black");
+      doc.moveDown(6);
 
-      doc.fontSize(16).font('Helvetica-Bold').text("Summary Statistics", { underline: true });
-      doc.moveDown(0.5);
-      doc.fontSize(12).font('Helvetica').text(`• Total Companies: ${companiesData.length}`);
-      doc.fontSize(12).text(`• Active Companies: ${activeCount}`);
-      doc.fontSize(12).text(`• Total Products: ${totalProducts}`);
-      doc.fontSize(12).text(`• Average Products per Company: ${avgProducts}`);
-      doc.moveDown(2);
+      // Add summary statistics in attractive boxes
+      const activeCount = companiesData.filter(
+        (c) => c.status === "active"
+      ).length;
+      const totalProducts = companiesData.reduce(
+        (sum, c) => sum + c.products,
+        0
+      );
+      const avgProducts =
+        companiesData.length > 0
+          ? (totalProducts / companiesData.length).toFixed(1)
+          : 0;
+      const inactiveCount = companiesData.length - activeCount;
 
-      // Create table with proper headers
-      const headers = ["ID", "Name", "Owner", "Email", "Phone", "Status", "Products", "Created"];
-      
-      // Draw table header
-      doc.fontSize(12).font('Helvetica-Bold').text(headers.join("  "), { align: "left" });
-      doc.moveDown(0.5);
-      
-      // Draw separator line
-      doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-      doc.moveDown(0.5);
+      // Summary boxes
+      const boxWidth = 130;
+      const boxHeight = 60;
+      const startX = 30;
+      const startY = 140;
 
-      // Add company data
+      // Box 1: Total Companies
+      doc
+        .rect(startX, startY, boxWidth, boxHeight)
+        .fill("#3498db")
+        .stroke("#2980b9");
+      doc
+        .fontSize(16)
+        .fillColor("white")
+        .font("Helvetica-Bold")
+        .text("Total Companies", startX + 10, startY + 10);
+      doc
+        .fontSize(24)
+        .text(companiesData.length.toString(), startX + 10, startY + 30);
+
+      // Box 2: Active Companies
+      doc
+        .rect(startX + boxWidth + 10, startY, boxWidth, boxHeight)
+        .fill("#27ae60")
+        .stroke("#229954");
+      doc
+        .fontSize(16)
+        .text("Active Companies", startX + boxWidth + 20, startY + 10);
+      doc
+        .fontSize(24)
+        .text(activeCount.toString(), startX + boxWidth + 20, startY + 30);
+
+      // Box 3: Total Products
+      doc
+        .rect(startX + (boxWidth + 10) * 2, startY, boxWidth, boxHeight)
+        .fill("#e74c3c")
+        .stroke("#c0392b");
+      doc
+        .fontSize(16)
+        .text("Total Products", startX + (boxWidth + 10) * 2 + 10, startY + 10);
+      doc
+        .fontSize(24)
+        .text(
+          totalProducts.toString(),
+          startX + (boxWidth + 10) * 2 + 10,
+          startY + 30
+        );
+
+      // Box 4: Avg Products
+      doc
+        .rect(startX + (boxWidth + 10) * 3, startY, boxWidth, boxHeight)
+        .fill("#f39c12")
+        .stroke("#e67e22");
+      doc
+        .fontSize(16)
+        .text("Avg Products", startX + (boxWidth + 10) * 3 + 10, startY + 10);
+      doc
+        .fontSize(20)
+        .text(
+          avgProducts.toString(),
+          startX + (boxWidth + 10) * 3 + 10,
+          startY + 30
+        );
+
+      doc.moveDown(4);
+
+      // Create professional table with proper styling
+      const tableStartY = 250;
+      const colWidths = [60, 120, 100, 100, 60, 60, 80];
+      const headers = [
+        "ID",
+        "Company Name",
+        "Owner",
+        "Email",
+        "Status",
+        "Products",
+        "Created",
+      ];
+
+      // Table header with styling
+      doc.rect(30, tableStartY, 535, 30).fill("#34495e").stroke("#2c3e50");
+      doc.fontSize(11).fillColor("white").font("Helvetica-Bold");
+
+      let currentX = 35;
+      headers.forEach((header, index) => {
+        doc.text(header, currentX, tableStartY + 8);
+        currentX += colWidths[index];
+      });
+
+      // Reset colors for data rows
+      doc.fillColor("black");
+      doc.fontSize(9).font("Helvetica");
+
+      // Add company data with alternating row colors
+      let currentY = tableStartY + 35;
       companiesData.forEach((company, index) => {
-        if (doc.y > 700) {
+        // Check if we need a new page
+        if (currentY > 750) {
           doc.addPage();
-          doc.fontSize(12).font('Helvetica-Bold').text(headers.join("  "), { align: "left" });
-          doc.moveDown(0.5);
-          doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-          doc.moveDown(0.5);
+          currentY = 50;
+
+          // Repeat header on new page
+          doc.rect(30, currentY, 535, 30).fill("#34495e").stroke("#2c3e50");
+          doc.fontSize(11).fillColor("white").font("Helvetica-Bold");
+          let headerX = 35;
+          headers.forEach((header, headerIndex) => {
+            doc.text(header, headerX, currentY + 8);
+            headerX += colWidths[headerIndex];
+          });
+          doc.fillColor("black");
+          doc.fontSize(9).font("Helvetica");
+          currentY += 35;
         }
 
+        // Alternate row colors
+        const rowColor = index % 2 === 0 ? "#f8f9fa" : "#ffffff";
+        doc.rect(30, currentY, 535, 25).fill(rowColor).stroke("#dee2e6");
+
+        // Add row data
         const rowData = [
           company.id.substring(0, 8),
           company.name || "N/A",
           company.owner,
           company.email,
-          company.phone,
-          company.status,
+          company.status === "active" ? "✅ Active" : "❌ Inactive",
           company.products.toString(),
-          company.createdAt
+          company.createdAt,
         ];
 
-        doc.fontSize(10).font('Helvetica').text(rowData.join("  "));
-        doc.moveDown(0.3);
+        let dataX = 35;
+        rowData.forEach((data, dataIndex) => {
+          doc.text(data, dataX, currentY + 8);
+          dataX += colWidths[dataIndex];
+        });
+
+        currentY += 30;
       });
+
+      // Add footer with additional statistics
+      doc.moveDown(2);
+      doc
+        .rect(30, currentY + 20, 535, 80)
+        .fill("#ecf0f1")
+        .stroke("#bdc3c7");
+      doc
+        .fontSize(14)
+        .fillColor("black")
+        .font("Helvetica-Bold")
+        .text("📊 Additional Statistics", 40, currentY + 40);
+      doc.fontSize(10).font("Helvetica");
+      doc.text(
+        `• Active Companies: ${activeCount} (${(
+          (activeCount / companiesData.length) *
+          100
+        ).toFixed(1)}%)`,
+        40,
+        currentY + 60
+      );
+      doc.text(
+        `• Inactive Companies: ${inactiveCount} (${(
+          (inactiveCount / companiesData.length) *
+          100
+        ).toFixed(1)}%)`,
+        40,
+        currentY + 75
+      );
+      doc.text(
+        `• Companies with Products: ${
+          companiesData.filter((c) => c.products > 0).length
+        }`,
+        40,
+        currentY + 90
+      );
+      doc.text(
+        `• Report Generated: ${new Date().toLocaleString()}`,
+        40,
+        currentY + 105
+      );
 
       doc.end();
 
