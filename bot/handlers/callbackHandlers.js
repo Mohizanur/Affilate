@@ -197,7 +197,7 @@ class CallbackHandlers {
         case "confirm_broadcast":
           return adminHandlers.handleConfirmBroadcast(ctx);
         case "admin_withdrawals":
-          return adminHandlers.handleCompanyWithdrawals(ctx);
+          return adminHandlers.handlePendingCompanyWithdrawals(ctx);
         case "platform_withdrawals":
           return adminHandlers.handlePlatformWithdrawals(ctx);
         case "platform_withdrawal_request":
@@ -225,8 +225,6 @@ class CallbackHandlers {
           return adminHandlers.handleAdminListUsers(ctx);
         case "platform_analytics_dashboard":
           return adminHandlers.handlePlatformAnalyticsDashboard(ctx);
-        case "admin_withdrawals":
-          return adminHandlers.handleCompanyWithdrawals(ctx);
         case "error_logs":
           return adminHandlers.handleErrorLogs(ctx);
         case "warning_logs":
