@@ -375,30 +375,50 @@ class ReferralService {
           await buyerRef.update({ coinBalance: buyerBalance + buyerDiscount });
         }
       }
-      // Send notifications
+      // Send notifications with better error handling
       const notificationService = require("./notificationService");
       const { getNotificationServiceInstance } = notificationService;
 
       try {
+        logger.info(`Starting notifications for referral code ${code}`);
+
         // Get company info for notifications
         const companyService = require("./companyService");
         const company = await companyService.getCompanyById(companyId);
+        logger.info(`Company found: ${company?.name || "Unknown"}`);
+
+        // Get notification service instance
+        const notificationInstance = getNotificationServiceInstance();
+        if (!notificationInstance) {
+          logger.error("Notification service instance is null!");
+          return {
+            valid: true,
+            referrerId: refCode.userId,
+            code: refCode.code,
+          };
+        }
 
         // Notify referrer
-        await getNotificationServiceInstance().notifyNewReferral(
+        logger.info(`Notifying referrer ${refCode.userId}`);
+        await notificationInstance.notifyNewReferral(
           refCode.userId,
           `User ${buyerTelegramId}`,
           `Purchase from ${company?.name || "Company"}`,
           amount * ((settings?.referralCommissionPercent || 2) / 100)
         );
+        logger.info(`Referrer notification sent successfully`);
 
         // Notify company/seller
         if (company?.telegramId) {
-          await getNotificationServiceInstance().sendNotification(
+          logger.info(`Notifying company ${company.telegramId}`);
+          await notificationInstance.sendDirectNotification(
             company.telegramId,
             `🎉 New referral sale!\n\n💰 Amount: $${amount}\n👤 Buyer: ${buyerTelegramId}\n🔗 Referral Code: ${code}\n\nYour product was purchased using a referral code!`,
             { type: "company_sale" }
           );
+          logger.info(`Company notification sent successfully`);
+        } else {
+          logger.warn(`Company has no telegramId: ${company?.id}`);
         }
 
         // Notify admins
@@ -407,7 +427,8 @@ class ReferralService {
         const adminIds = admins.map((admin) => admin.telegramId);
 
         if (adminIds.length > 0) {
-          await getNotificationServiceInstance().notifyAdminAlert(
+          logger.info(`Notifying ${adminIds.length} admins`);
+          await notificationInstance.notifyAdminAlert(
             adminIds,
             "New Referral Sale",
             `💰 New referral sale completed!\n\n🏢 Company: ${
@@ -416,9 +437,17 @@ class ReferralService {
               2
             )}`
           );
+          logger.info(`Admin notifications sent successfully`);
+        } else {
+          logger.warn("No admin users found");
         }
+
+        logger.info(
+          `All notifications sent successfully for referral code ${code}`
+        );
       } catch (notificationError) {
         logger.error("Error sending notifications:", notificationError);
+        // Don't fail the referral validation if notifications fail
       }
       logger.info(
         `Referral code ${code} used by ${buyerTelegramId} for company ${companyId}`

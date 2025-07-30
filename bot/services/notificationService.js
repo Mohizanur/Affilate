@@ -157,14 +157,37 @@ class NotificationService {
     }
   }
 
+  async sendDirectNotification(telegramId, message, options = {}) {
+    try {
+      // Send directly to Telegram ID without checking user database
+      await this.bot.telegram.sendMessage(telegramId, message, {
+        parse_mode: "HTML",
+        disable_web_page_preview: true,
+        ...options,
+      });
+
+      logger.info(`Direct notification sent to Telegram ID ${telegramId}`);
+      return true;
+    } catch (error) {
+      logger.error(`Error sending direct notification to ${telegramId}:`, error);
+      return false;
+    }
+  }
+
   async notifyAdminAlert(adminIds, alertType, message) {
     try {
-      const userService = require("./userService");
       const alertMessage = `🚨 <b>Admin Alert - ${alertType}</b>\n\n${message}`;
 
-      await this.sendBulkNotification(adminIds, alertMessage, {
-        type: "admin",
-      });
+      // Send directly to admin Telegram IDs
+      for (const adminId of adminIds) {
+        await this.sendDirectNotification(adminId, alertMessage, {
+          type: "admin",
+        });
+        // Add small delay to avoid rate limiting
+        await this.delay(100);
+      }
+      
+      logger.info(`Admin alerts sent to ${adminIds.length} admins`);
     } catch (error) {
       logger.error("Error sending admin alert:", error);
     }
