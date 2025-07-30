@@ -1677,7 +1677,7 @@ class AdminHandlers {
       const users = await userService.getAllUsers();
       const companies = await companyService.getAllCompanies();
 
-      // Create PDF with proper table formatting
+      // Create PDF with real table formatting
       const PDFDocument = require("pdfkit");
       const doc = new PDFDocument({
         margin: 50,
@@ -1734,91 +1734,172 @@ class AdminHandlers {
       doc.fontSize(12).text(`• Active Companies: ${activeCompanies}`);
       doc.moveDown(2);
 
-      // Users section with proper table formatting
+      // Users section with real table
       doc.fontSize(16).font('Helvetica-Bold').text("Users:", { underline: true });
-      doc.moveDown(0.5);
+      doc.moveDown(1);
       
       if (users.length === 0) {
         doc.fontSize(12).font('Helvetica').text("No users found.");
       } else {
-        // Use monospace font for proper table alignment
-        doc.font('Courier');
+        const headers = ["ID", "Name", "Username", "Phone", "Role", "Admin", "Banned", "Balance"];
+        const colWidths = [70, 90, 90, 90, 60, 50, 50, 70];
+        const startX = 50;
+        let startY = doc.y;
+        const rowHeight = 25;
+        const headerHeight = 30;
+
+        // Draw table border
+        const tableWidth = colWidths.reduce((sum, width) => sum + width, 0);
+        doc.rect(startX, startY, tableWidth, headerHeight).stroke();
         
-        const userHeaders = ["ID        ", "Name          ", "Username    ", "Phone       ", "Role   ", "Admin ", "Banned", "Balance   "];
-        doc.fontSize(11).font('Courier-Bold').text(userHeaders.join(""));
-        doc.moveDown(0.5);
-        doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-        doc.moveDown(0.5);
+        // Draw header text
+        let x = startX + 5;
+        headers.forEach((header, index) => {
+          doc.fontSize(10).font('Helvetica-Bold').text(header, x, startY + 8);
+          x += colWidths[index];
+        });
 
+        // Draw header column separators
+        let separatorX = startX;
+        colWidths.forEach((width, colIndex) => {
+          if (colIndex > 0) {
+            doc.moveTo(separatorX, startY).lineTo(separatorX, startY + headerHeight).stroke();
+          }
+          separatorX += width;
+        });
+
+        // Draw data rows with borders
         users.forEach((user, index) => {
-          if (doc.y > 700) {
+          const rowY = startY + headerHeight + (index * rowHeight);
+          
+          // Check if we need a new page
+          if (rowY > 700) {
             doc.addPage();
+            startY = doc.y;
+            
             // Repeat header on new page
-            doc.fontSize(11).font('Courier-Bold').text(userHeaders.join(""));
-            doc.moveDown(0.5);
-            doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-            doc.moveDown(0.5);
-          }
-
-          // Safe date conversion
-          let createdDate = "N/A";
-          try {
-            if (user.createdAt) {
-              const date = user.createdAt.toDate ? user.createdAt.toDate() : new Date(user.createdAt);
-              if (!isNaN(date.getTime())) {
-                createdDate = date.toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric'
-                });
+            doc.rect(startX, startY, tableWidth, headerHeight).stroke();
+            x = startX + 5;
+            headers.forEach((header, headerIndex) => {
+              doc.fontSize(10).font('Helvetica-Bold').text(header, x, startY + 8);
+              x += colWidths[headerIndex];
+            });
+            
+            // Draw header column separators
+            separatorX = startX;
+            colWidths.forEach((width, colIndex) => {
+              if (colIndex > 0) {
+                doc.moveTo(separatorX, startY).lineTo(separatorX, startY + headerHeight).stroke();
               }
-            }
-          } catch (e) {
-            createdDate = "N/A";
+              separatorX += width;
+            });
           }
+          
+          // Draw row border
+          doc.rect(startX, rowY, tableWidth, rowHeight).stroke();
+          
+          // Draw column separators
+          separatorX = startX;
+          colWidths.forEach((width, colIndex) => {
+            if (colIndex > 0) {
+              doc.moveTo(separatorX, rowY).lineTo(separatorX, rowY + rowHeight).stroke();
+            }
+            separatorX += width;
+          });
 
+          // Draw data
           const rowData = [
-            (user.id?.substring(0, 8) || "N/A").padEnd(10),
-            ((user.firstName || user.first_name || "") + " " + (user.lastName || user.last_name || "")).trim().padEnd(15) || "N/A".padEnd(15),
-            (user.username || "N/A").padEnd(12),
-            (user.phone || "N/A").padEnd(12),
-            (user.role || "user").padEnd(8),
-            (user.isAdmin ? "Yes" : "No").padEnd(8),
-            (user.isBanned || user.banned ? "Yes" : "No").padEnd(8),
-            (`$${(user.referralBalance || user.coinBalance || 0).toFixed(2)}`).padEnd(10)
+            user.id?.substring(0, 8) || "N/A",
+            `${user.firstName || user.first_name || ""} ${user.lastName || user.last_name || ""}`.trim() || "N/A",
+            user.username || "N/A",
+            user.phone || "N/A",
+            user.role || "user",
+            user.isAdmin ? "Yes" : "No",
+            user.isBanned || user.banned ? "Yes" : "No",
+            `$${(user.referralBalance || user.coinBalance || 0).toFixed(2)}`
           ];
 
-          doc.fontSize(9).font('Courier').text(rowData.join(""));
-          doc.moveDown(0.3);
+          x = startX + 5;
+          rowData.forEach((data, dataIndex) => {
+            doc.fontSize(8).font('Helvetica').text(data, x, rowY + 8);
+            x += colWidths[dataIndex];
+          });
         });
       }
 
-      // Companies section with proper table formatting
-      doc.moveDown(1);
+      // Companies section with real table
+      doc.moveDown(2);
       doc.fontSize(16).font('Helvetica-Bold').text("Companies:", { underline: true });
-      doc.moveDown(0.5);
+      doc.moveDown(1);
       
       if (companies.length === 0) {
         doc.fontSize(12).font('Helvetica').text("No companies found.");
       } else {
-        // Use monospace font for proper table alignment
-        doc.font('Courier');
-        
-        const companyHeaders = ["ID        ", "Name          ", "Owner       ", "Email       ", "Status ", "Created   "];
-        doc.fontSize(11).font('Courier-Bold').text(companyHeaders.join(""));
-        doc.moveDown(0.5);
-        doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-        doc.moveDown(0.5);
+        const headers = ["ID", "Name", "Owner", "Email", "Status", "Created"];
+        const colWidths = [70, 90, 90, 90, 60, 70];
+        const startX = 50;
+        let startY = doc.y;
+        const rowHeight = 25;
+        const headerHeight = 30;
 
-        companies.forEach((company, index) => {
-          if (doc.y > 700) {
-            doc.addPage();
-            // Repeat header on new page
-            doc.fontSize(11).font('Courier-Bold').text(companyHeaders.join(""));
-            doc.moveDown(0.5);
-            doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-            doc.moveDown(0.5);
+        // Draw table border
+        const tableWidth = colWidths.reduce((sum, width) => sum + width, 0);
+        doc.rect(startX, startY, tableWidth, headerHeight).stroke();
+        
+        // Draw header text
+        let x = startX + 5;
+        headers.forEach((header, index) => {
+          doc.fontSize(10).font('Helvetica-Bold').text(header, x, startY + 8);
+          x += colWidths[index];
+        });
+
+        // Draw header column separators
+        let separatorX = startX;
+        colWidths.forEach((width, colIndex) => {
+          if (colIndex > 0) {
+            doc.moveTo(separatorX, startY).lineTo(separatorX, startY + headerHeight).stroke();
           }
+          separatorX += width;
+        });
+
+        // Draw data rows with borders
+        companies.forEach((company, index) => {
+          const rowY = startY + headerHeight + (index * rowHeight);
+          
+          // Check if we need a new page
+          if (rowY > 700) {
+            doc.addPage();
+            startY = doc.y;
+            
+            // Repeat header on new page
+            doc.rect(startX, startY, tableWidth, headerHeight).stroke();
+            x = startX + 5;
+            headers.forEach((header, headerIndex) => {
+              doc.fontSize(10).font('Helvetica-Bold').text(header, x, startY + 8);
+              x += colWidths[headerIndex];
+            });
+            
+            // Draw header column separators
+            separatorX = startX;
+            colWidths.forEach((width, colIndex) => {
+              if (colIndex > 0) {
+                doc.moveTo(separatorX, startY).lineTo(separatorX, startY + headerHeight).stroke();
+              }
+              separatorX += width;
+            });
+          }
+          
+          // Draw row border
+          doc.rect(startX, rowY, tableWidth, rowHeight).stroke();
+          
+          // Draw column separators
+          separatorX = startX;
+          colWidths.forEach((width, colIndex) => {
+            if (colIndex > 0) {
+              doc.moveTo(separatorX, rowY).lineTo(separatorX, rowY + rowHeight).stroke();
+            }
+            separatorX += width;
+          });
 
           // Safe date conversion
           let createdDate = "N/A";
@@ -1837,17 +1918,21 @@ class AdminHandlers {
             createdDate = "N/A";
           }
 
+          // Draw data
           const rowData = [
-            (company.id?.substring(0, 8) || "N/A").padEnd(10),
-            (company.name || "N/A").padEnd(15),
-            (company.telegramId ? `@${company.telegramId}` : "N/A").padEnd(12),
-            (company.email || "N/A").padEnd(12),
-            (company.status || "active").padEnd(8),
-            (createdDate).padEnd(10)
+            company.id?.substring(0, 8) || "N/A",
+            company.name || "N/A",
+            company.telegramId ? `@${company.telegramId}` : "N/A",
+            company.email || "N/A",
+            company.status || "active",
+            createdDate
           ];
 
-          doc.fontSize(9).font('Courier').text(rowData.join(""));
-          doc.moveDown(0.3);
+          x = startX + 5;
+          rowData.forEach((data, dataIndex) => {
+            doc.fontSize(8).font('Helvetica').text(data, x, rowY + 8);
+            x += colWidths[dataIndex];
+          });
         });
       }
 
@@ -1950,7 +2035,7 @@ class AdminHandlers {
         });
       }
 
-      // Create PDF with proper table formatting
+      // Create PDF with real table formatting
       const PDFDocument = require("pdfkit");
       const doc = new PDFDocument({ 
         margin: 50,
@@ -1996,43 +2081,98 @@ class AdminHandlers {
       doc.fontSize(12).text(`• Total Balance: $${totalBalance.toFixed(2)}`);
       doc.moveDown(2);
 
-      // Use monospace font for proper table alignment
-      doc.font('Courier');
-      
-      // Table header with proper spacing
-      const headers = ["ID        ", "Name          ", "Username    ", "Phone       ", "Role   ", "Admin ", "Banned", "Balance   "];
-      doc.fontSize(11).font('Courier-Bold').text(headers.join(""));
-      doc.moveDown(0.5);
-      
-      // Draw separator line
-      doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-      doc.moveDown(0.5);
+      // Real table with borders
+      doc.fontSize(14).font('Helvetica-Bold').text("Users:", { underline: true });
+      doc.moveDown(1);
 
-      // Add user data with proper column alignment
-      users.forEach((user, index) => {
-        if (doc.y > 700) {
-          doc.addPage();
-          // Repeat header on new page
-          doc.fontSize(11).font('Courier-Bold').text(headers.join(""));
-          doc.moveDown(0.5);
-          doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-          doc.moveDown(0.5);
-        }
+      if (users.length === 0) {
+        doc.fontSize(12).font('Helvetica').text("No users found.");
+      } else {
+        const headers = ["ID", "Name", "Username", "Phone", "Role", "Admin", "Banned", "Balance"];
+        const colWidths = [70, 90, 90, 90, 60, 50, 50, 70];
+        const startX = 50;
+        let startY = doc.y;
+        const rowHeight = 25;
+        const headerHeight = 30;
 
-        const rowData = [
-          (user.id.substring(0, 8) || "N/A").padEnd(10),
-          ((user.firstName + " " + user.lastName).trim() || "N/A").padEnd(15),
-          (user.username || "N/A").padEnd(12),
-          (user.phone || "N/A").padEnd(12),
-          (user.role || "user").padEnd(8),
-          (user.isAdmin ? "Yes" : "No").padEnd(8),
-          (user.isBanned ? "Yes" : "No").padEnd(8),
-          (`$${user.balance.toFixed(2)}`).padEnd(10)
-        ];
+        // Draw table border
+        const tableWidth = colWidths.reduce((sum, width) => sum + width, 0);
+        doc.rect(startX, startY, tableWidth, headerHeight).stroke();
+        
+        // Draw header text
+        let x = startX + 5;
+        headers.forEach((header, index) => {
+          doc.fontSize(10).font('Helvetica-Bold').text(header, x, startY + 8);
+          x += colWidths[index];
+        });
 
-        doc.fontSize(9).font('Courier').text(rowData.join(""));
-        doc.moveDown(0.3);
-      });
+        // Draw header column separators
+        let separatorX = startX;
+        colWidths.forEach((width, colIndex) => {
+          if (colIndex > 0) {
+            doc.moveTo(separatorX, startY).lineTo(separatorX, startY + headerHeight).stroke();
+          }
+          separatorX += width;
+        });
+
+        // Draw data rows with borders
+        users.forEach((user, index) => {
+          const rowY = startY + headerHeight + (index * rowHeight);
+          
+          // Check if we need a new page
+          if (rowY > 700) {
+            doc.addPage();
+            startY = doc.y;
+            
+            // Repeat header on new page
+            doc.rect(startX, startY, tableWidth, headerHeight).stroke();
+            x = startX + 5;
+            headers.forEach((header, headerIndex) => {
+              doc.fontSize(10).font('Helvetica-Bold').text(header, x, startY + 8);
+              x += colWidths[headerIndex];
+            });
+            
+            // Draw header column separators
+            separatorX = startX;
+            colWidths.forEach((width, colIndex) => {
+              if (colIndex > 0) {
+                doc.moveTo(separatorX, startY).lineTo(separatorX, startY + headerHeight).stroke();
+              }
+              separatorX += width;
+            });
+          }
+          
+          // Draw row border
+          doc.rect(startX, rowY, tableWidth, rowHeight).stroke();
+          
+          // Draw column separators
+          separatorX = startX;
+          colWidths.forEach((width, colIndex) => {
+            if (colIndex > 0) {
+              doc.moveTo(separatorX, rowY).lineTo(separatorX, rowY + rowHeight).stroke();
+            }
+            separatorX += width;
+          });
+
+          // Draw data
+          const rowData = [
+            user.id.substring(0, 8),
+            `${user.firstName} ${user.lastName}`.trim() || "N/A",
+            user.username || "N/A",
+            user.phone || "N/A",
+            user.role,
+            user.isAdmin ? "Yes" : "No",
+            user.isBanned ? "Yes" : "No",
+            `$${user.balance.toFixed(2)}`
+          ];
+
+          x = startX + 5;
+          rowData.forEach((data, dataIndex) => {
+            doc.fontSize(8).font('Helvetica').text(data, x, rowY + 8);
+            x += colWidths[dataIndex];
+          });
+        });
+      }
 
       doc.end();
 
@@ -2115,7 +2255,7 @@ class AdminHandlers {
         });
       }
 
-      // Create PDF with proper table formatting
+      // Create PDF with real table formatting
       const PDFDocument = require("pdfkit");
       const doc = new PDFDocument({ 
         margin: 50,
@@ -2166,43 +2306,98 @@ class AdminHandlers {
       doc.fontSize(12).text(`• Average Products per Company: ${avgProducts}`);
       doc.moveDown(2);
 
-      // Use monospace font for proper table alignment
-      doc.font('Courier');
-      
-      // Table header with proper spacing
-      const headers = ["ID        ", "Name          ", "Owner       ", "Email       ", "Phone   ", "Status ", "Products", "Created   "];
-      doc.fontSize(11).font('Courier-Bold').text(headers.join(""));
-      doc.moveDown(0.5);
-      
-      // Draw separator line
-      doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-      doc.moveDown(0.5);
+      // Real table with borders
+      doc.fontSize(14).font('Helvetica-Bold').text("Companies:", { underline: true });
+      doc.moveDown(1);
 
-      // Add company data with proper column alignment
-      companiesData.forEach((company, index) => {
-        if (doc.y > 700) {
-          doc.addPage();
-          // Repeat header on new page
-          doc.fontSize(11).font('Courier-Bold').text(headers.join(""));
-          doc.moveDown(0.5);
-          doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-          doc.moveDown(0.5);
-        }
+      if (companiesData.length === 0) {
+        doc.fontSize(12).font('Helvetica').text("No companies found.");
+      } else {
+        const headers = ["ID", "Name", "Owner", "Email", "Phone", "Status", "Products", "Created"];
+        const colWidths = [70, 90, 90, 90, 60, 50, 50, 70];
+        const startX = 50;
+        let startY = doc.y;
+        const rowHeight = 25;
+        const headerHeight = 30;
 
-        const rowData = [
-          (company.id.substring(0, 8) || "N/A").padEnd(10),
-          (company.name || "N/A").padEnd(15),
-          (company.owner || "N/A").padEnd(12),
-          (company.email || "N/A").padEnd(12),
-          (company.phone || "N/A").padEnd(8),
-          (company.status || "active").padEnd(8),
-          (company.products.toString()).padEnd(8),
-          (company.createdAt || "N/A").padEnd(10)
-        ];
+        // Draw table border
+        const tableWidth = colWidths.reduce((sum, width) => sum + width, 0);
+        doc.rect(startX, startY, tableWidth, headerHeight).stroke();
+        
+        // Draw header text
+        let x = startX + 5;
+        headers.forEach((header, index) => {
+          doc.fontSize(10).font('Helvetica-Bold').text(header, x, startY + 8);
+          x += colWidths[index];
+        });
 
-        doc.fontSize(9).font('Courier').text(rowData.join(""));
-        doc.moveDown(0.3);
-      });
+        // Draw header column separators
+        let separatorX = startX;
+        colWidths.forEach((width, colIndex) => {
+          if (colIndex > 0) {
+            doc.moveTo(separatorX, startY).lineTo(separatorX, startY + headerHeight).stroke();
+          }
+          separatorX += width;
+        });
+
+        // Draw data rows with borders
+        companiesData.forEach((company, index) => {
+          const rowY = startY + headerHeight + (index * rowHeight);
+          
+          // Check if we need a new page
+          if (rowY > 700) {
+            doc.addPage();
+            startY = doc.y;
+            
+            // Repeat header on new page
+            doc.rect(startX, startY, tableWidth, headerHeight).stroke();
+            x = startX + 5;
+            headers.forEach((header, headerIndex) => {
+              doc.fontSize(10).font('Helvetica-Bold').text(header, x, startY + 8);
+              x += colWidths[headerIndex];
+            });
+            
+            // Draw header column separators
+            separatorX = startX;
+            colWidths.forEach((width, colIndex) => {
+              if (colIndex > 0) {
+                doc.moveTo(separatorX, startY).lineTo(separatorX, startY + headerHeight).stroke();
+              }
+              separatorX += width;
+            });
+          }
+          
+          // Draw row border
+          doc.rect(startX, rowY, tableWidth, rowHeight).stroke();
+          
+          // Draw column separators
+          separatorX = startX;
+          colWidths.forEach((width, colIndex) => {
+            if (colIndex > 0) {
+              doc.moveTo(separatorX, rowY).lineTo(separatorX, rowY + rowHeight).stroke();
+            }
+            separatorX += width;
+          });
+
+          // Draw data
+          const rowData = [
+            company.id.substring(0, 8),
+            company.name || "N/A",
+            company.owner,
+            company.email,
+            company.phone,
+            company.status,
+            company.products.toString(),
+            company.createdAt
+          ];
+
+          x = startX + 5;
+          rowData.forEach((data, dataIndex) => {
+            doc.fontSize(8).font('Helvetica').text(data, x, rowY + 8);
+            x += colWidths[dataIndex];
+          });
+        });
+      }
 
       doc.end();
 
