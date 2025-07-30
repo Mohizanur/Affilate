@@ -3935,6 +3935,10 @@ Toggle notifications:
   }
 
   async handleCompanyReferralDetails(ctx, companyId, pageArg) {
+    // Get user to get language
+    const user = await require("../services/userService").userService.getUserByTelegramId(ctx.from.id);
+    const userLanguage = user?.language || "en";
+    
     const referralService = require("../services/referralService");
     const stats = await referralService.getUserReferralStats(ctx.from.id);
     const data = stats.companyStats && stats.companyStats[companyId];
