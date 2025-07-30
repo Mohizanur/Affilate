@@ -1677,7 +1677,7 @@ class AdminHandlers {
       const users = await userService.getAllUsers();
       const companies = await companyService.getAllCompanies();
 
-      // Create PDF with robust table formatting
+      // Create PDF with professional table formatting
       const PDFDocument = require("pdfkit");
       const doc = new PDFDocument({
         margin: 50,
@@ -1709,7 +1709,7 @@ class AdminHandlers {
         }
       });
 
-      // Simple header
+      // Professional header
       doc
         .fontSize(20)
         .font("Helvetica-Bold")
@@ -1726,7 +1726,7 @@ class AdminHandlers {
         });
       doc.moveDown(2);
 
-      // Simple summary
+      // Summary statistics
       const adminCount = users.filter((u) => u.isAdmin).length;
       const bannedCount = users.filter((u) => u.isBanned || u.banned).length;
       const activeCompanies = companies.filter(
@@ -1751,7 +1751,7 @@ class AdminHandlers {
       doc.fontSize(12).text(`• Active Companies: ${activeCompanies}`);
       doc.moveDown(2);
 
-      // Users section with simple table
+      // Users section with professional table
       doc
         .fontSize(16)
         .font("Helvetica-Bold")
@@ -1761,7 +1761,7 @@ class AdminHandlers {
       if (users.length === 0) {
         doc.fontSize(12).font("Helvetica").text("No users found.");
       } else {
-        // Use simple table without complex positioning
+        // Professional table with borders
         const headers = [
           "ID",
           "Name",
@@ -1772,25 +1772,91 @@ class AdminHandlers {
           "Banned",
           "Balance",
         ];
+        const colWidths = [70, 90, 90, 90, 60, 50, 50, 70];
+        const startX = 50;
+        let currentY = doc.y || 200;
+        const rowHeight = 25;
+        const headerHeight = 30;
 
-        // Draw header
-        doc.fontSize(12).font("Helvetica-Bold").text(headers.join("  "));
-        doc.moveDown(0.5);
+        // Ensure valid starting position
+        if (isNaN(currentY) || currentY < 0) currentY = 200;
 
-        // Draw separator
-        doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-        doc.moveDown(0.5);
+        // Draw table header
+        const tableWidth = colWidths.reduce((sum, width) => sum + width, 0);
+        doc.rect(startX, currentY, tableWidth, headerHeight).stroke();
+
+        // Draw header text
+        let x = startX + 5;
+        headers.forEach((header, index) => {
+          doc
+            .fontSize(10)
+            .font("Helvetica-Bold")
+            .text(header, x, currentY + 8);
+          x += colWidths[index];
+        });
+
+        // Draw header column separators
+        let separatorX = startX;
+        colWidths.forEach((width, colIndex) => {
+          if (colIndex > 0) {
+            doc
+              .moveTo(separatorX, currentY)
+              .lineTo(separatorX, currentY + headerHeight)
+              .stroke();
+          }
+          separatorX += width;
+        });
 
         // Draw data rows
         users.forEach((user, index) => {
-          if (doc.y > 700) {
+          const rowY = currentY + headerHeight + index * rowHeight;
+
+          // Check if we need a new page
+          if (rowY > 700) {
             doc.addPage();
-            doc.fontSize(12).font("Helvetica-Bold").text(headers.join("  "));
-            doc.moveDown(0.5);
-            doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-            doc.moveDown(0.5);
+            currentY = doc.y || 50;
+            if (isNaN(currentY) || currentY < 0) currentY = 50;
+
+            // Repeat header on new page
+            doc.rect(startX, currentY, tableWidth, headerHeight).stroke();
+            x = startX + 5;
+            headers.forEach((header, headerIndex) => {
+              doc
+                .fontSize(10)
+                .font("Helvetica-Bold")
+                .text(header, x, currentY + 8);
+              x += colWidths[headerIndex];
+            });
+
+            // Draw header column separators
+            separatorX = startX;
+            colWidths.forEach((width, colIndex) => {
+              if (colIndex > 0) {
+                doc
+                  .moveTo(separatorX, currentY)
+                  .lineTo(separatorX, currentY + headerHeight)
+                  .stroke();
+              }
+              separatorX += width;
+            });
           }
 
+          // Draw row border
+          doc.rect(startX, rowY, tableWidth, rowHeight).stroke();
+
+          // Draw column separators
+          separatorX = startX;
+          colWidths.forEach((width, colIndex) => {
+            if (colIndex > 0) {
+              doc
+                .moveTo(separatorX, rowY)
+                .lineTo(separatorX, rowY + rowHeight)
+                .stroke();
+            }
+            separatorX += width;
+          });
+
+          // Draw data
           const rowData = [
             user.id?.substring(0, 8) || "N/A",
             `${user.firstName || user.first_name || ""} ${
@@ -1804,12 +1870,18 @@ class AdminHandlers {
             `$${(user.referralBalance || user.coinBalance || 0).toFixed(2)}`,
           ];
 
-          doc.fontSize(10).font("Helvetica").text(rowData.join("  "));
-          doc.moveDown(0.3);
+          x = startX + 5;
+          rowData.forEach((data, dataIndex) => {
+            doc
+              .fontSize(8)
+              .font("Helvetica")
+              .text(data, x, rowY + 8);
+            x += colWidths[dataIndex];
+          });
         });
       }
 
-      // Companies section with simple table
+      // Companies section with professional table
       doc.moveDown(2);
       doc
         .fontSize(16)
@@ -1820,26 +1892,91 @@ class AdminHandlers {
       if (companies.length === 0) {
         doc.fontSize(12).font("Helvetica").text("No companies found.");
       } else {
-        // Use simple table without complex positioning
+        // Professional table with borders
         const headers = ["ID", "Name", "Owner", "Email", "Status", "Created"];
+        const colWidths = [70, 90, 90, 90, 60, 70];
+        const startX = 50;
+        let currentY = doc.y || 200;
+        const rowHeight = 25;
+        const headerHeight = 30;
 
-        // Draw header
-        doc.fontSize(12).font("Helvetica-Bold").text(headers.join("  "));
-        doc.moveDown(0.5);
+        // Ensure valid starting position
+        if (isNaN(currentY) || currentY < 0) currentY = 200;
 
-        // Draw separator
-        doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-        doc.moveDown(0.5);
+        // Draw table header
+        const tableWidth = colWidths.reduce((sum, width) => sum + width, 0);
+        doc.rect(startX, currentY, tableWidth, headerHeight).stroke();
+
+        // Draw header text
+        let x = startX + 5;
+        headers.forEach((header, index) => {
+          doc
+            .fontSize(10)
+            .font("Helvetica-Bold")
+            .text(header, x, currentY + 8);
+          x += colWidths[index];
+        });
+
+        // Draw header column separators
+        let separatorX = startX;
+        colWidths.forEach((width, colIndex) => {
+          if (colIndex > 0) {
+            doc
+              .moveTo(separatorX, currentY)
+              .lineTo(separatorX, currentY + headerHeight)
+              .stroke();
+          }
+          separatorX += width;
+        });
 
         // Draw data rows
         companies.forEach((company, index) => {
-          if (doc.y > 700) {
+          const rowY = currentY + headerHeight + index * rowHeight;
+
+          // Check if we need a new page
+          if (rowY > 700) {
             doc.addPage();
-            doc.fontSize(12).font("Helvetica-Bold").text(headers.join("  "));
-            doc.moveDown(0.5);
-            doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-            doc.moveDown(0.5);
+            currentY = doc.y || 50;
+            if (isNaN(currentY) || currentY < 0) currentY = 50;
+
+            // Repeat header on new page
+            doc.rect(startX, currentY, tableWidth, headerHeight).stroke();
+            x = startX + 5;
+            headers.forEach((header, headerIndex) => {
+              doc
+                .fontSize(10)
+                .font("Helvetica-Bold")
+                .text(header, x, currentY + 8);
+              x += colWidths[headerIndex];
+            });
+
+            // Draw header column separators
+            separatorX = startX;
+            colWidths.forEach((width, colIndex) => {
+              if (colIndex > 0) {
+                doc
+                  .moveTo(separatorX, currentY)
+                  .lineTo(separatorX, currentY + headerHeight)
+                  .stroke();
+              }
+              separatorX += width;
+            });
           }
+
+          // Draw row border
+          doc.rect(startX, rowY, tableWidth, rowHeight).stroke();
+
+          // Draw column separators
+          separatorX = startX;
+          colWidths.forEach((width, colIndex) => {
+            if (colIndex > 0) {
+              doc
+                .moveTo(separatorX, rowY)
+                .lineTo(separatorX, rowY + rowHeight)
+                .stroke();
+            }
+            separatorX += width;
+          });
 
           // Safe date conversion
           let createdDate = "N/A";
@@ -1860,6 +1997,7 @@ class AdminHandlers {
             createdDate = "N/A";
           }
 
+          // Draw data
           const rowData = [
             company.id?.substring(0, 8) || "N/A",
             company.name || "N/A",
@@ -1869,12 +2007,18 @@ class AdminHandlers {
             createdDate,
           ];
 
-          doc.fontSize(10).font("Helvetica").text(rowData.join("  "));
-          doc.moveDown(0.3);
+          x = startX + 5;
+          rowData.forEach((data, dataIndex) => {
+            doc
+              .fontSize(8)
+              .font("Helvetica")
+              .text(data, x, rowY + 8);
+            x += colWidths[dataIndex];
+          });
         });
       }
 
-      // Simple footer
+      // Professional footer
       doc.moveDown(2);
       doc
         .fontSize(12)
@@ -2037,7 +2181,7 @@ class AdminHandlers {
       doc.fontSize(12).text(`• Total Balance: $${totalBalance.toFixed(2)}`);
       doc.moveDown(2);
 
-      // Real table with borders
+      // Professional table with borders
       doc
         .fontSize(14)
         .font("Helvetica-Bold")
@@ -2047,7 +2191,7 @@ class AdminHandlers {
       if (users.length === 0) {
         doc.fontSize(12).font("Helvetica").text("No users found.");
       } else {
-        // Use simple table without complex positioning
+        // Professional table with borders
         const headers = [
           "ID",
           "Name",
@@ -2058,25 +2202,91 @@ class AdminHandlers {
           "Banned",
           "Balance",
         ];
+        const colWidths = [70, 90, 90, 90, 60, 50, 50, 70];
+        const startX = 50;
+        let currentY = doc.y || 200;
+        const rowHeight = 25;
+        const headerHeight = 30;
 
-        // Draw header
-        doc.fontSize(12).font("Helvetica-Bold").text(headers.join("  "));
-        doc.moveDown(0.5);
+        // Ensure valid starting position
+        if (isNaN(currentY) || currentY < 0) currentY = 200;
 
-        // Draw separator
-        doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-        doc.moveDown(0.5);
+        // Draw table header
+        const tableWidth = colWidths.reduce((sum, width) => sum + width, 0);
+        doc.rect(startX, currentY, tableWidth, headerHeight).stroke();
+
+        // Draw header text
+        let x = startX + 5;
+        headers.forEach((header, index) => {
+          doc
+            .fontSize(10)
+            .font("Helvetica-Bold")
+            .text(header, x, currentY + 8);
+          x += colWidths[index];
+        });
+
+        // Draw header column separators
+        let separatorX = startX;
+        colWidths.forEach((width, colIndex) => {
+          if (colIndex > 0) {
+            doc
+              .moveTo(separatorX, currentY)
+              .lineTo(separatorX, currentY + headerHeight)
+              .stroke();
+          }
+          separatorX += width;
+        });
 
         // Draw data rows
         users.forEach((user, index) => {
-          if (doc.y > 700) {
+          const rowY = currentY + headerHeight + index * rowHeight;
+
+          // Check if we need a new page
+          if (rowY > 700) {
             doc.addPage();
-            doc.fontSize(12).font("Helvetica-Bold").text(headers.join("  "));
-            doc.moveDown(0.5);
-            doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-            doc.moveDown(0.5);
+            currentY = doc.y || 50;
+            if (isNaN(currentY) || currentY < 0) currentY = 50;
+
+            // Repeat header on new page
+            doc.rect(startX, currentY, tableWidth, headerHeight).stroke();
+            x = startX + 5;
+            headers.forEach((header, headerIndex) => {
+              doc
+                .fontSize(10)
+                .font("Helvetica-Bold")
+                .text(header, x, currentY + 8);
+              x += colWidths[headerIndex];
+            });
+
+            // Draw header column separators
+            separatorX = startX;
+            colWidths.forEach((width, colIndex) => {
+              if (colIndex > 0) {
+                doc
+                  .moveTo(separatorX, currentY)
+                  .lineTo(separatorX, currentY + headerHeight)
+                  .stroke();
+              }
+              separatorX += width;
+            });
           }
 
+          // Draw row border
+          doc.rect(startX, rowY, tableWidth, rowHeight).stroke();
+
+          // Draw column separators
+          separatorX = startX;
+          colWidths.forEach((width, colIndex) => {
+            if (colIndex > 0) {
+              doc
+                .moveTo(separatorX, rowY)
+                .lineTo(separatorX, rowY + rowHeight)
+                .stroke();
+            }
+            separatorX += width;
+          });
+
+          // Draw data
           const rowData = [
             user.id.substring(0, 8),
             `${user.firstName} ${user.lastName}`.trim() || "N/A",
@@ -2088,8 +2298,14 @@ class AdminHandlers {
             `$${user.balance.toFixed(2)}`,
           ];
 
-          doc.fontSize(10).font("Helvetica").text(rowData.join("  "));
-          doc.moveDown(0.3);
+          x = startX + 5;
+          rowData.forEach((data, dataIndex) => {
+            doc
+              .fontSize(8)
+              .font("Helvetica")
+              .text(data, x, rowY + 8);
+            x += colWidths[dataIndex];
+          });
         });
       }
 
@@ -2251,34 +2467,112 @@ class AdminHandlers {
       doc.fontSize(12).text(`• Average Products per Company: ${avgProducts}`);
       doc.moveDown(2);
 
-      // Real table with borders
-      doc.fontSize(14).font('Helvetica-Bold').text("Companies:", { underline: true });
+      // Professional table with borders
+      doc
+        .fontSize(14)
+        .font("Helvetica-Bold")
+        .text("Companies:", { underline: true });
       doc.moveDown(1);
 
       if (companiesData.length === 0) {
-        doc.fontSize(12).font('Helvetica').text("No companies found.");
+        doc.fontSize(12).font("Helvetica").text("No companies found.");
       } else {
-        // Use simple table without complex positioning
-        const headers = ["ID", "Name", "Owner", "Email", "Phone", "Status", "Products", "Created"];
-        
-        // Draw header
-        doc.fontSize(12).font('Helvetica-Bold').text(headers.join("  "));
-        doc.moveDown(0.5);
-        
-        // Draw separator
-        doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-        doc.moveDown(0.5);
+        // Professional table with borders
+        const headers = [
+          "ID",
+          "Name",
+          "Owner",
+          "Email",
+          "Phone",
+          "Status",
+          "Products",
+          "Created",
+        ];
+        const colWidths = [70, 90, 90, 90, 60, 50, 50, 70];
+        const startX = 50;
+        let currentY = doc.y || 200;
+        const rowHeight = 25;
+        const headerHeight = 30;
+
+        // Ensure valid starting position
+        if (isNaN(currentY) || currentY < 0) currentY = 200;
+
+        // Draw table header
+        const tableWidth = colWidths.reduce((sum, width) => sum + width, 0);
+        doc.rect(startX, currentY, tableWidth, headerHeight).stroke();
+
+        // Draw header text
+        let x = startX + 5;
+        headers.forEach((header, index) => {
+          doc
+            .fontSize(10)
+            .font("Helvetica-Bold")
+            .text(header, x, currentY + 8);
+          x += colWidths[index];
+        });
+
+        // Draw header column separators
+        let separatorX = startX;
+        colWidths.forEach((width, colIndex) => {
+          if (colIndex > 0) {
+            doc
+              .moveTo(separatorX, currentY)
+              .lineTo(separatorX, currentY + headerHeight)
+              .stroke();
+          }
+          separatorX += width;
+        });
 
         // Draw data rows
         companiesData.forEach((company, index) => {
-          if (doc.y > 700) {
+          const rowY = currentY + headerHeight + index * rowHeight;
+
+          // Check if we need a new page
+          if (rowY > 700) {
             doc.addPage();
-            doc.fontSize(12).font('Helvetica-Bold').text(headers.join("  "));
-            doc.moveDown(0.5);
-            doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-            doc.moveDown(0.5);
+            currentY = doc.y || 50;
+            if (isNaN(currentY) || currentY < 0) currentY = 50;
+
+            // Repeat header on new page
+            doc.rect(startX, currentY, tableWidth, headerHeight).stroke();
+            x = startX + 5;
+            headers.forEach((header, headerIndex) => {
+              doc
+                .fontSize(10)
+                .font("Helvetica-Bold")
+                .text(header, x, currentY + 8);
+              x += colWidths[headerIndex];
+            });
+
+            // Draw header column separators
+            separatorX = startX;
+            colWidths.forEach((width, colIndex) => {
+              if (colIndex > 0) {
+                doc
+                  .moveTo(separatorX, currentY)
+                  .lineTo(separatorX, currentY + headerHeight)
+                  .stroke();
+              }
+              separatorX += width;
+            });
           }
 
+          // Draw row border
+          doc.rect(startX, rowY, tableWidth, rowHeight).stroke();
+
+          // Draw column separators
+          separatorX = startX;
+          colWidths.forEach((width, colIndex) => {
+            if (colIndex > 0) {
+              doc
+                .moveTo(separatorX, rowY)
+                .lineTo(separatorX, rowY + rowHeight)
+                .stroke();
+            }
+            separatorX += width;
+          });
+
+          // Draw data
           const rowData = [
             company.id.substring(0, 8),
             company.name || "N/A",
@@ -2287,11 +2581,17 @@ class AdminHandlers {
             company.phone,
             company.status,
             company.products.toString(),
-            company.createdAt
+            company.createdAt,
           ];
 
-          doc.fontSize(10).font('Helvetica').text(rowData.join("  "));
-          doc.moveDown(0.3);
+          x = startX + 5;
+          rowData.forEach((data, dataIndex) => {
+            doc
+              .fontSize(8)
+              .font("Helvetica")
+              .text(data, x, rowY + 8);
+            x += colWidths[dataIndex];
+          });
         });
       }
 
