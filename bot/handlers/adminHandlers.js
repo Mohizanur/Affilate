@@ -1710,52 +1710,89 @@ class AdminHandlers {
       });
 
       // Simple header
-      doc.fontSize(20).font('Helvetica-Bold').text("System Backup Report", { align: "center" });
+      doc
+        .fontSize(20)
+        .font("Helvetica-Bold")
+        .text("System Backup Report", { align: "center" });
       doc.moveDown(0.5);
-      doc.fontSize(12).font('Helvetica').text(`Generated: ${new Date().toLocaleString()}`, { align: "center" });
-      doc.fontSize(12).text(`Total Records: ${users.length + companies.length}`, { align: "center" });
+      doc
+        .fontSize(12)
+        .font("Helvetica")
+        .text(`Generated: ${new Date().toLocaleString()}`, { align: "center" });
+      doc
+        .fontSize(12)
+        .text(`Total Records: ${users.length + companies.length}`, {
+          align: "center",
+        });
       doc.moveDown(2);
 
       // Simple summary
       const adminCount = users.filter((u) => u.isAdmin).length;
       const bannedCount = users.filter((u) => u.isBanned || u.banned).length;
-      const activeCompanies = companies.filter((c) => c.status === "active").length;
+      const activeCompanies = companies.filter(
+        (c) => c.status === "active"
+      ).length;
       const totalBalance = users.reduce(
         (sum, u) => sum + (u.referralBalance || u.coinBalance || 0),
         0
       );
 
-      doc.fontSize(14).font('Helvetica-Bold').text("System Overview:", { underline: true });
-      doc.fontSize(12).font('Helvetica').text(`• Total Users: ${users.length}`);
+      doc
+        .fontSize(14)
+        .font("Helvetica-Bold")
+        .text("System Overview:", { underline: true });
+      doc.fontSize(12).font("Helvetica").text(`• Total Users: ${users.length}`);
       doc.fontSize(12).text(`• Administrators: ${adminCount}`);
       doc.fontSize(12).text(`• Banned Users: ${bannedCount}`);
-      doc.fontSize(12).text(`• Total User Balance: $${totalBalance.toFixed(2)}`);
+      doc
+        .fontSize(12)
+        .text(`• Total User Balance: $${totalBalance.toFixed(2)}`);
       doc.fontSize(12).text(`• Total Companies: ${companies.length}`);
       doc.fontSize(12).text(`• Active Companies: ${activeCompanies}`);
       doc.moveDown(2);
 
       // Users section with real table
-      doc.fontSize(16).font('Helvetica-Bold').text("Users:", { underline: true });
+      doc
+        .fontSize(16)
+        .font("Helvetica-Bold")
+        .text("Users:", { underline: true });
       doc.moveDown(1);
-      
+
       if (users.length === 0) {
-        doc.fontSize(12).font('Helvetica').text("No users found.");
+        doc.fontSize(12).font("Helvetica").text("No users found.");
       } else {
-        const headers = ["ID", "Name", "Username", "Phone", "Role", "Admin", "Banned", "Balance"];
+        const headers = [
+          "ID",
+          "Name",
+          "Username",
+          "Phone",
+          "Role",
+          "Admin",
+          "Banned",
+          "Balance",
+        ];
         const colWidths = [70, 90, 90, 90, 60, 50, 50, 70];
         const startX = 50;
-        let startY = doc.y;
+        let startY = doc.y || 200; // Ensure we have a valid Y coordinate
         const rowHeight = 25;
         const headerHeight = 30;
+
+        // Ensure startY is a valid number
+        if (isNaN(startY) || startY < 0) {
+          startY = 200;
+        }
 
         // Draw table border
         const tableWidth = colWidths.reduce((sum, width) => sum + width, 0);
         doc.rect(startX, startY, tableWidth, headerHeight).stroke();
-        
+
         // Draw header text
         let x = startX + 5;
         headers.forEach((header, index) => {
-          doc.fontSize(10).font('Helvetica-Bold').text(header, x, startY + 8);
+          doc
+            .fontSize(10)
+            .font("Helvetica-Bold")
+            .text(header, x, startY + 8);
           x += colWidths[index];
         });
 
@@ -1763,46 +1800,95 @@ class AdminHandlers {
         let separatorX = startX;
         colWidths.forEach((width, colIndex) => {
           if (colIndex > 0) {
-            doc.moveTo(separatorX, startY).lineTo(separatorX, startY + headerHeight).stroke();
+            const lineY1 = startY;
+            const lineY2 = startY + headerHeight;
+            if (
+              !isNaN(lineY1) &&
+              !isNaN(lineY2) &&
+              lineY1 >= 0 &&
+              lineY2 >= 0
+            ) {
+              doc
+                .moveTo(separatorX, lineY1)
+                .lineTo(separatorX, lineY2)
+                .stroke();
+            }
           }
           separatorX += width;
         });
 
         // Draw data rows with borders
         users.forEach((user, index) => {
-          const rowY = startY + headerHeight + (index * rowHeight);
-          
+          const rowY = startY + headerHeight + index * rowHeight;
+
           // Check if we need a new page
           if (rowY > 700) {
             doc.addPage();
-            startY = doc.y;
-            
+            startY = doc.y || 50; // Ensure we have a valid Y coordinate
+
+            // Ensure startY is a valid number
+            if (isNaN(startY) || startY < 0) {
+              startY = 50;
+            }
+
             // Repeat header on new page
             doc.rect(startX, startY, tableWidth, headerHeight).stroke();
             x = startX + 5;
             headers.forEach((header, headerIndex) => {
-              doc.fontSize(10).font('Helvetica-Bold').text(header, x, startY + 8);
+              doc
+                .fontSize(10)
+                .font("Helvetica-Bold")
+                .text(header, x, startY + 8);
               x += colWidths[headerIndex];
             });
-            
+
             // Draw header column separators
             separatorX = startX;
             colWidths.forEach((width, colIndex) => {
               if (colIndex > 0) {
-                doc.moveTo(separatorX, startY).lineTo(separatorX, startY + headerHeight).stroke();
+                const lineY1 = startY;
+                const lineY2 = startY + headerHeight;
+                if (
+                  !isNaN(lineY1) &&
+                  !isNaN(lineY2) &&
+                  lineY1 >= 0 &&
+                  lineY2 >= 0
+                ) {
+                  doc
+                    .moveTo(separatorX, lineY1)
+                    .lineTo(separatorX, lineY2)
+                    .stroke();
+                }
               }
               separatorX += width;
             });
           }
-          
+
+          // Ensure rowY is a valid number
+          if (isNaN(rowY) || rowY < 0) {
+            return; // Skip this row if coordinates are invalid
+          }
+
           // Draw row border
           doc.rect(startX, rowY, tableWidth, rowHeight).stroke();
-          
+
           // Draw column separators
           separatorX = startX;
           colWidths.forEach((width, colIndex) => {
             if (colIndex > 0) {
-              doc.moveTo(separatorX, rowY).lineTo(separatorX, rowY + rowHeight).stroke();
+              const lineY1 = rowY;
+              const lineY2 = rowY + rowHeight;
+              if (
+                !isNaN(lineY1) &&
+                !isNaN(lineY2) &&
+                lineY1 >= 0 &&
+                lineY2 >= 0
+              ) {
+                doc
+                  .moveTo(separatorX, lineY1)
+                  .lineTo(separatorX, lineY2)
+                  .stroke();
+              }
             }
             separatorX += width;
           });
@@ -1810,18 +1896,23 @@ class AdminHandlers {
           // Draw data
           const rowData = [
             user.id?.substring(0, 8) || "N/A",
-            `${user.firstName || user.first_name || ""} ${user.lastName || user.last_name || ""}`.trim() || "N/A",
+            `${user.firstName || user.first_name || ""} ${
+              user.lastName || user.last_name || ""
+            }`.trim() || "N/A",
             user.username || "N/A",
             user.phone || "N/A",
             user.role || "user",
             user.isAdmin ? "Yes" : "No",
             user.isBanned || user.banned ? "Yes" : "No",
-            `$${(user.referralBalance || user.coinBalance || 0).toFixed(2)}`
+            `$${(user.referralBalance || user.coinBalance || 0).toFixed(2)}`,
           ];
 
           x = startX + 5;
           rowData.forEach((data, dataIndex) => {
-            doc.fontSize(8).font('Helvetica').text(data, x, rowY + 8);
+            doc
+              .fontSize(8)
+              .font("Helvetica")
+              .text(data, x, rowY + 8);
             x += colWidths[dataIndex];
           });
         });
@@ -1829,27 +1920,38 @@ class AdminHandlers {
 
       // Companies section with real table
       doc.moveDown(2);
-      doc.fontSize(16).font('Helvetica-Bold').text("Companies:", { underline: true });
+      doc
+        .fontSize(16)
+        .font("Helvetica-Bold")
+        .text("Companies:", { underline: true });
       doc.moveDown(1);
-      
+
       if (companies.length === 0) {
-        doc.fontSize(12).font('Helvetica').text("No companies found.");
+        doc.fontSize(12).font("Helvetica").text("No companies found.");
       } else {
         const headers = ["ID", "Name", "Owner", "Email", "Status", "Created"];
         const colWidths = [70, 90, 90, 90, 60, 70];
         const startX = 50;
-        let startY = doc.y;
+        let startY = doc.y || 200; // Ensure we have a valid Y coordinate
         const rowHeight = 25;
         const headerHeight = 30;
+
+        // Ensure startY is a valid number
+        if (isNaN(startY) || startY < 0) {
+          startY = 200;
+        }
 
         // Draw table border
         const tableWidth = colWidths.reduce((sum, width) => sum + width, 0);
         doc.rect(startX, startY, tableWidth, headerHeight).stroke();
-        
+
         // Draw header text
         let x = startX + 5;
         headers.forEach((header, index) => {
-          doc.fontSize(10).font('Helvetica-Bold').text(header, x, startY + 8);
+          doc
+            .fontSize(10)
+            .font("Helvetica-Bold")
+            .text(header, x, startY + 8);
           x += colWidths[index];
         });
 
@@ -1857,46 +1959,95 @@ class AdminHandlers {
         let separatorX = startX;
         colWidths.forEach((width, colIndex) => {
           if (colIndex > 0) {
-            doc.moveTo(separatorX, startY).lineTo(separatorX, startY + headerHeight).stroke();
+            const lineY1 = startY;
+            const lineY2 = startY + headerHeight;
+            if (
+              !isNaN(lineY1) &&
+              !isNaN(lineY2) &&
+              lineY1 >= 0 &&
+              lineY2 >= 0
+            ) {
+              doc
+                .moveTo(separatorX, lineY1)
+                .lineTo(separatorX, lineY2)
+                .stroke();
+            }
           }
           separatorX += width;
         });
 
         // Draw data rows with borders
         companies.forEach((company, index) => {
-          const rowY = startY + headerHeight + (index * rowHeight);
-          
+          const rowY = startY + headerHeight + index * rowHeight;
+
           // Check if we need a new page
           if (rowY > 700) {
             doc.addPage();
-            startY = doc.y;
-            
+            startY = doc.y || 50; // Ensure we have a valid Y coordinate
+
+            // Ensure startY is a valid number
+            if (isNaN(startY) || startY < 0) {
+              startY = 50;
+            }
+
             // Repeat header on new page
             doc.rect(startX, startY, tableWidth, headerHeight).stroke();
             x = startX + 5;
             headers.forEach((header, headerIndex) => {
-              doc.fontSize(10).font('Helvetica-Bold').text(header, x, startY + 8);
+              doc
+                .fontSize(10)
+                .font("Helvetica-Bold")
+                .text(header, x, startY + 8);
               x += colWidths[headerIndex];
             });
-            
+
             // Draw header column separators
             separatorX = startX;
             colWidths.forEach((width, colIndex) => {
               if (colIndex > 0) {
-                doc.moveTo(separatorX, startY).lineTo(separatorX, startY + headerHeight).stroke();
+                const lineY1 = startY;
+                const lineY2 = startY + headerHeight;
+                if (
+                  !isNaN(lineY1) &&
+                  !isNaN(lineY2) &&
+                  lineY1 >= 0 &&
+                  lineY2 >= 0
+                ) {
+                  doc
+                    .moveTo(separatorX, lineY1)
+                    .lineTo(separatorX, lineY2)
+                    .stroke();
+                }
               }
               separatorX += width;
             });
           }
-          
+
+          // Ensure rowY is a valid number
+          if (isNaN(rowY) || rowY < 0) {
+            return; // Skip this row if coordinates are invalid
+          }
+
           // Draw row border
           doc.rect(startX, rowY, tableWidth, rowHeight).stroke();
-          
+
           // Draw column separators
           separatorX = startX;
           colWidths.forEach((width, colIndex) => {
             if (colIndex > 0) {
-              doc.moveTo(separatorX, rowY).lineTo(separatorX, rowY + rowHeight).stroke();
+              const lineY1 = rowY;
+              const lineY2 = rowY + rowHeight;
+              if (
+                !isNaN(lineY1) &&
+                !isNaN(lineY2) &&
+                lineY1 >= 0 &&
+                lineY2 >= 0
+              ) {
+                doc
+                  .moveTo(separatorX, lineY1)
+                  .lineTo(separatorX, lineY2)
+                  .stroke();
+              }
             }
             separatorX += width;
           });
@@ -1905,12 +2056,14 @@ class AdminHandlers {
           let createdDate = "N/A";
           try {
             if (company.createdAt) {
-              const date = company.createdAt.toDate ? company.createdAt.toDate() : new Date(company.createdAt);
+              const date = company.createdAt.toDate
+                ? company.createdAt.toDate()
+                : new Date(company.createdAt);
               if (!isNaN(date.getTime())) {
-                createdDate = date.toLocaleDateString('en-US', {
-                  year: 'numeric',
-                  month: 'short',
-                  day: 'numeric'
+                createdDate = date.toLocaleDateString("en-US", {
+                  year: "numeric",
+                  month: "short",
+                  day: "numeric",
                 });
               }
             }
@@ -1925,12 +2078,15 @@ class AdminHandlers {
             company.telegramId ? `@${company.telegramId}` : "N/A",
             company.email || "N/A",
             company.status || "active",
-            createdDate
+            createdDate,
           ];
 
           x = startX + 5;
           rowData.forEach((data, dataIndex) => {
-            doc.fontSize(8).font('Helvetica').text(data, x, rowY + 8);
+            doc
+              .fontSize(8)
+              .font("Helvetica")
+              .text(data, x, rowY + 8);
             x += colWidths[dataIndex];
           });
         });
@@ -1938,8 +2094,11 @@ class AdminHandlers {
 
       // Simple footer
       doc.moveDown(2);
-      doc.fontSize(12).font('Helvetica-Bold').text("Backup Summary:", { underline: true });
-      doc.fontSize(10).font('Helvetica').text(`• Total Users: ${users.length}`);
+      doc
+        .fontSize(12)
+        .font("Helvetica-Bold")
+        .text("Backup Summary:", { underline: true });
+      doc.fontSize(10).font("Helvetica").text(`• Total Users: ${users.length}`);
       doc.fontSize(10).text(`• Total Companies: ${companies.length}`);
       doc.fontSize(10).text(`• Backup Date: ${new Date().toLocaleString()}`);
       doc.fontSize(10).text(`• Backup Type: Full System Export`);
@@ -1990,10 +2149,10 @@ class AdminHandlers {
               ? user.createdAt.toDate()
               : new Date(user.createdAt);
             if (!isNaN(createdDate.getTime())) {
-              createdAt = createdDate.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
+              createdAt = createdDate.toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
               });
             }
           }
@@ -2007,10 +2166,10 @@ class AdminHandlers {
               ? user.last_active.toDate()
               : new Date(user.last_active);
             if (!isNaN(lastActiveDate.getTime())) {
-              lastActive = lastActiveDate.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
+              lastActive = lastActiveDate.toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
               });
             }
           }
@@ -2037,9 +2196,9 @@ class AdminHandlers {
 
       // Create PDF with real table formatting
       const PDFDocument = require("pdfkit");
-      const doc = new PDFDocument({ 
+      const doc = new PDFDocument({
         margin: 50,
-        size: 'A4'
+        size: "A4",
       });
       const chunks = [];
 
@@ -2057,25 +2216,40 @@ class AdminHandlers {
         // Send the PDF file
         await ctx.replyWithDocument({
           source: buffer,
-          filename: `users_export_${new Date().toISOString().split("T")[0]}.pdf`,
-          caption: `📊 **User Export Report**\n\n📅 Generated: ${new Date().toLocaleString()}\n👥 Total Users: ${users.length}\n📄 Format: PDF`,
+          filename: `users_export_${
+            new Date().toISOString().split("T")[0]
+          }.pdf`,
+          caption: `📊 **User Export Report**\n\n📅 Generated: ${new Date().toLocaleString()}\n👥 Total Users: ${
+            users.length
+          }\n📄 Format: PDF`,
         });
       });
 
       // Simple header
-      doc.fontSize(20).font('Helvetica-Bold').text("User Export Report", { align: "center" });
+      doc
+        .fontSize(20)
+        .font("Helvetica-Bold")
+        .text("User Export Report", { align: "center" });
       doc.moveDown(0.5);
-      doc.fontSize(12).font('Helvetica').text(`Generated: ${new Date().toLocaleString()}`, { align: "center" });
-      doc.fontSize(12).text(`Total Users: ${users.length}`, { align: "center" });
+      doc
+        .fontSize(12)
+        .font("Helvetica")
+        .text(`Generated: ${new Date().toLocaleString()}`, { align: "center" });
+      doc
+        .fontSize(12)
+        .text(`Total Users: ${users.length}`, { align: "center" });
       doc.moveDown(2);
 
       // Simple summary
-      const adminCount = users.filter(u => u.isAdmin).length;
-      const bannedCount = users.filter(u => u.isBanned).length;
+      const adminCount = users.filter((u) => u.isAdmin).length;
+      const bannedCount = users.filter((u) => u.isBanned).length;
       const totalBalance = users.reduce((sum, u) => sum + u.balance, 0);
 
-      doc.fontSize(14).font('Helvetica-Bold').text("Summary:", { underline: true });
-      doc.fontSize(12).font('Helvetica').text(`• Total Users: ${users.length}`);
+      doc
+        .fontSize(14)
+        .font("Helvetica-Bold")
+        .text("Summary:", { underline: true });
+      doc.fontSize(12).font("Helvetica").text(`• Total Users: ${users.length}`);
       doc.fontSize(12).text(`• Administrators: ${adminCount}`);
       doc.fontSize(12).text(`• Banned Users: ${bannedCount}`);
       doc.fontSize(12).text(`• Total Balance: $${totalBalance.toFixed(2)}`);
@@ -2091,9 +2265,14 @@ class AdminHandlers {
         const headers = ["ID", "Name", "Username", "Phone", "Role", "Admin", "Banned", "Balance"];
         const colWidths = [70, 90, 90, 90, 60, 50, 50, 70];
         const startX = 50;
-        let startY = doc.y;
+        let startY = doc.y || 200; // Ensure we have a valid Y coordinate
         const rowHeight = 25;
         const headerHeight = 30;
+
+        // Ensure startY is a valid number
+        if (isNaN(startY) || startY < 0) {
+          startY = 200;
+        }
 
         // Draw table border
         const tableWidth = colWidths.reduce((sum, width) => sum + width, 0);
@@ -2110,7 +2289,11 @@ class AdminHandlers {
         let separatorX = startX;
         colWidths.forEach((width, colIndex) => {
           if (colIndex > 0) {
-            doc.moveTo(separatorX, startY).lineTo(separatorX, startY + headerHeight).stroke();
+            const lineY1 = startY;
+            const lineY2 = startY + headerHeight;
+            if (!isNaN(lineY1) && !isNaN(lineY2) && lineY1 >= 0 && lineY2 >= 0) {
+              doc.moveTo(separatorX, lineY1).lineTo(separatorX, lineY2).stroke();
+            }
           }
           separatorX += width;
         });
@@ -2122,7 +2305,12 @@ class AdminHandlers {
           // Check if we need a new page
           if (rowY > 700) {
             doc.addPage();
-            startY = doc.y;
+            startY = doc.y || 50; // Ensure we have a valid Y coordinate
+            
+            // Ensure startY is a valid number
+            if (isNaN(startY) || startY < 0) {
+              startY = 50;
+            }
             
             // Repeat header on new page
             doc.rect(startX, startY, tableWidth, headerHeight).stroke();
@@ -2136,10 +2324,19 @@ class AdminHandlers {
             separatorX = startX;
             colWidths.forEach((width, colIndex) => {
               if (colIndex > 0) {
-                doc.moveTo(separatorX, startY).lineTo(separatorX, startY + headerHeight).stroke();
+                const lineY1 = startY;
+                const lineY2 = startY + headerHeight;
+                if (!isNaN(lineY1) && !isNaN(lineY2) && lineY1 >= 0 && lineY2 >= 0) {
+                  doc.moveTo(separatorX, lineY1).lineTo(separatorX, lineY2).stroke();
+                }
               }
               separatorX += width;
             });
+          }
+          
+          // Ensure rowY is a valid number
+          if (isNaN(rowY) || rowY < 0) {
+            return; // Skip this row if coordinates are invalid
           }
           
           // Draw row border
@@ -2149,7 +2346,11 @@ class AdminHandlers {
           separatorX = startX;
           colWidths.forEach((width, colIndex) => {
             if (colIndex > 0) {
-              doc.moveTo(separatorX, rowY).lineTo(separatorX, rowY + rowHeight).stroke();
+              const lineY1 = rowY;
+              const lineY2 = rowY + rowHeight;
+              if (!isNaN(lineY1) && !isNaN(lineY2) && lineY1 >= 0 && lineY2 >= 0) {
+                doc.moveTo(separatorX, lineY1).lineTo(separatorX, lineY2).stroke();
+              }
             }
             separatorX += width;
           });
@@ -2231,10 +2432,10 @@ class AdminHandlers {
               ? company.createdAt.toDate()
               : new Date(company.createdAt);
             if (!isNaN(createdDate.getTime())) {
-              createdAt = createdDate.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
+              createdAt = createdDate.toLocaleDateString("en-US", {
+                year: "numeric",
+                month: "short",
+                day: "numeric",
               });
             }
           }
@@ -2257,9 +2458,9 @@ class AdminHandlers {
 
       // Create PDF with real table formatting
       const PDFDocument = require("pdfkit");
-      const doc = new PDFDocument({ 
+      const doc = new PDFDocument({
         margin: 50,
-        size: 'A4'
+        size: "A4",
       });
       const chunks = [];
 
@@ -2282,25 +2483,51 @@ class AdminHandlers {
         // Send the PDF file
         await ctx.replyWithDocument({
           source: buffer,
-          filename: `companies_export_${new Date().toISOString().split("T")[0]}.pdf`,
-          caption: `📊 **Company Export Report**\n\n📅 Generated: ${new Date().toLocaleString()}\n🏢 Total Companies: ${companiesData.length}\n📄 Format: PDF`,
+          filename: `companies_export_${
+            new Date().toISOString().split("T")[0]
+          }.pdf`,
+          caption: `📊 **Company Export Report**\n\n📅 Generated: ${new Date().toLocaleString()}\n🏢 Total Companies: ${
+            companiesData.length
+          }\n📄 Format: PDF`,
         });
       });
 
       // Simple header
-      doc.fontSize(20).font('Helvetica-Bold').text("Company Export Report", { align: "center" });
+      doc
+        .fontSize(20)
+        .font("Helvetica-Bold")
+        .text("Company Export Report", { align: "center" });
       doc.moveDown(0.5);
-      doc.fontSize(12).font('Helvetica').text(`Generated: ${new Date().toLocaleString()}`, { align: "center" });
-      doc.fontSize(12).text(`Total Companies: ${companiesData.length}`, { align: "center" });
+      doc
+        .fontSize(12)
+        .font("Helvetica")
+        .text(`Generated: ${new Date().toLocaleString()}`, { align: "center" });
+      doc
+        .fontSize(12)
+        .text(`Total Companies: ${companiesData.length}`, { align: "center" });
       doc.moveDown(2);
 
       // Simple summary
-      const activeCount = companiesData.filter(c => c.status === 'active').length;
-      const totalProducts = companiesData.reduce((sum, c) => sum + c.products, 0);
-      const avgProducts = companiesData.length > 0 ? (totalProducts / companiesData.length).toFixed(1) : 0;
+      const activeCount = companiesData.filter(
+        (c) => c.status === "active"
+      ).length;
+      const totalProducts = companiesData.reduce(
+        (sum, c) => sum + c.products,
+        0
+      );
+      const avgProducts =
+        companiesData.length > 0
+          ? (totalProducts / companiesData.length).toFixed(1)
+          : 0;
 
-      doc.fontSize(14).font('Helvetica-Bold').text("Summary:", { underline: true });
-      doc.fontSize(12).font('Helvetica').text(`• Total Companies: ${companiesData.length}`);
+      doc
+        .fontSize(14)
+        .font("Helvetica-Bold")
+        .text("Summary:", { underline: true });
+      doc
+        .fontSize(12)
+        .font("Helvetica")
+        .text(`• Total Companies: ${companiesData.length}`);
       doc.fontSize(12).text(`• Active Companies: ${activeCount}`);
       doc.fontSize(12).text(`• Total Products: ${totalProducts}`);
       doc.fontSize(12).text(`• Average Products per Company: ${avgProducts}`);
@@ -2316,9 +2543,14 @@ class AdminHandlers {
         const headers = ["ID", "Name", "Owner", "Email", "Phone", "Status", "Products", "Created"];
         const colWidths = [70, 90, 90, 90, 60, 50, 50, 70];
         const startX = 50;
-        let startY = doc.y;
+        let startY = doc.y || 200; // Ensure we have a valid Y coordinate
         const rowHeight = 25;
         const headerHeight = 30;
+
+        // Ensure startY is a valid number
+        if (isNaN(startY) || startY < 0) {
+          startY = 200;
+        }
 
         // Draw table border
         const tableWidth = colWidths.reduce((sum, width) => sum + width, 0);
@@ -2335,7 +2567,11 @@ class AdminHandlers {
         let separatorX = startX;
         colWidths.forEach((width, colIndex) => {
           if (colIndex > 0) {
-            doc.moveTo(separatorX, startY).lineTo(separatorX, startY + headerHeight).stroke();
+            const lineY1 = startY;
+            const lineY2 = startY + headerHeight;
+            if (!isNaN(lineY1) && !isNaN(lineY2) && lineY1 >= 0 && lineY2 >= 0) {
+              doc.moveTo(separatorX, lineY1).lineTo(separatorX, lineY2).stroke();
+            }
           }
           separatorX += width;
         });
@@ -2347,7 +2583,12 @@ class AdminHandlers {
           // Check if we need a new page
           if (rowY > 700) {
             doc.addPage();
-            startY = doc.y;
+            startY = doc.y || 50; // Ensure we have a valid Y coordinate
+            
+            // Ensure startY is a valid number
+            if (isNaN(startY) || startY < 0) {
+              startY = 50;
+            }
             
             // Repeat header on new page
             doc.rect(startX, startY, tableWidth, headerHeight).stroke();
@@ -2361,10 +2602,19 @@ class AdminHandlers {
             separatorX = startX;
             colWidths.forEach((width, colIndex) => {
               if (colIndex > 0) {
-                doc.moveTo(separatorX, startY).lineTo(separatorX, startY + headerHeight).stroke();
+                const lineY1 = startY;
+                const lineY2 = startY + headerHeight;
+                if (!isNaN(lineY1) && !isNaN(lineY2) && lineY1 >= 0 && lineY2 >= 0) {
+                  doc.moveTo(separatorX, lineY1).lineTo(separatorX, lineY2).stroke();
+                }
               }
               separatorX += width;
             });
+          }
+          
+          // Ensure rowY is a valid number
+          if (isNaN(rowY) || rowY < 0) {
+            return; // Skip this row if coordinates are invalid
           }
           
           // Draw row border
@@ -2374,7 +2624,11 @@ class AdminHandlers {
           separatorX = startX;
           colWidths.forEach((width, colIndex) => {
             if (colIndex > 0) {
-              doc.moveTo(separatorX, rowY).lineTo(separatorX, rowY + rowHeight).stroke();
+              const lineY1 = rowY;
+              const lineY2 = rowY + rowHeight;
+              if (!isNaN(lineY1) && !isNaN(lineY2) && lineY1 >= 0 && lineY2 >= 0) {
+                doc.moveTo(separatorX, lineY1).lineTo(separatorX, lineY2).stroke();
+              }
             }
             separatorX += width;
           });
