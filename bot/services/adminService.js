@@ -1124,10 +1124,6 @@ class AdminService {
 
       const companyStats = [];
 
-      logger.info(
-        `Processing ${companiesSnap.size} companies for platform stats`
-      );
-
       for (const doc of companiesSnap.docs) {
         const company = doc.data();
         const companyId = doc.id;
@@ -1151,23 +1147,7 @@ class AdminService {
           lifetimeRevenue,
           hasWithdrawable: withdrawable > 0,
         });
-
-        logger.info(
-          `Company ${company.name}: Platform fees=$${platformFees.toFixed(
-            2
-          )}, Revenue=$${lifetimeRevenue.toFixed(
-            2
-          )}, Withdrawable=$${withdrawable.toFixed(2)}`
-        );
       }
-
-      logger.info(
-        `Total platform stats: Fees=$${totalPlatformFees.toFixed(
-          2
-        )}, Revenue=$${totalLifetimeRevenue.toFixed(
-          2
-        )}, Withdrawable=$${totalWithdrawable.toFixed(2)}`
-      );
 
       return {
         totalPlatformFees,
@@ -1341,7 +1321,6 @@ class AdminService {
   async getCompanyAnalytics() {
     try {
       const companiesSnap = await databaseService.companies().get();
-      logger.info(`Found ${companiesSnap.size} companies in database`);
 
       const analytics = [];
 
@@ -1349,71 +1328,43 @@ class AdminService {
         const company = doc.data();
         const companyId = doc.id;
 
-        logger.info(`Processing company: ${company.name} (ID: ${companyId})`);
-        logger.info(`Company data:`, company);
-
-        // Get company's products count - check for different field names
-        let productsSnap;
+        // Get company's products count - optimized query
+        let productCount = 0;
         try {
-          productsSnap = await databaseService
+          const productsSnap = await databaseService
             .getDb()
             .collection("products")
             .where("companyId", "==", companyId)
             .get();
-          logger.info(
-            `Found ${productsSnap.size} products with companyId field for ${company.name}`
-          );
+          productCount = productsSnap.size;
         } catch (error) {
           try {
-            productsSnap = await databaseService
+            const productsSnap = await databaseService
               .getDb()
               .collection("products")
               .where("company_id", "==", companyId)
               .get();
-            logger.info(
-              `Found ${productsSnap.size} products with company_id field for ${company.name}`
-            );
+            productCount = productsSnap.size;
           } catch (error2) {
-            // If both fail, get all products and filter
-            productsSnap = await databaseService
+            // Fallback: count manually if needed
+            const allProductsSnap = await databaseService
               .getDb()
               .collection("products")
               .get();
-            logger.info(
-              `Got all ${productsSnap.size} products, will filter manually for ${company.name}`
-            );
+            productCount = allProductsSnap.docs.filter((doc) => {
+              const product = doc.data();
+              return (product.companyId || product.company_id) === companyId;
+            }).length;
           }
         }
 
-        // Filter products that belong to this company
-        let productCount = 0;
-        for (const productDoc of productsSnap.docs) {
-          const product = productDoc.data();
-          const productCompanyId = product.companyId || product.company_id;
-          logger.info(
-            `Product ${productDoc.id}: companyId=${
-              product.companyId
-            }, company_id=${product.company_id}, matches=${
-              productCompanyId === companyId
-            }`
-          );
-          if (productCompanyId === companyId) {
-            productCount++;
-          }
-        }
+        // Calculate platform fees and lifetime revenue
+        const [platformFees, lifetimeRevenue] = await Promise.all([
+          this.calculateCompanyPlatformFees(companyId),
+          this.calculateCompanyLifetimeRevenue(companyId),
+        ]);
 
-        // Calculate actual platform fees and lifetime revenue
-        const platformFees = await this.calculateCompanyPlatformFees(companyId);
-        const lifetimeRevenue = await this.calculateCompanyLifetimeRevenue(
-          companyId
-        );
         const withdrawable = company.billingBalance || 0;
-
-        logger.info(`Company ${company.name} results:`);
-        logger.info(`- Product count: ${productCount}`);
-        logger.info(`- Platform fees: $${platformFees.toFixed(2)}`);
-        logger.info(`- Lifetime revenue: $${lifetimeRevenue.toFixed(2)}`);
-        logger.info(`- Withdrawable: $${withdrawable.toFixed(2)}`);
 
         analytics.push({
           id: companyId,
@@ -1427,17 +1378,8 @@ class AdminService {
           status: company.status || "pending",
           createdAt: company.createdAt,
         });
-
-        logger.info(
-          `Company ${
-            company.name
-          } (${companyId}): ${productCount} products, $${platformFees.toFixed(
-            2
-          )} platform fees, $${lifetimeRevenue.toFixed(2)} lifetime revenue`
-        );
       }
 
-      logger.info(`Total companies processed: ${analytics.length}`);
       return analytics;
     } catch (error) {
       logger.error("Error getting company analytics:", error);
