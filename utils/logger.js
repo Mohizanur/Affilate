@@ -27,7 +27,7 @@ winston.addColors(colors);
 const level = () => {
   const env = process.env.NODE_ENV || "development";
   const isDevelopment = env === "development";
-  return isDevelopment ? "debug" : "warn";
+  return isDevelopment ? "info" : "warn"; // Changed from "debug" to "info" to reduce noise
 };
 
 // Define format for logs

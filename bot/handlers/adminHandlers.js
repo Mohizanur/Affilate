@@ -1334,6 +1334,10 @@ class AdminHandlers {
 
         msg += `🏢 *COMPANY ANALYTICS* (Page ${page}/${totalPages})\n`;
         msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        msg += `📄 Showing ${startIndex + 1}-${Math.min(
+          endIndex,
+          companyAnalytics.length
+        )} of ${companyAnalytics.length} companies\n\n`;
 
         sortedCompanies.forEach((company, index) => {
           const statusEmoji =
@@ -1361,23 +1365,52 @@ class AdminHandlers {
           msg += `   👤 Owner: *${company.ownerUsername || "N/A"}*\n\n`;
         });
 
-        // Pagination buttons
-        const paginationButtons = [];
+        // Pagination buttons - improved layout with First/Last
+        const paginationRows = [];
+
+        // Debug logging
+        console.log(
+          `Pagination Debug: page=${page}, totalPages=${totalPages}, companies=${companyAnalytics.length}`
+        );
+
+        // First row: First, Previous, Next, Last
+        const mainPaginationRow = [];
+
+        // Always show First button if not on first page
         if (page > 1) {
-          paginationButtons.push([
+          mainPaginationRow.push(
+            Markup.button.callback("⏮️ First", "platform_analytics_dashboard_1")
+          );
+          mainPaginationRow.push(
             Markup.button.callback(
               "⬅️ Previous",
               `platform_analytics_dashboard_${page - 1}`
-            ),
-          ]);
+            )
+          );
         }
+
+        // Always show Next and Last buttons if not on last page
         if (page < totalPages) {
-          paginationButtons.push([
+          mainPaginationRow.push(
             Markup.button.callback(
               "Next ➡️",
               `platform_analytics_dashboard_${page + 1}`
-            ),
-          ]);
+            )
+          );
+          mainPaginationRow.push(
+            Markup.button.callback(
+              "Last ⏭️",
+              `platform_analytics_dashboard_${totalPages}`
+            )
+          );
+        }
+
+        console.log(
+          `Pagination buttons created: ${mainPaginationRow.length} buttons`
+        );
+
+        if (mainPaginationRow.length > 0) {
+          paginationRows.push(mainPaginationRow);
         }
 
         // Action buttons
@@ -1388,9 +1421,33 @@ class AdminHandlers {
           [Markup.button.callback("🔙 Back to Admin", "admin_panel")],
         ];
 
-        // Add pagination buttons if they exist
-        if (paginationButtons.length > 0) {
-          actionButtons.unshift(...paginationButtons);
+        // Add pagination rows if they have buttons
+        if (paginationRows.length > 0) {
+          actionButtons.unshift(...paginationRows);
+        } else if (totalPages > 1) {
+          // Fallback: if no pagination buttons were created but we have multiple pages,
+          // create a simple navigation row
+          console.log("Fallback: Creating simple pagination buttons");
+          const fallbackRow = [];
+          if (page > 1) {
+            fallbackRow.push(
+              Markup.button.callback(
+                "⬅️ Previous",
+                `platform_analytics_dashboard_${page - 1}`
+              )
+            );
+          }
+          if (page < totalPages) {
+            fallbackRow.push(
+              Markup.button.callback(
+                "Next ➡️",
+                `platform_analytics_dashboard_${page + 1}`
+              )
+            );
+          }
+          if (fallbackRow.length > 0) {
+            actionButtons.unshift(fallbackRow);
+          }
         }
 
         ctx.reply(msg, {
