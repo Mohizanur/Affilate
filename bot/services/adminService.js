@@ -1578,27 +1578,35 @@ class AdminService {
   async getPlatformWithdrawableAmount() {
     try {
       const platformBalance = await this.getPlatformBalance();
-      const pendingWithdrawals = await this.getPendingPlatformWithdrawals();
-
+      
+      // Try to get pending withdrawals, but don't fail if it errors
+      let pendingWithdrawals = [];
+      try {
+        pendingWithdrawals = await this.getPendingPlatformWithdrawals();
+      } catch (error) {
+        logger.error("Error getting pending withdrawals, using empty array:", error);
+        pendingWithdrawals = [];
+      }
+      
       // Calculate total pending withdrawals
       const totalPending = pendingWithdrawals.reduce((sum, withdrawal) => {
         return sum + (withdrawal.amount || 0);
       }, 0);
-
+      
       // Withdrawable amount is balance minus pending withdrawals
       const withdrawable = Math.max(0, platformBalance - totalPending);
-
+      
       return {
         totalBalance: platformBalance,
         pendingWithdrawals: totalPending,
-        withdrawable: withdrawable,
+        withdrawable: withdrawable
       };
     } catch (error) {
       logger.error("Error getting platform withdrawable amount:", error);
       return {
         totalBalance: 0,
         pendingWithdrawals: 0,
-        withdrawable: 0,
+        withdrawable: 0
       };
     }
   }
@@ -1671,13 +1679,19 @@ class AdminService {
         .getDb()
         .collection("platform_withdrawals")
         .where("status", "==", "pending")
-        .orderBy("createdAt", "desc")
         .get();
 
-      return withdrawalsSnap.docs.map((doc) => ({
+      // Sort in memory to avoid index requirement
+      const withdrawals = withdrawalsSnap.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
+
+      return withdrawals.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA; // Descending order
+      });
     } catch (error) {
       logger.error("Error getting pending platform withdrawals:", error);
       return [];
@@ -1855,14 +1869,20 @@ class AdminService {
       const withdrawalsSnap = await databaseService
         .getDb()
         .collection("platform_withdrawals")
-        .orderBy("createdAt", "desc")
         .limit(limit)
         .get();
-
-      return withdrawalsSnap.docs.map((doc) => ({
+      
+      // Sort in memory to avoid index requirement
+      const withdrawals = withdrawalsSnap.docs.map(doc => ({
         id: doc.id,
-        ...doc.data(),
+        ...doc.data()
       }));
+      
+      return withdrawals.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA; // Descending order
+      });
     } catch (error) {
       logger.error("Error getting platform withdrawal history:", error);
       return [];
@@ -1940,13 +1960,19 @@ class AdminService {
         .getDb()
         .collection("company_withdrawal_requests")
         .where("status", "==", "company_pending")
-        .orderBy("createdAt", "desc")
         .get();
 
-      return withdrawalsSnap.docs.map((doc) => ({
+      // Sort in memory to avoid index requirement
+      const withdrawals = withdrawalsSnap.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
+
+      return withdrawals.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA; // Descending order
+      });
     } catch (error) {
       logger.error("Error getting pending company withdrawals:", error);
       return [];
@@ -1959,13 +1985,19 @@ class AdminService {
         .getDb()
         .collection("company_withdrawal_requests")
         .where("status", "==", "company_approved")
-        .orderBy("createdAt", "desc")
         .get();
 
-      return withdrawalsSnap.docs.map((doc) => ({
+      // Sort in memory to avoid index requirement
+      const withdrawals = withdrawalsSnap.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
+      
+      return withdrawals.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA; // Descending order
+      });
     } catch (error) {
       logger.error("Error getting approved company withdrawals:", error);
       return [];

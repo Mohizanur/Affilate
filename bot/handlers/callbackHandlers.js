@@ -53,8 +53,13 @@ class CallbackHandlers {
       console.log("TOP OF handleCallback");
       const telegramId = ctx.from.id;
 
-      // Immediately answer the callback to avoid Telegram timeout errors
-      await ctx.answerCbQuery();
+      // Answer callback query immediately to prevent timeout
+      try {
+        await ctx.answerCbQuery();
+      } catch (error) {
+        // Ignore callback query errors (they might be too old)
+        console.log("Callback query already answered or too old:", error.message);
+      }
 
       const user = await userService.userService.getUserByTelegramId(
         telegramId
