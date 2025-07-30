@@ -3617,6 +3617,10 @@ Toggle notifications:
       const telegramId = ctx.from.id;
       console.log("User telegramId:", telegramId);
       
+      // Get user to get language
+      const user = await require("../services/userService").userService.getUserByTelegramId(telegramId);
+      const userLanguage = user?.language || "en";
+      
       const stats = await require("../services/referralService").getUserReferralStats(telegramId);
       console.log("User stats:", JSON.stringify(stats, null, 2));
       
