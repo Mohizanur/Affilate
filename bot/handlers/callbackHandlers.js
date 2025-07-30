@@ -181,11 +181,7 @@ class CallbackHandlers {
           return adminHandlers.handleBackupSystem(ctx);
         case "admin_broadcast":
           return adminHandlers.handleBroadcast(ctx);
-        case "broadcast_text":
-        case "broadcast_photo":
-        case "broadcast_video":
-        case "broadcast_document":
-          return adminHandlers.handleBroadcastType(ctx);
+
         case "confirm_broadcast":
           return adminHandlers.handleConfirmBroadcast(ctx);
         case "admin_withdrawals":
@@ -231,6 +227,8 @@ class CallbackHandlers {
           return adminHandlers.handleEditReferralBonus(ctx);
         case "edit_buyer_bonus":
           return adminHandlers.handleEditBuyerBonus(ctx);
+        case "toggle_maintenance":
+          return adminHandlers.handleToggleMaintenance(ctx);
         // Company handlers
         case "register_company":
           return userHandlers.handleRegisterCompany(ctx);

@@ -97,13 +97,13 @@ class AdminService {
     try {
       const companiesSnap = await databaseService.companies().get();
       logger.info(`Found ${companiesSnap.size} companies in database`);
-      
+
       const analytics = [];
 
       for (const doc of companiesSnap.docs) {
         const company = doc.data();
         const companyId = doc.id;
-        
+
         logger.info(`Processing company: ${company.name} (ID: ${companyId})`);
         logger.info(`Company data:`, company);
 
@@ -115,7 +115,9 @@ class AdminService {
             .collection("products")
             .where("companyId", "==", companyId)
             .get();
-          logger.info(`Found ${productsSnap.size} products with companyId field for ${company.name}`);
+          logger.info(
+            `Found ${productsSnap.size} products with companyId field for ${company.name}`
+          );
         } catch (error) {
           try {
             productsSnap = await databaseService
@@ -123,11 +125,18 @@ class AdminService {
               .collection("products")
               .where("company_id", "==", companyId)
               .get();
-            logger.info(`Found ${productsSnap.size} products with company_id field for ${company.name}`);
+            logger.info(
+              `Found ${productsSnap.size} products with company_id field for ${company.name}`
+            );
           } catch (error2) {
             // If both fail, get all products and filter
-            productsSnap = await databaseService.getDb().collection("products").get();
-            logger.info(`Got all ${productsSnap.size} products, will filter manually for ${company.name}`);
+            productsSnap = await databaseService
+              .getDb()
+              .collection("products")
+              .get();
+            logger.info(
+              `Got all ${productsSnap.size} products, will filter manually for ${company.name}`
+            );
           }
         }
 
@@ -136,27 +145,41 @@ class AdminService {
         for (const productDoc of productsSnap.docs) {
           const product = productDoc.data();
           const productCompanyId = product.companyId || product.company_id;
-          
+
           // Debug the product data
-          logger.info(`Product ${productDoc.id}: companyId=${product.companyId}, company_id=${product.company_id}, matches=${productCompanyId === companyId}`);
+          logger.info(
+            `Product ${productDoc.id}: companyId=${
+              product.companyId
+            }, company_id=${product.company_id}, matches=${
+              productCompanyId === companyId
+            }`
+          );
           logger.info(`Product data:`, product);
-          
+
           // Check if this product belongs to the company (handle both string and object types)
-          const matches = productCompanyId === companyId || 
-                         productCompanyId === doc.id || 
-                         (typeof productCompanyId === 'object' && productCompanyId?.id === companyId);
-          
+          const matches =
+            productCompanyId === companyId ||
+            productCompanyId === doc.id ||
+            (typeof productCompanyId === "object" &&
+              productCompanyId?.id === companyId);
+
           if (matches) {
             productCount++;
-            logger.info(`✅ Product ${productDoc.id} matches company ${company.name}`);
+            logger.info(
+              `✅ Product ${productDoc.id} matches company ${company.name}`
+            );
           } else {
-            logger.info(`❌ Product ${productDoc.id} does not match company ${company.name}`);
+            logger.info(
+              `❌ Product ${productDoc.id} does not match company ${company.name}`
+            );
           }
         }
 
         // Calculate actual platform fees and lifetime revenue
         const platformFees = await this.calculateCompanyPlatformFees(companyId);
-        const lifetimeRevenue = await this.calculateCompanyLifetimeRevenue(companyId);
+        const lifetimeRevenue = await this.calculateCompanyLifetimeRevenue(
+          companyId
+        );
         const withdrawable = company.billingBalance || 0;
 
         logger.info(`Company ${company.name} results:`);
@@ -174,11 +197,17 @@ class AdminService {
           lifetimeRevenue,
           productCount,
           hasWithdrawable: withdrawable > 0,
-          status: company.status || 'pending',
+          status: company.status || "pending",
           createdAt: company.createdAt,
         });
 
-        logger.info(`Company ${company.name} (${companyId}): ${productCount} products, $${platformFees.toFixed(2)} platform fees, $${lifetimeRevenue.toFixed(2)} lifetime revenue`);
+        logger.info(
+          `Company ${
+            company.name
+          } (${companyId}): ${productCount} products, $${platformFees.toFixed(
+            2
+          )} platform fees, $${lifetimeRevenue.toFixed(2)} lifetime revenue`
+        );
       }
 
       logger.info(`Total companies processed: ${analytics.length}`);
@@ -729,30 +758,61 @@ class AdminService {
       const doc = await databaseService
         .getDb()
         .collection("settings")
-        .doc("platform")
+        .doc("system")
         .get();
       if (!doc.exists) {
         return {
           platformFeePercent: parseFloat(
             process.env.PLATFORM_FEE_PERCENTAGE || "1.5"
           ),
-          referralCommissionPercent: 10,
-          referralDiscountPercent: 5,
-          minWithdrawalAmount: 10,
+          referralCommissionPercent: parseFloat(
+            process.env.REFERRER_COMMISSION_PERCENTAGE || "2.5"
+          ),
+          referralDiscountPercent: parseFloat(
+            process.env.BUYER_DISCOUNT_PERCENTAGE || "1"
+          ),
+          minWithdrawalAmount: parseFloat(
+            process.env.MIN_WITHDRAWAL_AMOUNT || "10"
+          ),
+          maintenanceMode: false,
           maxReferralUses: 0,
           referralExpiryDays: 0,
         };
       }
-      return doc.data();
+      const data = doc.data();
+      return {
+        platformFeePercent:
+          data.platformFeePercentage ||
+          parseFloat(process.env.PLATFORM_FEE_PERCENTAGE || "1.5"),
+        referralCommissionPercent:
+          data.referrerCommissionPercentage ||
+          parseFloat(process.env.REFERRER_COMMISSION_PERCENTAGE || "2.5"),
+        referralDiscountPercent:
+          data.buyerDiscountPercentage ||
+          parseFloat(process.env.BUYER_DISCOUNT_PERCENTAGE || "1"),
+        minWithdrawalAmount:
+          data.minWithdrawalAmount ||
+          parseFloat(process.env.MIN_WITHDRAWAL_AMOUNT || "10"),
+        maintenanceMode: data.maintenanceMode || false,
+        maxReferralUses: data.maxReferralUses || 0,
+        referralExpiryDays: data.referralExpiryDays || 0,
+      };
     } catch (error) {
       logger.error("Error loading platform settings:", error);
       return {
         platformFeePercent: parseFloat(
           process.env.PLATFORM_FEE_PERCENTAGE || "1.5"
         ),
-        referralCommissionPercent: 10,
-        referralDiscountPercent: 5,
-        minWithdrawalAmount: 10,
+        referralCommissionPercent: parseFloat(
+          process.env.REFERRER_COMMISSION_PERCENTAGE || "2.5"
+        ),
+        referralDiscountPercent: parseFloat(
+          process.env.BUYER_DISCOUNT_PERCENTAGE || "1"
+        ),
+        minWithdrawalAmount: parseFloat(
+          process.env.MIN_WITHDRAWAL_AMOUNT || "10"
+        ),
+        maintenanceMode: false,
         maxReferralUses: 0,
         referralExpiryDays: 0,
       };
@@ -761,11 +821,22 @@ class AdminService {
 
   async setPlatformSetting(key, value) {
     try {
+      // Map the new field names to the old field names for compatibility
+      const fieldMapping = {
+        platformFeePercent: "platformFeePercentage",
+        referralCommissionPercent: "referrerCommissionPercentage",
+        referralDiscountPercent: "buyerDiscountPercentage",
+        minWithdrawalAmount: "minWithdrawalAmount",
+        maintenanceMode: "maintenanceMode",
+      };
+
+      const fieldName = fieldMapping[key] || key;
+
       await databaseService
         .getDb()
         .collection("settings")
-        .doc("platform")
-        .set({ [key]: value }, { merge: true });
+        .doc("system")
+        .set({ [fieldName]: value, updatedAt: new Date() }, { merge: true });
       return true;
     } catch (error) {
       logger.error("Error updating platform setting:", error);
@@ -1426,13 +1497,13 @@ class AdminService {
     try {
       const companiesSnap = await databaseService.companies().get();
       logger.info(`Found ${companiesSnap.size} companies in database`);
-      
+
       const analytics = [];
 
       for (const doc of companiesSnap.docs) {
         const company = doc.data();
         const companyId = doc.id;
-        
+
         logger.info(`Processing company: ${company.name} (ID: ${companyId})`);
         logger.info(`Company data:`, company);
 
@@ -1444,7 +1515,9 @@ class AdminService {
             .collection("products")
             .where("companyId", "==", companyId)
             .get();
-          logger.info(`Found ${productsSnap.size} products with companyId field for ${company.name}`);
+          logger.info(
+            `Found ${productsSnap.size} products with companyId field for ${company.name}`
+          );
         } catch (error) {
           try {
             productsSnap = await databaseService
@@ -1452,11 +1525,18 @@ class AdminService {
               .collection("products")
               .where("company_id", "==", companyId)
               .get();
-            logger.info(`Found ${productsSnap.size} products with company_id field for ${company.name}`);
+            logger.info(
+              `Found ${productsSnap.size} products with company_id field for ${company.name}`
+            );
           } catch (error2) {
             // If both fail, get all products and filter
-            productsSnap = await databaseService.getDb().collection("products").get();
-            logger.info(`Got all ${productsSnap.size} products, will filter manually for ${company.name}`);
+            productsSnap = await databaseService
+              .getDb()
+              .collection("products")
+              .get();
+            logger.info(
+              `Got all ${productsSnap.size} products, will filter manually for ${company.name}`
+            );
           }
         }
 
@@ -1465,7 +1545,13 @@ class AdminService {
         for (const productDoc of productsSnap.docs) {
           const product = productDoc.data();
           const productCompanyId = product.companyId || product.company_id;
-          logger.info(`Product ${productDoc.id}: companyId=${product.companyId}, company_id=${product.company_id}, matches=${productCompanyId === companyId}`);
+          logger.info(
+            `Product ${productDoc.id}: companyId=${
+              product.companyId
+            }, company_id=${product.company_id}, matches=${
+              productCompanyId === companyId
+            }`
+          );
           if (productCompanyId === companyId) {
             productCount++;
           }
@@ -1473,7 +1559,9 @@ class AdminService {
 
         // Calculate actual platform fees and lifetime revenue
         const platformFees = await this.calculateCompanyPlatformFees(companyId);
-        const lifetimeRevenue = await this.calculateCompanyLifetimeRevenue(companyId);
+        const lifetimeRevenue = await this.calculateCompanyLifetimeRevenue(
+          companyId
+        );
         const withdrawable = company.billingBalance || 0;
 
         logger.info(`Company ${company.name} results:`);
@@ -1491,11 +1579,17 @@ class AdminService {
           lifetimeRevenue,
           productCount,
           hasWithdrawable: withdrawable > 0,
-          status: company.status || 'pending',
+          status: company.status || "pending",
           createdAt: company.createdAt,
         });
 
-        logger.info(`Company ${company.name} (${companyId}): ${productCount} products, $${platformFees.toFixed(2)} platform fees, $${lifetimeRevenue.toFixed(2)} lifetime revenue`);
+        logger.info(
+          `Company ${
+            company.name
+          } (${companyId}): ${productCount} products, $${platformFees.toFixed(
+            2
+          )} platform fees, $${lifetimeRevenue.toFixed(2)} lifetime revenue`
+        );
       }
 
       logger.info(`Total companies processed: ${analytics.length}`);

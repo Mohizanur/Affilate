@@ -48,12 +48,7 @@ class MessageHandlers {
         return adminHandlers.handleAdminRemoveCompanyStep(ctx);
       }
       if (ctx.session && ctx.session.broadcastStep === "awaiting_content") {
-        const type = ctx.session.broadcastType;
-        if (type === "text") {
-          return adminHandlers.handleBroadcastMessage(ctx, ctx.message.text);
-        } else {
-          return adminHandlers.handleBroadcastMedia(ctx);
-        }
+        return adminHandlers.handleBroadcastContent(ctx);
       }
       if (
         ctx.session &&
@@ -79,7 +74,7 @@ class MessageHandlers {
         return userHandlers.handleAddProductStep(ctx);
       }
       if (ctx.session && ctx.session.editSetting) {
-        return adminHandlers.handleUpdateSetting(ctx);
+        return adminHandlers.handleUpdateSetting(ctx, messageText);
       }
 
       if (ctx.session && ctx.session.state) {
@@ -137,6 +132,10 @@ class MessageHandlers {
         case "awaiting_all_companies_search":
           ctx.session.state = null;
           return adminHandlers.handleAllCompaniesMenu(ctx, 1, messageText);
+        case "awaiting_platform_fee":
+        case "awaiting_referral_bonus":
+        case "awaiting_buyer_bonus":
+          return adminHandlers.handleUpdateSetting(ctx, messageText);
         case "awaiting_fee_calculator_amount": {
           const amount = parseFloat(messageText);
           if (isNaN(amount) || amount <= 0) {
@@ -454,13 +453,9 @@ Use /start to return to the main menu.
       );
       if (blockIfBanned(ctx, user)) return;
 
-      // Handle broadcast media
-      if (
-        ctx.session &&
-        ctx.session.broadcastStep === "awaiting_content" &&
-        ctx.session.broadcastType === "photo"
-      ) {
-        return adminHandlers.handleBroadcastMedia(ctx);
+      // Handle broadcast content
+      if (ctx.session && ctx.session.broadcastStep === "awaiting_content") {
+        return adminHandlers.handleBroadcastContent(ctx);
       }
 
       // Default response for photo messages
@@ -485,13 +480,9 @@ Use /start to return to the main menu.
       );
       if (blockIfBanned(ctx, user)) return;
 
-      // Handle broadcast media
-      if (
-        ctx.session &&
-        ctx.session.broadcastStep === "awaiting_content" &&
-        ctx.session.broadcastType === "video"
-      ) {
-        return adminHandlers.handleBroadcastMedia(ctx);
+      // Handle broadcast content
+      if (ctx.session && ctx.session.broadcastStep === "awaiting_content") {
+        return adminHandlers.handleBroadcastContent(ctx);
       }
 
       // Default response for video messages
@@ -516,13 +507,9 @@ Use /start to return to the main menu.
       );
       if (blockIfBanned(ctx, user)) return;
 
-      // Handle broadcast media
-      if (
-        ctx.session &&
-        ctx.session.broadcastStep === "awaiting_content" &&
-        ctx.session.broadcastType === "document"
-      ) {
-        return adminHandlers.handleBroadcastMedia(ctx);
+      // Handle broadcast content
+      if (ctx.session && ctx.session.broadcastStep === "awaiting_content") {
+        return adminHandlers.handleBroadcastContent(ctx);
       }
 
       // Default response for document messages

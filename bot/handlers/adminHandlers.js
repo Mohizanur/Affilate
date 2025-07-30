@@ -452,21 +452,73 @@ class AdminHandlers {
       const usersWithBalance = users.filter(
         (u) => (u.referralBalance || 0) > 0
       ).length;
+      const verifiedUsers = users.filter((u) => u.phoneVerified).length;
+      const adminUsers = users.filter((u) => u.role === "admin").length;
 
-      let msg = `📊 *User Analytics*
+      // Create beautiful header with emojis and formatting
+      let msg = `👥 *USER ANALYTICS DASHBOARD*\n`;
+      msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
-`;
-      msg += `👥 Total Users: ${totalUsers}
-`;
-      msg += `✅ Active Users: ${activeUsers}
-`;
-      msg += `🚫 Banned Users: ${bannedUsers}
-`;
-      msg += `💰 Users with Balance: ${usersWithBalance}
-`;
+      // Key Metrics Section with attractive formatting
+      msg += `📊 *KEY METRICS*\n`;
+      msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      msg += `👥 Total Users: *${totalUsers.toLocaleString()}*\n`;
+      msg += `✅ Active Users: *${activeUsers.toLocaleString()}*\n`;
+      msg += `🚫 Banned Users: *${bannedUsers.toLocaleString()}*\n`;
+      msg += `💰 Users with Balance: *${usersWithBalance.toLocaleString()}*\n`;
+      msg += `📱 Verified Users: *${verifiedUsers.toLocaleString()}*\n`;
+      msg += `👑 Admin Users: *${adminUsers.toLocaleString()}*\n\n`;
+
+      // User Status Breakdown
+      const unverifiedUsers = totalUsers - verifiedUsers;
+      msg += `📈 *USER STATUS BREAKDOWN*\n`;
+      msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      msg += `✅ Active: *${activeUsers}* (${
+        totalUsers > 0 ? ((activeUsers / totalUsers) * 100).toFixed(1) : 0
+      }%)\n`;
+      msg += `🚫 Banned: *${bannedUsers}* (${
+        totalUsers > 0 ? ((bannedUsers / totalUsers) * 100).toFixed(1) : 0
+      }%)\n`;
+      msg += `📱 Verified: *${verifiedUsers}* (${
+        totalUsers > 0 ? ((verifiedUsers / totalUsers) * 100).toFixed(1) : 0
+      }%)\n`;
+      msg += `❓ Unverified: *${unverifiedUsers}* (${
+        totalUsers > 0 ? ((unverifiedUsers / totalUsers) * 100).toFixed(1) : 0
+      }%)\n\n`;
+
+      // Top Users by Balance (if any)
+      if (users.length > 0) {
+        const topUsers = users
+          .filter((u) => u.referralBalance && u.referralBalance > 0)
+          .sort((a, b) => (b.referralBalance || 0) - (a.referralBalance || 0))
+          .slice(0, 3);
+
+        if (topUsers.length > 0) {
+          msg += `🏆 *TOP USERS BY BALANCE*\n`;
+          msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+          topUsers.forEach((user, index) => {
+            const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉";
+            const username = user.username || user.firstName || user.telegramId;
+            msg += `${medal} *${username}*\n`;
+            msg += `   💰 Balance: *$${(
+              user.referralBalance || 0
+            ).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}*\n`;
+            msg += `   📊 Status: *${user.isBanned ? "Banned" : "Active"}*\n\n`;
+          });
+        }
+      }
 
       const buttons = [
         [Markup.button.callback("🔙 Back to Users", "admin_users")],
+        [
+          Markup.button.callback(
+            "📊 Platform Analytics",
+            "platform_analytics_dashboard"
+          ),
+        ],
         [Markup.button.callback("🔙 Back to Admin", "admin_panel")],
       ];
 
@@ -960,26 +1012,27 @@ class AdminHandlers {
         return ctx.reply(
           t("msg__access_denied", {}, ctx.session?.language || "en")
         );
-      // Example settings, replace with real fetch if available
-      const settings = {
-        platformFee: 5,
-        referralBonus: 2,
-        buyerBonus: 1,
-        language: "en",
-        maintenance: false,
-      };
+
+      // Get real settings from database
+      const settings = await adminService.getPlatformSettings();
+
       let msg = `⚙️ *System Settings*\n\n`;
-      msg += `• Platform Fee: ${settings.platformFee}%\n`;
-      msg += `• Referral Bonus: ${settings.referralBonus}%\n`;
-      msg += `• Buyer Bonus: ${settings.buyerBonus}%\n`;
-      msg += `• Language: ${settings.language}\n`;
-      msg += `• Maintenance Mode: ${settings.maintenance ? "ON" : "OFF"}\n`;
+      msg += `• Platform Fee: ${settings.platformFeePercent || 1.5}%\n`;
+      msg += `• Referral Bonus: ${
+        settings.referralCommissionPercent || 2.5
+      }%\n`;
+      msg += `• Buyer Bonus: ${settings.referralDiscountPercent || 1}%\n`;
+      msg += `• Min Withdrawal: $${settings.minWithdrawalAmount || 10}\n`;
+      msg += `• Maintenance Mode: ${settings.maintenanceMode ? "ON" : "OFF"}\n`;
+
       const buttons = [
         [Markup.button.callback("Edit Platform Fee", "edit_platform_fee")],
         [Markup.button.callback("Edit Referral Bonus", "edit_referral_bonus")],
         [Markup.button.callback("Edit Buyer Bonus", "edit_buyer_bonus")],
         [Markup.button.callback("Toggle Maintenance", "toggle_maintenance")],
+        [Markup.button.callback("🔙 Back to Admin", "admin_panel")],
       ];
+
       ctx.reply(msg, {
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard(buttons),
@@ -993,27 +1046,165 @@ class AdminHandlers {
   }
 
   async handleEditPlatformFee(ctx) {
-    ctx.reply("Not implemented: handleEditPlatformFee");
+    try {
+      if (!(await this.isAdminAsync(ctx.from.id)))
+        return ctx.reply(
+          t("msg__access_denied", {}, ctx.session?.language || "en")
+        );
+
+      ctx.session.editSetting = "platformFeePercent";
+      ctx.session.state = "awaiting_platform_fee";
+
+      ctx.reply(
+        "💰 *Edit Platform Fee*\n\nPlease enter the new platform fee percentage (e.g., 2.5):",
+        {
+          parse_mode: "Markdown",
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback("🔙 Back to Settings", "admin_settings")],
+          ]),
+        }
+      );
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    } catch (error) {
+      logger.error("Error in edit platform fee:", error);
+      ctx.reply("❌ Failed to edit platform fee.");
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    }
   }
 
   async handleEditReferralBonus(ctx) {
-    ctx.reply("Not implemented: handleEditReferralBonus");
+    try {
+      if (!(await this.isAdminAsync(ctx.from.id)))
+        return ctx.reply(
+          t("msg__access_denied", {}, ctx.session?.language || "en")
+        );
+
+      ctx.session.editSetting = "referralCommissionPercent";
+      ctx.session.state = "awaiting_referral_bonus";
+
+      ctx.reply(
+        "🎁 *Edit Referral Bonus*\n\nPlease enter the new referral bonus percentage (e.g., 2.5):",
+        {
+          parse_mode: "Markdown",
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback("🔙 Back to Settings", "admin_settings")],
+          ]),
+        }
+      );
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    } catch (error) {
+      logger.error("Error in edit referral bonus:", error);
+      ctx.reply("❌ Failed to edit referral bonus.");
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    }
   }
 
   async handleEditBuyerBonus(ctx) {
-    ctx.reply("Not implemented: handleEditBuyerBonus");
+    try {
+      if (!(await this.isAdminAsync(ctx.from.id)))
+        return ctx.reply(
+          t("msg__access_denied", {}, ctx.session?.language || "en")
+        );
+
+      ctx.session.editSetting = "referralDiscountPercent";
+      ctx.session.state = "awaiting_buyer_bonus";
+
+      ctx.reply(
+        "💸 *Edit Buyer Bonus*\n\nPlease enter the new buyer bonus percentage (e.g., 1.0):",
+        {
+          parse_mode: "Markdown",
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback("🔙 Back to Settings", "admin_settings")],
+          ]),
+        }
+      );
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    } catch (error) {
+      logger.error("Error in edit buyer bonus:", error);
+      ctx.reply("❌ Failed to edit buyer bonus.");
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    }
   }
 
-  async handleUpdateSetting(ctx) {
-    ctx.reply("Not implemented: handleUpdateSetting");
+  async handleUpdateSetting(ctx, messageText) {
+    try {
+      if (!(await this.isAdminAsync(ctx.from.id)))
+        return ctx.reply(
+          t("msg__access_denied", {}, ctx.session?.language || "en")
+        );
+
+      const { editSetting, state } = ctx.session;
+      const text = messageText || ctx.message?.text;
+
+      if (!editSetting || !state || !text) {
+        return ctx.reply("❌ Invalid setting update request.");
+      }
+
+      const value = parseFloat(text);
+      if (isNaN(value) || value < 0 || value > 100) {
+        return ctx.reply(
+          "❌ Please enter a valid percentage between 0 and 100."
+        );
+      }
+
+      // Update the setting in database
+      const success = await adminService.setPlatformSetting(editSetting, value);
+
+      if (success) {
+        ctx.reply(`✅ Successfully updated ${editSetting} to ${value}%`);
+        // Clear session state
+        delete ctx.session.editSetting;
+        delete ctx.session.state;
+        // Return to settings menu
+        return this.handleSystemSettings(ctx);
+      } else {
+        ctx.reply("❌ Failed to update setting. Please try again.");
+      }
+    } catch (error) {
+      logger.error("Error updating setting:", error);
+      ctx.reply("❌ Failed to update setting.");
+    }
   }
 
-  async handleSetPlatformFee(ctx) {
-    ctx.reply("Not implemented: handleSetPlatformFee");
-  }
+  async handleToggleMaintenance(ctx) {
+    try {
+      if (!(await this.isAdminAsync(ctx.from.id)))
+        return ctx.reply(
+          t("msg__access_denied", {}, ctx.session?.language || "en")
+        );
 
-  async handlePlatformFeeInput(ctx) {
-    ctx.reply("Not implemented: handlePlatformFeeInput");
+      // Get current maintenance mode
+      const settings = await adminService.getPlatformSettings();
+      const currentMode = settings.maintenanceMode || false;
+      const newMode = !currentMode;
+
+      // Update maintenance mode
+      const success = await adminService.setPlatformSetting(
+        "maintenanceMode",
+        newMode
+      );
+
+      if (success) {
+        ctx.reply(
+          `✅ Maintenance mode ${
+            newMode ? "enabled" : "disabled"
+          } successfully.`,
+          {
+            ...Markup.inlineKeyboard([
+              [Markup.button.callback("🔙 Back to Settings", "admin_settings")],
+            ]),
+          }
+        );
+      } else {
+        ctx.reply("❌ Failed to toggle maintenance mode.");
+      }
+
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    } catch (error) {
+      logger.error("Error toggling maintenance mode:", error);
+      ctx.reply("❌ Failed to toggle maintenance mode.");
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    }
   }
 
   async handlePlatformAnalyticsDashboard(ctx, page = 1) {
@@ -1023,9 +1214,7 @@ class AdminHandlers {
           t("msg__access_denied", {}, ctx.session?.language || "en")
         );
 
-      // Debug data structure first
-      await adminService.debugDataStructure();
-
+      const ITEMS_PER_PAGE = 3;
       const dashboard = await adminService.getDashboardData();
       const { platformStats, companyAnalytics, recentUsers, systemAlerts } =
         dashboard;
@@ -1034,63 +1223,127 @@ class AdminHandlers {
       const totalLifetimeWithdrawn =
         await adminService.calculateTotalLifetimeWithdrawn();
 
-      let msg = `📊 *Platform Analytics*
+      // Create beautiful header with emojis and formatting
+      let msg = `🎯 *PLATFORM ANALYTICS DASHBOARD*\n`;
+      msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
-`;
-      msg += `👥 *Users:* ${dashboard.quickStats.totalUsers}\n`;
-      msg += `🏢 *Companies:* ${dashboard.quickStats.totalCompanies}\n`;
-      msg += `💰 *Total Platform Fees:* $${platformStats.totalPlatformFees.toFixed(
-        2
-      )}\n`;
-      msg += `💳 *Total Withdrawable:* $${platformStats.totalWithdrawable.toFixed(
-        2
-      )}\n`;
-      msg += `📈 *Lifetime Revenue:* $${platformStats.totalLifetimeRevenue.toFixed(
-        2
-      )}\n`;
-      msg += `💸 *Lifetime Withdrawn:* $${totalLifetimeWithdrawn.toFixed(2)}\n`;
+      // Key Metrics Section with attractive formatting
+      msg += `📊 *KEY METRICS*\n`;
+      msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      msg += `👥 Total Users: *${dashboard.quickStats.totalUsers.toLocaleString()}*\n`;
+      msg += `🏢 Total Companies: *${dashboard.quickStats.totalCompanies.toLocaleString()}*\n`;
+      msg += `💰 Platform Fees: *$${platformStats.totalPlatformFees.toLocaleString(
+        undefined,
+        { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+      )}*\n`;
+      msg += `💳 Withdrawable: *$${platformStats.totalWithdrawable.toLocaleString(
+        undefined,
+        { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+      )}*\n`;
+      msg += `📈 Lifetime Revenue: *$${platformStats.totalLifetimeRevenue.toLocaleString(
+        undefined,
+        { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+      )}*\n`;
+      msg += `💸 Lifetime Withdrawn: *$${totalLifetimeWithdrawn.toLocaleString(
+        undefined,
+        { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+      )}*\n\n`;
 
-      // Show companies with detailed analytics
+      // Company Analytics Section with pagination
       if (companyAnalytics && companyAnalytics.length > 0) {
-        msg += `\n🏢 *Company Analytics:*\n`;
+        const totalPages = Math.ceil(companyAnalytics.length / ITEMS_PER_PAGE);
+        const startIndex = (page - 1) * ITEMS_PER_PAGE;
+        const endIndex = startIndex + ITEMS_PER_PAGE;
+        const pageCompanies = companyAnalytics.slice(startIndex, endIndex);
 
         // Sort companies by withdrawable amount (highest first)
-        const sortedCompanies = companyAnalytics.sort(
+        const sortedCompanies = pageCompanies.sort(
           (a, b) => b.withdrawable - a.withdrawable
         );
 
-        for (const company of sortedCompanies) {
-          msg += `\n*${company.name}*\n`;
-          msg += `• Platform Cut: $${company.platformFees.toFixed(2)}\n`;
-          msg += `• Lifetime Revenue: $${company.lifetimeRevenue.toFixed(2)}\n`;
-          msg += `• Withdrawable: $${company.withdrawable.toFixed(2)}\n`;
-          msg += `• Products: ${company.productCount}\n`;
-          msg += `• Status: ${company.status}\n`;
+        msg += `🏢 *COMPANY ANALYTICS* (Page ${page}/${totalPages})\n`;
+        msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+
+        sortedCompanies.forEach((company, index) => {
+          const statusEmoji =
+            company.status === "active"
+              ? "✅"
+              : company.status === "pending"
+              ? "⏳"
+              : "❌";
+          const withdrawableEmoji = company.hasWithdrawable ? "💰" : "💸";
+
+          msg += `${statusEmoji} *${company.name}*\n`;
+          msg += `   ${withdrawableEmoji} Withdrawable: *$${company.withdrawable.toLocaleString(
+            undefined,
+            { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+          )}*\n`;
+          msg += `   💰 Platform Fees: *$${company.platformFees.toLocaleString(
+            undefined,
+            { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+          )}*\n`;
+          msg += `   📈 Lifetime Revenue: *$${company.lifetimeRevenue.toLocaleString(
+            undefined,
+            { minimumFractionDigits: 2, maximumFractionDigits: 2 }
+          )}*\n`;
+          msg += `   📦 Products: *${company.productCount}*\n`;
+          msg += `   👤 Owner: *${company.ownerUsername || "N/A"}*\n\n`;
+        });
+
+        // Pagination buttons
+        const paginationButtons = [];
+        if (page > 1) {
+          paginationButtons.push(
+            Markup.button.callback(
+              "⬅️ Previous",
+              `platform_analytics_dashboard_${page - 1}`
+            )
+          );
         }
-      }
+        if (page < totalPages) {
+          paginationButtons.push(
+            Markup.button.callback(
+              "Next ➡️",
+              `platform_analytics_dashboard_${page + 1}`
+            )
+          );
+        }
 
-      msg += `\n*Recent Users:*\n`;
-      recentUsers?.forEach((u) => {
-        msg += `• ${u.username || u.first_name || u.id}\n`;
-      });
+        // Action buttons
+        const actionButtons = [
+          [Markup.button.callback("🏢 Company Details", "admin_companies_1")],
+          [Markup.button.callback("💰 Withdrawals", "admin_withdrawals")],
+          [Markup.button.callback("📊 User Analytics", "user_analytics")],
+          [Markup.button.callback("🔙 Back to Admin", "admin_panel")],
+        ];
 
-      if (systemAlerts && systemAlerts.length > 0) {
-        msg += `\n*System Alerts:*\n`;
-        systemAlerts.forEach((a) => {
-          msg += `• [${a.priority}] ${a.message}\n`;
+        // Add pagination buttons if they exist
+        if (paginationButtons.length > 0) {
+          actionButtons.unshift(paginationButtons);
+        }
+
+        ctx.reply(msg, {
+          parse_mode: "Markdown",
+          reply_markup: Markup.inlineKeyboard(actionButtons),
+        });
+      } else {
+        // No companies case
+        msg += `🏢 *COMPANY ANALYTICS*\n`;
+        msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+        msg += `📭 No companies found\n\n`;
+
+        const buttons = [
+          [Markup.button.callback("🏢 Company Details", "admin_companies_1")],
+          [Markup.button.callback("💰 Withdrawals", "admin_withdrawals")],
+          [Markup.button.callback("📊 User Analytics", "user_analytics")],
+          [Markup.button.callback("🔙 Back to Admin", "admin_panel")],
+        ];
+
+        ctx.reply(msg, {
+          parse_mode: "Markdown",
+          reply_markup: Markup.inlineKeyboard(buttons),
         });
       }
-
-      const buttons = [
-        [Markup.button.callback("🏢 Company Details", "admin_companies_1")],
-        [Markup.button.callback("💰 Withdrawals", "admin_withdrawals")],
-        [Markup.button.callback("🔙 Back to Admin", "admin_panel")],
-      ];
-
-      ctx.reply(msg, {
-        parse_mode: "Markdown",
-        reply_markup: Markup.inlineKeyboard(buttons),
-      });
 
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
@@ -1098,18 +1351,6 @@ class AdminHandlers {
       ctx.reply("❌ Failed to load analytics.");
       if (ctx.callbackQuery) ctx.answerCbQuery();
     }
-  }
-
-  async handleMaintenanceMode(ctx) {
-    ctx.reply("Not implemented: handleMaintenanceMode");
-  }
-
-  async handleToggleMaintenance(ctx) {
-    ctx.reply("Not implemented: handleToggleMaintenance");
-  }
-
-  async handleExportData(ctx) {
-    ctx.reply("Not implemented: handleExportData");
   }
 
   async handleCompanyAnalyticsSummary(ctx) {
@@ -1146,22 +1387,75 @@ class AdminHandlers {
         0
       );
 
-      let msg = `📊 *Company Analytics Summary*
+      // Create beautiful header with emojis and formatting
+      let msg = `🏢 *COMPANY ANALYTICS SUMMARY*\n`;
+      msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
-`;
-      msg += `🏢 Total Companies: ${totalCompanies}
-`;
-      msg += `✅ Active Companies: ${activeCompanies}
-`;
-      msg += `⏳ Pending Companies: ${pendingCompanies}
-`;
-      msg += `📦 Total Products: ${totalProducts}
-`;
-      msg += `💰 Total Balance: $${totalBalance.toFixed(2)}
-`;
+      // Key Metrics Section with attractive formatting
+      msg += `📊 *KEY METRICS*\n`;
+      msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      msg += `🏢 Total Companies: *${totalCompanies.toLocaleString()}*\n`;
+      msg += `✅ Active Companies: *${activeCompanies.toLocaleString()}*\n`;
+      msg += `⏳ Pending Companies: *${pendingCompanies.toLocaleString()}*\n`;
+      msg += `📦 Total Products: *${totalProducts.toLocaleString()}*\n`;
+      msg += `💰 Total Balance: *$${totalBalance.toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      })}*\n\n`;
+
+      // Company Status Breakdown
+      const inactiveCompanies =
+        totalCompanies - activeCompanies - pendingCompanies;
+      msg += `📈 *STATUS BREAKDOWN*\n`;
+      msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+      msg += `✅ Active: *${activeCompanies}* (${
+        totalCompanies > 0
+          ? ((activeCompanies / totalCompanies) * 100).toFixed(1)
+          : 0
+      }%)\n`;
+      msg += `⏳ Pending: *${pendingCompanies}* (${
+        totalCompanies > 0
+          ? ((pendingCompanies / totalCompanies) * 100).toFixed(1)
+          : 0
+      }%)\n`;
+      msg += `❌ Inactive: *${inactiveCompanies}* (${
+        totalCompanies > 0
+          ? ((inactiveCompanies / totalCompanies) * 100).toFixed(1)
+          : 0
+      }%)\n\n`;
+
+      // Top Companies by Balance (if any)
+      if (companies.length > 0) {
+        const topCompanies = companies
+          .filter((c) => c.billingBalance && c.billingBalance > 0)
+          .sort((a, b) => (b.billingBalance || 0) - (a.billingBalance || 0))
+          .slice(0, 3);
+
+        if (topCompanies.length > 0) {
+          msg += `🏆 *TOP COMPANIES BY BALANCE*\n`;
+          msg += `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+          topCompanies.forEach((company, index) => {
+            const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : "🥉";
+            msg += `${medal} *${company.name}*\n`;
+            msg += `   💰 Balance: *$${(
+              company.billingBalance || 0
+            ).toLocaleString(undefined, {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}*\n`;
+            msg += `   📊 Status: *${company.status || "pending"}*\n\n`;
+          });
+        }
+      }
 
       const buttons = [
         [Markup.button.callback("🔙 Back to Companies", "admin_companies_1")],
+        [
+          Markup.button.callback(
+            "📊 Platform Analytics",
+            "platform_analytics_dashboard"
+          ),
+        ],
         [Markup.button.callback("🔙 Back to Admin", "admin_panel")],
       ];
 
@@ -1348,19 +1642,15 @@ class AdminHandlers {
           t("msg__access_denied", {}, ctx.session?.language || "en")
         );
 
-      const buttons = [
-        [Markup.button.callback("📝 Text Message", "broadcast_text")],
-        [Markup.button.callback("🖼️ Photo", "broadcast_photo")],
-        [Markup.button.callback("📹 Video", "broadcast_video")],
-        [Markup.button.callback("📄 Document", "broadcast_document")],
-        [Markup.button.callback("🔙 Back", "admin_panel")],
-      ];
+      ctx.session.broadcastStep = "awaiting_content";
 
       ctx.reply(
-        "📢 *Broadcast Message*\n\nSelect the type of message to send:",
+        "📢 *Broadcast Message*\n\nSend any message (text, photo, video, or document) to broadcast to all users:",
         {
           parse_mode: "Markdown",
-          ...Markup.inlineKeyboard(buttons),
+          ...Markup.inlineKeyboard([
+            [Markup.button.callback("🔙 Back", "admin_panel")],
+          ]),
         }
       );
       if (ctx.callbackQuery) ctx.answerCbQuery();
@@ -1371,60 +1661,80 @@ class AdminHandlers {
     }
   }
 
-  async handleBroadcastType(ctx) {
+  async handleBroadcastContent(ctx) {
     try {
-      const callbackData = ctx.callbackQuery?.data;
-      if (!callbackData) return;
+      if (!(await this.isAdminAsync(ctx.from.id)))
+        return ctx.reply(
+          t("msg__access_denied", {}, ctx.session?.language || "en")
+        );
 
-      const type = callbackData.replace("broadcast_", "");
-      ctx.session.broadcastType = type;
-      ctx.session.broadcastStep = "awaiting_content";
+      let broadcastData = {};
+      let contentType = "";
 
-      let message = "";
-      switch (type) {
+      // Detect content type and extract data
+      if (ctx.message?.text) {
+        // Text message
+        contentType = "text";
+        broadcastData = {
+          type: "text",
+          content: ctx.message.text,
+        };
+      } else if (ctx.message?.photo) {
+        // Photo message
+        contentType = "photo";
+        broadcastData = {
+          type: "photo",
+          fileId: ctx.message.photo[ctx.message.photo.length - 1].file_id,
+          caption: ctx.message.caption || "",
+        };
+      } else if (ctx.message?.video) {
+        // Video message
+        contentType = "video";
+        broadcastData = {
+          type: "video",
+          fileId: ctx.message.video.file_id,
+          caption: ctx.message.caption || "",
+        };
+      } else if (ctx.message?.document) {
+        // Document message
+        contentType = "document";
+        broadcastData = {
+          type: "document",
+          fileId: ctx.message.document.file_id,
+          caption: ctx.message.caption || "",
+        };
+      } else {
+        return ctx.reply(
+          "❌ Unsupported content type. Please send text, photo, video, or document."
+        );
+      }
+
+      // Store broadcast data
+      ctx.session.broadcastData = broadcastData;
+      ctx.session.broadcastStep = "confirm";
+
+      // Create preview message
+      let previewText = "";
+      switch (contentType) {
         case "text":
-          message = "📝 Enter the text message to broadcast:";
+          previewText = `📝 *Text Message:*\n\n${broadcastData.content}`;
           break;
         case "photo":
-          message = "🖼️ Send the photo to broadcast (with optional caption):";
+          previewText = `🖼️ *Photo Message:*${
+            broadcastData.caption ? `\n\nCaption: ${broadcastData.caption}` : ""
+          }`;
           break;
         case "video":
-          message = "📹 Send the video to broadcast (with optional caption):";
+          previewText = `📹 *Video Message:*${
+            broadcastData.caption ? `\n\nCaption: ${broadcastData.caption}` : ""
+          }`;
           break;
         case "document":
-          message =
-            "📄 Send the document to broadcast (with optional caption):";
+          previewText = `📄 *Document Message:*${
+            broadcastData.caption ? `\n\nCaption: ${broadcastData.caption}` : ""
+          }`;
           break;
-        default:
-          message = "❌ Invalid broadcast type.";
       }
-
-      const buttons = [[Markup.button.callback("🔙 Back", "admin_broadcast")]];
-
-      ctx.reply(message, {
-        ...Markup.inlineKeyboard(buttons),
-      });
-      ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error in broadcast type selection:", error);
-      ctx.reply("❌ Failed to set broadcast type.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handleBroadcastMessage(ctx, messageText) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply(
-          t("msg__access_denied", {}, ctx.session?.language || "en")
-        );
-
-      if (!messageText || messageText.trim().length === 0) {
-        return ctx.reply("❌ Message cannot be empty. Please try again.");
-      }
-
-      ctx.session.broadcastMessage = messageText;
-      ctx.session.broadcastStep = "confirm";
 
       const buttons = [
         [Markup.button.callback("✅ Send Broadcast", "confirm_broadcast")],
@@ -1432,84 +1742,15 @@ class AdminHandlers {
       ];
 
       ctx.reply(
-        `📢 *Broadcast Preview:*\n\n${messageText}\n\nSend this message to all users?`,
+        `📢 *Broadcast Preview:*\n\n${previewText}\n\nSend this ${contentType} to all users?`,
         {
           parse_mode: "Markdown",
           ...Markup.inlineKeyboard(buttons),
         }
       );
     } catch (error) {
-      logger.error("Error in broadcast message:", error);
-      ctx.reply("❌ Failed to process broadcast message.");
-    }
-  }
-
-  async handleBroadcastMedia(ctx) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply(
-          t("msg__access_denied", {}, ctx.session?.language || "en")
-        );
-
-      const type = ctx.session.broadcastType;
-      let mediaData = {};
-
-      switch (type) {
-        case "photo":
-          if (!ctx.message?.photo) {
-            return ctx.reply("❌ Please send a photo.");
-          }
-          mediaData = {
-            type: "photo",
-            fileId: ctx.message.photo[ctx.message.photo.length - 1].file_id,
-            caption: ctx.message.caption || "",
-          };
-          break;
-        case "video":
-          if (!ctx.message?.video) {
-            return ctx.reply("❌ Please send a video.");
-          }
-          mediaData = {
-            type: "video",
-            fileId: ctx.message.video.file_id,
-            caption: ctx.message.caption || "",
-          };
-          break;
-        case "document":
-          if (!ctx.message?.document) {
-            return ctx.reply("❌ Please send a document.");
-          }
-          mediaData = {
-            type: "document",
-            fileId: ctx.message.document.file_id,
-            caption: ctx.message.caption || "",
-          };
-          break;
-        default:
-          return ctx.reply("❌ Invalid media type.");
-      }
-
-      ctx.session.broadcastMedia = mediaData;
-      ctx.session.broadcastStep = "confirm";
-
-      const buttons = [
-        [Markup.button.callback("✅ Send Broadcast", "confirm_broadcast")],
-        [Markup.button.callback("❌ Cancel", "admin_broadcast")],
-      ];
-
-      const previewText = mediaData.caption
-        ? `\n\nCaption: ${mediaData.caption}`
-        : "";
-      ctx.reply(
-        `📢 *Broadcast Preview:*\n\nType: ${type.toUpperCase()}${previewText}\n\nSend this ${type} to all users?`,
-        {
-          parse_mode: "Markdown",
-          ...Markup.inlineKeyboard(buttons),
-        }
-      );
-    } catch (error) {
-      logger.error("Error in broadcast media:", error);
-      ctx.reply("❌ Failed to process broadcast media.");
+      logger.error("Error in broadcast content:", error);
+      ctx.reply("❌ Failed to process broadcast content.");
     }
   }
 
@@ -1520,7 +1761,11 @@ class AdminHandlers {
           t("msg__access_denied", {}, ctx.session?.language || "en")
         );
 
-      const type = ctx.session.broadcastType;
+      const broadcastData = ctx.session.broadcastData;
+      if (!broadcastData) {
+        return ctx.reply("❌ No broadcast data found. Please try again.");
+      }
+
       const { getBot } = require("../index");
       const bot = getBot();
 
@@ -1539,37 +1784,37 @@ class AdminHandlers {
         total++;
 
         try {
-          switch (type) {
+          switch (broadcastData.type) {
             case "text":
               await bot.telegram.sendMessage(
                 user.telegramId,
-                ctx.session.broadcastMessage
+                broadcastData.content
               );
               break;
             case "photo":
               await bot.telegram.sendPhoto(
                 user.telegramId,
-                ctx.session.broadcastMedia.fileId,
+                broadcastData.fileId,
                 {
-                  caption: ctx.session.broadcastMedia.caption || undefined,
+                  caption: broadcastData.caption || undefined,
                 }
               );
               break;
             case "video":
               await bot.telegram.sendVideo(
                 user.telegramId,
-                ctx.session.broadcastMedia.fileId,
+                broadcastData.fileId,
                 {
-                  caption: ctx.session.broadcastMedia.caption || undefined,
+                  caption: broadcastData.caption || undefined,
                 }
               );
               break;
             case "document":
               await bot.telegram.sendDocument(
                 user.telegramId,
-                ctx.session.broadcastMedia.fileId,
+                broadcastData.fileId,
                 {
-                  caption: ctx.session.broadcastMedia.caption || undefined,
+                  caption: broadcastData.caption || undefined,
                 }
               );
               break;
@@ -1589,10 +1834,8 @@ class AdminHandlers {
       }
 
       // Clear session
-      delete ctx.session.broadcastType;
       delete ctx.session.broadcastStep;
-      delete ctx.session.broadcastMessage;
-      delete ctx.session.broadcastMedia;
+      delete ctx.session.broadcastData;
 
       const resultMessage = `📢 *Broadcast Complete*\n\n✅ Sent: ${sent}\n❌ Failed: ${failed}\n📊 Total: ${total}`;
 
