@@ -1365,7 +1365,7 @@ class AdminHandlers {
           msg += `   👤 Owner: *${company.ownerUsername || "N/A"}*\n\n`;
         });
 
-        // Pagination buttons - improved layout with First/Last
+        // Simplified pagination buttons
         const paginationRows = [];
 
         // Debug logging
@@ -1373,14 +1373,11 @@ class AdminHandlers {
           `Pagination Debug: page=${page}, totalPages=${totalPages}, companies=${companyAnalytics.length}`
         );
 
-        // First row: First, Previous, Next, Last
+        // Simple pagination row
         const mainPaginationRow = [];
 
-        // Always show First button if not on first page
+        // Previous button
         if (page > 1) {
-          mainPaginationRow.push(
-            Markup.button.callback("⏮️ First", "platform_analytics_dashboard_1")
-          );
           mainPaginationRow.push(
             Markup.button.callback(
               "⬅️ Previous",
@@ -1389,18 +1386,12 @@ class AdminHandlers {
           );
         }
 
-        // Always show Next and Last buttons if not on last page
+        // Next button
         if (page < totalPages) {
           mainPaginationRow.push(
             Markup.button.callback(
               "Next ➡️",
               `platform_analytics_dashboard_${page + 1}`
-            )
-          );
-          mainPaginationRow.push(
-            Markup.button.callback(
-              "Last ⏭️",
-              `platform_analytics_dashboard_${totalPages}`
             )
           );
         }
@@ -1425,6 +1416,13 @@ class AdminHandlers {
           [Markup.button.callback("📊 User Analytics", "user_analytics")],
           [Markup.button.callback("🔙 Back to Admin", "admin_panel")],
         ];
+
+        // Add a test button to verify keyboard is working
+        if (totalPages > 1) {
+          actionButtons.unshift([
+            Markup.button.callback("🧪 Test Pagination", "test_pagination"),
+          ]);
+        }
 
         // Add pagination rows if they have buttons
         console.log(`paginationRows length: ${paginationRows.length}`);
@@ -1468,10 +1466,21 @@ class AdminHandlers {
           actionButtons.map((row) => row.map((btn) => btn.text))
         );
 
-        ctx.reply(msg, {
-          parse_mode: "Markdown",
-          reply_markup: Markup.inlineKeyboard(actionButtons),
-        });
+        // Try sending with different approach
+        try {
+          console.log(
+            `Sending message with ${actionButtons.length} button rows`
+          );
+          await ctx.reply(msg, {
+            parse_mode: "Markdown",
+            reply_markup: Markup.inlineKeyboard(actionButtons),
+          });
+          console.log(`Message sent successfully`);
+        } catch (error) {
+          console.error(`Error sending message:`, error);
+          // Fallback: send without buttons
+          await ctx.reply(msg, { parse_mode: "Markdown" });
+        }
       } else {
         // No companies case
         msg += `🏢 *COMPANY ANALYTICS*\n`;
