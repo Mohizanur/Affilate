@@ -26,7 +26,9 @@ function toDateSafe(x) {
 // Helper function to escape Markdown characters
 function escapeMarkdown(text) {
   if (!text) return text;
-  return text
+  // Convert to string to handle numbers, null, undefined, etc.
+  const textStr = String(text);
+  return textStr
     .replace(/_/g, "\\_")
     .replace(/\*/g, "\\*")
     .replace(/\[/g, "\\[")
