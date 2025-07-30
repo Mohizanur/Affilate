@@ -318,10 +318,7 @@ class CallbackHandlers {
             }
           }
 
-          if (callbackData.startsWith("withdraw_company_")) {
-            const companyId = callbackData.replace("withdraw_company_", "");
-            return adminHandlers.handleCompanyWithdraw(ctx, companyId);
-          }
+
           if (callbackData.startsWith("reject_withdrawal_")) {
             return this.handleRejectWithdrawal(ctx, callbackData);
           } else if (callbackData.startsWith("deny_withdrawal_")) {
@@ -605,11 +602,6 @@ class CallbackHandlers {
 
           if (callbackData.startsWith("share_code_")) {
             return userHandlers.handleShareCode(ctx);
-          }
-
-          if (callbackData.startsWith("withdraw_company_")) {
-            const companyId = callbackData.replace("withdraw_company_", "");
-            return userHandlers.handleWithdrawCompany(ctx, companyId);
           }
 
           if (callbackData.startsWith("request_withdrawal_")) {
