@@ -230,10 +230,22 @@ class AdminHandlers {
         ],
         [
           Markup.button.callback(
-            user.canRegisterCompany ? "⬇️ Demote User" : "⬆️ Promote User",
-            user.canRegisterCompany
+            user.role === "admin"
+              ? "⬇️ Demote from Admin"
+              : "⬆️ Promote to Admin",
+            user.role === "admin"
               ? `demote_user_${userId}`
               : `promote_user_${userId}`
+          ),
+        ],
+        [
+          Markup.button.callback(
+            user.role === "company_manager"
+              ? "⬇️ Remove Company Manager"
+              : "🏢 Make Company Manager",
+            user.role === "company_manager"
+              ? `demote_company_manager_${userId}`
+              : `promote_company_manager_${userId}`
           ),
         ],
         [Markup.button.callback("🔙 Back to Users", "all_users_menu_1")],
@@ -297,47 +309,78 @@ class AdminHandlers {
 
   async handlePromoteUserId(ctx, userId) {
     try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply(
-          t("msg__access_denied", {}, ctx.session?.language || "en")
-        );
+      const user = await userService.userService.getUserByTelegramId(userId);
+      if (!user) {
+        return ctx.reply("❌ User not found");
+      }
 
       await userService.userService.updateUser(userId, {
         role: "admin",
-        canRegisterCompany: true,
+        isAdmin: true,
+        promotedAt: new Date(),
       });
-      ctx.reply(t("msg__user_promoted", {}, ctx.session?.language || "en"));
+
+      ctx.reply(
+        `✅ User ${
+          user.firstName || user.first_name || userId
+        } promoted to Admin`
+      );
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
       logger.error("Error promoting user:", error);
-      ctx.reply(
-        t("msg__failed_to_promote_user", {}, ctx.session?.language || "en")
-      );
-      if (ctx.callbackQuery) ctx.answerCbQuery();
+      ctx.reply("❌ Failed to promote user");
     }
   }
 
-  async handleDemoteUserId(ctx, userId) {
+  async handlePromoteToCompanyManager(ctx, userId) {
     try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply(
-          t("msg__access_denied", {}, ctx.session?.language || "en")
-        );
+      const user = await userService.userService.getUserByTelegramId(userId);
+      if (!user) {
+        return ctx.reply("❌ User not found");
+      }
+
+      await userService.userService.updateUser(userId, {
+        role: "company_manager",
+        canRegisterCompany: true,
+        canAddProducts: true,
+        promotedAt: new Date(),
+      });
+
+      ctx.reply(
+        `✅ User ${
+          user.firstName || user.first_name || userId
+        } promoted to Company Manager`
+      );
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    } catch (error) {
+      logger.error("Error promoting user to company manager:", error);
+      ctx.reply("❌ Failed to promote user");
+    }
+  }
+
+  async handleDemoteFromCompanyManager(ctx, userId) {
+    try {
+      const user = await userService.userService.getUserByTelegramId(userId);
+      if (!user) {
+        return ctx.reply("❌ User not found");
+      }
 
       await userService.userService.updateUser(userId, {
         role: "user",
         canRegisterCompany: false,
-        isCompanyOwner: false,
-        companyId: null,
+        canAddProducts: false,
+        demotedAt: new Date(),
       });
-      ctx.reply(t("msg__user_demoted", {}, ctx.session?.language || "en"));
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error demoting user:", error);
+
       ctx.reply(
-        t("msg__failed_to_demote_user", {}, ctx.session?.language || "en")
+        `✅ User ${
+          user.firstName || user.first_name || userId
+        } demoted from Company Manager`
       );
       if (ctx.callbackQuery) ctx.answerCbQuery();
+    } catch (error) {
+      logger.error("Error demoting company manager:", error);
+      ctx.reply("❌ Failed to demote user");
     }
   }
 

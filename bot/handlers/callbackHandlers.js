@@ -450,6 +450,14 @@ class CallbackHandlers {
             const userId = callbackData.replace("promote_user_", "");
             return adminHandlers.handlePromoteUserId(ctx, userId);
           }
+          if (callbackData.startsWith("promote_company_manager_")) {
+            const userId = callbackData.replace("promote_company_manager_", "");
+            return adminHandlers.handlePromoteToCompanyManager(ctx, userId);
+          }
+          if (callbackData.startsWith("demote_company_manager_")) {
+            const userId = callbackData.replace("demote_company_manager_", "");
+            return adminHandlers.handleDemoteFromCompanyManager(ctx, userId);
+          }
           if (callbackData.startsWith("company_analytics_")) {
             console.log(
               "Triggering handleCompanyAnalyticsCallback with:",

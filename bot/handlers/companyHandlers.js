@@ -32,7 +32,7 @@ class CompanyHandlers {
         await require("../services/userService").userService.getUserByTelegramId(
           telegramId
         );
-      if (!user.canRegisterCompany) {
+      if (!user.canRegisterCompany && user.role !== "company_manager") {
         return ctx.reply(
           t(
             "msg__you_are_not_eligible_to_register_a_company_pl",
@@ -224,7 +224,10 @@ class CompanyHandlers {
       );
 
       // Permission Check
-      const canAccess = user.canRegisterCompany || user.role === "admin";
+      const canAccess =
+        user.canRegisterCompany ||
+        user.role === "admin" ||
+        user.role === "company_manager";
       if (!canAccess) {
         return ctx.reply(
           "❌ You don't have permission to access this feature. Please register a company or contact an admin."
