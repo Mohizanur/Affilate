@@ -79,6 +79,28 @@ class MessageHandlers {
         return adminHandlers.handleUpdateSetting(ctx, messageText);
       }
 
+      // Platform withdrawal handlers
+      if (ctx.session && ctx.session.platformWithdrawalStep === "amount") {
+        return adminHandlers.handlePlatformWithdrawalAmount(ctx);
+      }
+      if (ctx.session && ctx.session.platformWithdrawalStep === "reason") {
+        return adminHandlers.handlePlatformWithdrawalReason(ctx);
+      }
+      if (ctx.session && ctx.session.denyWithdrawalStep === "reason") {
+        return adminHandlers.handleDenyPlatformWithdrawalReason(ctx);
+      }
+
+      // Company withdrawal handlers
+      if (ctx.session && ctx.session.companyWithdrawalStep === "amount") {
+        return adminHandlers.handleCompanyWithdrawalAmount(ctx);
+      }
+      if (ctx.session && ctx.session.companyWithdrawalStep === "reason") {
+        return adminHandlers.handleCompanyWithdrawalReason(ctx);
+      }
+      if (ctx.session && ctx.session.denyWithdrawalStep === "reason") {
+        return companyHandlers.handleCompanyDenyWithdrawalReason(ctx);
+      }
+
       if (ctx.session && ctx.session.state) {
         return this.handleSessionState(ctx, messageText);
       }

@@ -1202,7 +1202,8 @@ class AdminService {
 
         // Platform fee is calculated from dynamic settings
         const settings = await this.getPlatformSettings();
-        const platformFee = (referral.amount || 0) * (settings.platformFeePercent / 100);
+        const platformFee =
+          (referral.amount || 0) * (settings.platformFeePercent / 100);
         totalPlatformFees += platformFee;
       }
 
@@ -1520,10 +1521,10 @@ class AdminService {
         .users()
         .where("role", "==", "admin")
         .get();
-      
-      return adminSnap.docs.map(doc => ({
+
+      return adminSnap.docs.map((doc) => ({
         telegramId: doc.id,
-        ...doc.data()
+        ...doc.data(),
       }));
     } catch (error) {
       logger.error("Error getting admin users:", error);
@@ -1538,11 +1539,11 @@ class AdminService {
         .collection("settings")
         .doc("system")
         .get();
-      
+
       if (!doc.exists) {
         return 0;
       }
-      
+
       const data = doc.data();
       return data.platformBalance || 0;
     } catch (error) {
@@ -1555,21 +1556,633 @@ class AdminService {
     try {
       const currentBalance = await this.getPlatformBalance();
       const newBalance = currentBalance + amount;
-      
-      await databaseService
-        .getDb()
-        .collection("settings")
-        .doc("system")
-        .set({ 
-          platformBalance: newBalance, 
-          updatedAt: new Date() 
-        }, { merge: true });
-      
-      logger.info(`Platform balance updated: ${currentBalance} + ${amount} = ${newBalance}`);
+
+      await databaseService.getDb().collection("settings").doc("system").set(
+        {
+          platformBalance: newBalance,
+          updatedAt: new Date(),
+        },
+        { merge: true }
+      );
+
+      logger.info(
+        `Platform balance updated: ${currentBalance} + ${amount} = ${newBalance}`
+      );
       return newBalance;
     } catch (error) {
       logger.error("Error updating platform balance:", error);
       throw error;
+    }
+  }
+
+  async getPlatformWithdrawableAmount() {
+    try {
+      const platformBalance = await this.getPlatformBalance();
+      const pendingWithdrawals = await this.getPendingPlatformWithdrawals();
+
+      // Calculate total pending withdrawals
+      const totalPending = pendingWithdrawals.reduce((sum, withdrawal) => {
+        return sum + (withdrawal.amount || 0);
+      }, 0);
+
+      // Withdrawable amount is balance minus pending withdrawals
+      const withdrawable = Math.max(0, platformBalance - totalPending);
+
+      return {
+        totalBalance: platformBalance,
+        pendingWithdrawals: totalPending,
+        withdrawable: withdrawable,
+      };
+    } catch (error) {
+      logger.error("Error getting platform withdrawable amount:", error);
+      return {
+        totalBalance: 0,
+        pendingWithdrawals: 0,
+        withdrawable: 0,
+      };
+    }
+  }
+
+  async requestPlatformWithdrawal(amount, reason, requestedBy) {
+    try {
+      const withdrawableData = await this.getPlatformWithdrawableAmount();
+
+      if (amount > withdrawableData.withdrawable) {
+        throw new Error(
+          `Insufficient withdrawable amount. Available: $${withdrawableData.withdrawable.toFixed(
+            2
+          )}`
+        );
+      }
+
+      if (amount <= 0) {
+        throw new Error("Withdrawal amount must be greater than 0");
+      }
+
+      // Create withdrawal request
+      const withdrawalRequest = {
+        amount,
+        reason,
+        requestedBy,
+        status: "pending",
+        createdAt: new Date(),
+        type: "platform",
+      };
+
+      const withdrawalRef = await databaseService
+        .getDb()
+        .collection("platform_withdrawals")
+        .add(withdrawalRequest);
+
+      logger.info(
+        `Platform withdrawal request created: ${withdrawalRef.id} for $${amount}`
+      );
+
+      // Notify all admins about the withdrawal request
+      const admins = await this.getAdminUsers();
+      const notificationService = require("./notificationService");
+
+      for (const admin of admins) {
+        if (admin.telegramId !== requestedBy) {
+          await notificationService.sendNotification(
+            admin.telegramId,
+            `🔔 New Platform Withdrawal Request\n\nAmount: $${amount.toFixed(
+              2
+            )}\nReason: ${reason}\nRequested by: ${requestedBy}`,
+            {
+              type: "platform_withdrawal",
+              action: "approval",
+              withdrawalId: withdrawalRef.id,
+            }
+          );
+        }
+      }
+
+      return withdrawalRef.id;
+    } catch (error) {
+      logger.error("Error requesting platform withdrawal:", error);
+      throw error;
+    }
+  }
+
+  async getPendingPlatformWithdrawals() {
+    try {
+      const withdrawalsSnap = await databaseService
+        .getDb()
+        .collection("platform_withdrawals")
+        .where("status", "==", "pending")
+        .orderBy("createdAt", "desc")
+        .get();
+
+      return withdrawalsSnap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+    } catch (error) {
+      logger.error("Error getting pending platform withdrawals:", error);
+      return [];
+    }
+  }
+
+  async approvePlatformWithdrawal(withdrawalId, approvedBy) {
+    try {
+      const withdrawalRef = databaseService
+        .getDb()
+        .collection("platform_withdrawals")
+        .doc(withdrawalId);
+
+      const withdrawalDoc = await withdrawalRef.get();
+      if (!withdrawalDoc.exists) {
+        throw new Error("Withdrawal request not found");
+      }
+
+      const withdrawal = withdrawalDoc.data();
+      if (withdrawal.status !== "pending") {
+        throw new Error("Withdrawal request is not pending");
+      }
+
+      // Update withdrawal status to approved
+      await withdrawalRef.update({
+        status: "approved",
+        approvedBy,
+        approvedAt: new Date(),
+      });
+
+      logger.info(
+        `Platform withdrawal approved: ${withdrawalId} by ${approvedBy}`
+      );
+
+      // Notify the requester
+      const notificationService = require("./notificationService");
+      await notificationService.sendNotification(
+        withdrawal.requestedBy,
+        `✅ Platform Withdrawal Approved\n\nAmount: $${withdrawal.amount.toFixed(
+          2
+        )}\nReason: ${withdrawal.reason}\nApproved by: ${approvedBy}`,
+        {
+          type: "platform_withdrawal",
+          action: "approved",
+          withdrawalId,
+        }
+      );
+
+      return true;
+    } catch (error) {
+      logger.error("Error approving platform withdrawal:", error);
+      throw error;
+    }
+  }
+
+  async denyPlatformWithdrawal(withdrawalId, deniedBy, reason) {
+    try {
+      const withdrawalRef = databaseService
+        .getDb()
+        .collection("platform_withdrawals")
+        .doc(withdrawalId);
+
+      const withdrawalDoc = await withdrawalRef.get();
+      if (!withdrawalDoc.exists) {
+        throw new Error("Withdrawal request not found");
+      }
+
+      const withdrawal = withdrawalDoc.data();
+      if (withdrawal.status !== "pending") {
+        throw new Error("Withdrawal request is not pending");
+      }
+
+      // Update withdrawal status to denied
+      await withdrawalRef.update({
+        status: "denied",
+        deniedBy,
+        deniedAt: new Date(),
+        denialReason: reason,
+      });
+
+      logger.info(`Platform withdrawal denied: ${withdrawalId} by ${deniedBy}`);
+
+      // Notify the requester
+      const notificationService = require("./notificationService");
+      await notificationService.sendNotification(
+        withdrawal.requestedBy,
+        `❌ Platform Withdrawal Denied\n\nAmount: $${withdrawal.amount.toFixed(
+          2
+        )}\nReason: ${
+          withdrawal.reason
+        }\nDenied by: ${deniedBy}\nDenial reason: ${reason}`,
+        {
+          type: "platform_withdrawal",
+          action: "denied",
+          withdrawalId,
+        }
+      );
+
+      return true;
+    } catch (error) {
+      logger.error("Error denying platform withdrawal:", error);
+      throw error;
+    }
+  }
+
+  async processPlatformWithdrawal(withdrawalId, processedBy) {
+    try {
+      const withdrawalRef = databaseService
+        .getDb()
+        .collection("platform_withdrawals")
+        .doc(withdrawalId);
+
+      const withdrawalDoc = await withdrawalRef.get();
+      if (!withdrawalDoc.exists) {
+        throw new Error("Withdrawal request not found");
+      }
+
+      const withdrawal = withdrawalDoc.data();
+      if (withdrawal.status !== "approved") {
+        throw new Error("Withdrawal request is not approved");
+      }
+
+      // Deduct from platform balance
+      const currentBalance = await this.getPlatformBalance();
+      if (currentBalance < withdrawal.amount) {
+        throw new Error("Insufficient platform balance for withdrawal");
+      }
+
+      const newBalance = currentBalance - withdrawal.amount;
+      await this.updatePlatformBalance(-withdrawal.amount);
+
+      // Update withdrawal status to processed
+      await withdrawalRef.update({
+        status: "processed",
+        processedBy,
+        processedAt: new Date(),
+        finalBalance: newBalance,
+      });
+
+      logger.info(
+        `Platform withdrawal processed: ${withdrawalId} - $${withdrawal.amount}`
+      );
+
+      // Notify the requester
+      const notificationService = require("./notificationService");
+      await notificationService.sendNotification(
+        withdrawal.requestedBy,
+        `💰 Platform Withdrawal Processed\n\nAmount: $${withdrawal.amount.toFixed(
+          2
+        )}\nReason: ${
+          withdrawal.reason
+        }\nProcessed by: ${processedBy}\nNew balance: $${newBalance.toFixed(
+          2
+        )}`,
+        {
+          type: "platform_withdrawal",
+          action: "processed",
+          withdrawalId,
+        }
+      );
+
+      return {
+        success: true,
+        newBalance,
+        withdrawalAmount: withdrawal.amount,
+      };
+    } catch (error) {
+      logger.error("Error processing platform withdrawal:", error);
+      throw error;
+    }
+  }
+
+  async getPlatformWithdrawalHistory(limit = 20) {
+    try {
+      const withdrawalsSnap = await databaseService
+        .getDb()
+        .collection("platform_withdrawals")
+        .orderBy("createdAt", "desc")
+        .limit(limit)
+        .get();
+
+      return withdrawalsSnap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+    } catch (error) {
+      logger.error("Error getting platform withdrawal history:", error);
+      return [];
+    }
+  }
+
+  async requestCompanyWithdrawal(companyId, amount, reason, requestedBy) {
+    try {
+      // Get company details
+      const company = await companyService.getCompanyById(companyId);
+      if (!company) {
+        throw new Error("Company not found");
+      }
+
+      const withdrawable = company.billingBalance || 0;
+      if (withdrawable < amount) {
+        throw new Error(
+          `Insufficient withdrawable amount. Available: $${withdrawable.toFixed(
+            2
+          )}`
+        );
+      }
+
+      if (amount <= 0) {
+        throw new Error("Withdrawal amount must be greater than 0");
+      }
+
+      // Create withdrawal request
+      const withdrawalRequest = {
+        companyId,
+        companyName: company.name,
+        amount,
+        reason,
+        requestedBy,
+        status: "company_pending",
+        createdAt: new Date(),
+        type: "company_withdrawal",
+      };
+
+      const withdrawalRef = await databaseService
+        .getDb()
+        .collection("company_withdrawal_requests")
+        .add(withdrawalRequest);
+
+      logger.info(
+        `Company withdrawal request created: ${withdrawalRef.id} for company ${companyId}`
+      );
+
+      // Notify company owner
+      const notificationService = require("./notificationService");
+      await notificationService.sendNotification(
+        company.telegramId,
+        `💰 *Withdrawal Request*\n\n` +
+          `Amount: *$${amount.toFixed(2)}*\n` +
+          `Reason: ${reason}\n` +
+          `Requested by: Admin ${requestedBy}\n\n` +
+          `Please approve or deny this withdrawal request.`,
+        {
+          type: "company_withdrawal",
+          action: "company_approval",
+          withdrawalId: withdrawalRef.id,
+        }
+      );
+
+      return withdrawalRef.id;
+    } catch (error) {
+      logger.error("Error requesting company withdrawal:", error);
+      throw error;
+    }
+  }
+
+  async getPendingCompanyWithdrawals() {
+    try {
+      const withdrawalsSnap = await databaseService
+        .getDb()
+        .collection("company_withdrawal_requests")
+        .where("status", "==", "company_pending")
+        .orderBy("createdAt", "desc")
+        .get();
+
+      return withdrawalsSnap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+    } catch (error) {
+      logger.error("Error getting pending company withdrawals:", error);
+      return [];
+    }
+  }
+
+  async getApprovedCompanyWithdrawals() {
+    try {
+      const withdrawalsSnap = await databaseService
+        .getDb()
+        .collection("company_withdrawal_requests")
+        .where("status", "==", "company_approved")
+        .orderBy("createdAt", "desc")
+        .get();
+
+      return withdrawalsSnap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+    } catch (error) {
+      logger.error("Error getting approved company withdrawals:", error);
+      return [];
+    }
+  }
+
+  async companyApproveWithdrawal(withdrawalId, approvedBy) {
+    try {
+      const withdrawalRef = databaseService
+        .getDb()
+        .collection("company_withdrawal_requests")
+        .doc(withdrawalId);
+
+      const withdrawalDoc = await withdrawalRef.get();
+      if (!withdrawalDoc.exists) {
+        throw new Error("Withdrawal request not found");
+      }
+
+      const withdrawal = withdrawalDoc.data();
+      if (withdrawal.status !== "company_pending") {
+        throw new Error("Withdrawal request is not pending");
+      }
+
+      // Update withdrawal status to approved
+      await withdrawalRef.update({
+        status: "company_approved",
+        approvedBy,
+        approvedAt: new Date(),
+      });
+
+      logger.info(
+        `Company withdrawal approved: ${withdrawalId} by ${approvedBy}`
+      );
+
+      // Notify admins about the approval
+      const admins = await this.getAdminUsers();
+      const notificationService = require("./notificationService");
+
+      for (const admin of admins) {
+        if (admin.telegramId !== approvedBy) {
+          await notificationService.sendNotification(
+            admin.telegramId,
+            `✅ *Company Withdrawal Approved*\n\n` +
+              `Company: ${withdrawal.companyName}\n` +
+              `Amount: *$${withdrawal.amount.toFixed(2)}*\n` +
+              `Reason: ${withdrawal.reason}\n` +
+              `Approved by: ${approvedBy}\n\n` +
+              `Please confirm receipt and process the withdrawal.`,
+            {
+              type: "company_withdrawal",
+              action: "admin_confirmation",
+              withdrawalId,
+            }
+          );
+        }
+      }
+
+      return true;
+    } catch (error) {
+      logger.error("Error approving company withdrawal:", error);
+      throw error;
+    }
+  }
+
+  async companyDenyWithdrawal(withdrawalId, deniedBy, reason) {
+    try {
+      const withdrawalRef = databaseService
+        .getDb()
+        .collection("company_withdrawal_requests")
+        .doc(withdrawalId);
+
+      const withdrawalDoc = await withdrawalRef.get();
+      if (!withdrawalDoc.exists) {
+        throw new Error("Withdrawal request not found");
+      }
+
+      const withdrawal = withdrawalDoc.data();
+      if (withdrawal.status !== "company_pending") {
+        throw new Error("Withdrawal request is not pending");
+      }
+
+      // Update withdrawal status to denied
+      await withdrawalRef.update({
+        status: "company_denied",
+        deniedBy,
+        deniedAt: new Date(),
+        denialReason: reason,
+      });
+
+      logger.info(`Company withdrawal denied: ${withdrawalId} by ${deniedBy}`);
+
+      // Notify admins about the denial
+      const admins = await this.getAdminUsers();
+      const notificationService = require("./notificationService");
+
+      for (const admin of admins) {
+        await notificationService.sendNotification(
+          admin.telegramId,
+          `❌ *Company Withdrawal Denied*\n\n` +
+            `Company: ${withdrawal.companyName}\n` +
+            `Amount: *$${withdrawal.amount.toFixed(2)}*\n` +
+            `Reason: ${withdrawal.reason}\n` +
+            `Denied by: ${deniedBy}\n` +
+            `Denial reason: ${reason}`,
+          {
+            type: "company_withdrawal",
+            action: "denied",
+            withdrawalId,
+          }
+        );
+      }
+
+      return true;
+    } catch (error) {
+      logger.error("Error denying company withdrawal:", error);
+      throw error;
+    }
+  }
+
+  async adminConfirmWithdrawal(withdrawalId, confirmedBy) {
+    try {
+      const withdrawalRef = databaseService
+        .getDb()
+        .collection("company_withdrawal_requests")
+        .doc(withdrawalId);
+
+      const withdrawalDoc = await withdrawalRef.get();
+      if (!withdrawalDoc.exists) {
+        throw new Error("Withdrawal request not found");
+      }
+
+      const withdrawal = withdrawalDoc.data();
+      if (withdrawal.status !== "company_approved") {
+        throw new Error("Withdrawal request is not approved");
+      }
+
+      // Update company balance
+      const companyRef = databaseService.companies().doc(withdrawal.companyId);
+      const companyDoc = await companyRef.get();
+
+      if (!companyDoc.exists) {
+        throw new Error("Company not found");
+      }
+
+      const company = companyDoc.data();
+      const currentBalance = company.billingBalance || 0;
+
+      if (currentBalance < withdrawal.amount) {
+        throw new Error("Insufficient company balance for withdrawal");
+      }
+
+      const newBalance = currentBalance - withdrawal.amount;
+      await companyRef.update({
+        billingBalance: newBalance,
+        lastWithdrawal: {
+          amount: withdrawal.amount,
+          date: new Date(),
+          processedBy: confirmedBy,
+        },
+      });
+
+      // Update withdrawal status to processed
+      await withdrawalRef.update({
+        status: "processed",
+        processedBy: confirmedBy,
+        processedAt: new Date(),
+        finalBalance: newBalance,
+      });
+
+      logger.info(
+        `Company withdrawal processed: ${withdrawalId} - $${withdrawal.amount}`
+      );
+
+      // Notify company owner
+      const notificationService = require("./notificationService");
+      await notificationService.sendNotification(
+        company.telegramId,
+        `💰 *Withdrawal Processed*\n\n` +
+          `Amount: *$${withdrawal.amount.toFixed(2)}*\n` +
+          `Reason: ${withdrawal.reason}\n` +
+          `Processed by: Admin ${confirmedBy}\n` +
+          `New balance: *$${newBalance.toFixed(2)}*\n\n` +
+          `The withdrawal has been completed and your balance has been updated.`,
+        {
+          type: "company_withdrawal",
+          action: "processed",
+          withdrawalId,
+        }
+      );
+
+      return {
+        success: true,
+        newBalance,
+        withdrawalAmount: withdrawal.amount,
+      };
+    } catch (error) {
+      logger.error("Error confirming company withdrawal:", error);
+      throw error;
+    }
+  }
+
+  async getCompanyWithdrawalHistory(limit = 20) {
+    try {
+      const withdrawalsSnap = await databaseService
+        .getDb()
+        .collection("company_withdrawal_requests")
+        .orderBy("createdAt", "desc")
+        .limit(limit)
+        .get();
+
+      return withdrawalsSnap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+    } catch (error) {
+      logger.error("Error getting company withdrawal history:", error);
+      return [];
     }
   }
 }

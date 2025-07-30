@@ -23,9 +23,9 @@ function blockIfBanned(ctx, user) {
     telegramId: ctx.from.id,
     user: user,
     banned: user?.banned,
-    isBanned: user?.isBanned
+    isBanned: user?.isBanned,
   });
-  
+
   if (user && (user.banned || user.isBanned)) {
     console.log("User is banned, blocking access");
     ctx.reply(
@@ -37,13 +37,13 @@ function blockIfBanned(ctx, user) {
     );
     return true;
   }
-  
+
   if (!user) {
     console.log("User not found in database, blocking access");
     ctx.reply("❌ Access denied.");
     return true;
   }
-  
+
   return false;
 }
 
@@ -193,6 +193,20 @@ class CallbackHandlers {
           return adminHandlers.handleConfirmBroadcast(ctx);
         case "admin_withdrawals":
           return adminHandlers.handleCompanyWithdrawals(ctx);
+        case "platform_withdrawals":
+          return adminHandlers.handlePlatformWithdrawals(ctx);
+        case "platform_withdrawal_request":
+          return adminHandlers.handlePlatformWithdrawalRequest(ctx);
+        case "platform_pending_withdrawals":
+          return adminHandlers.handlePendingPlatformWithdrawals(ctx);
+        case "platform_withdrawal_history":
+          return adminHandlers.handlePlatformWithdrawalHistory(ctx);
+        case "pending_company_withdrawals":
+          return adminHandlers.handlePendingCompanyWithdrawals(ctx);
+        case "confirm_approved_withdrawals":
+          return adminHandlers.handleConfirmApprovedWithdrawals(ctx);
+        case "company_withdrawal_requests":
+          return companyHandlers.handleCompanyWithdrawalRequests(ctx);
         case "company_analytics_summary":
           console.log("Triggering handleCompanyAnalyticsSummary");
           return adminHandlers.handleCompanyAnalyticsSummary(ctx);
@@ -318,7 +332,6 @@ class CallbackHandlers {
             }
           }
 
-
           if (callbackData.startsWith("reject_withdrawal_")) {
             return this.handleRejectWithdrawal(ctx, callbackData);
           } else if (callbackData.startsWith("deny_withdrawal_")) {
@@ -390,6 +403,83 @@ class CallbackHandlers {
           if (callbackData.startsWith("sell_product_")) {
             const productId = callbackData.replace("sell_product_", "");
             return userHandlers.handleSellProduct(ctx, productId);
+          }
+
+          // Platform withdrawal dynamic callbacks
+          if (callbackData.startsWith("platform_approve_withdrawal_")) {
+            const withdrawalId = callbackData.replace(
+              "platform_approve_withdrawal_",
+              ""
+            );
+            return adminHandlers.handleApprovePlatformWithdrawal(
+              ctx,
+              withdrawalId
+            );
+          }
+
+          if (callbackData.startsWith("platform_deny_withdrawal_")) {
+            const withdrawalId = callbackData.replace(
+              "platform_deny_withdrawal_",
+              ""
+            );
+            return adminHandlers.handleDenyPlatformWithdrawal(
+              ctx,
+              withdrawalId
+            );
+          }
+
+          if (callbackData.startsWith("platform_process_withdrawal_")) {
+            const withdrawalId = callbackData.replace(
+              "platform_process_withdrawal_",
+              ""
+            );
+            return adminHandlers.handleProcessPlatformWithdrawal(
+              ctx,
+              withdrawalId
+            );
+          }
+
+          // Company withdrawal dynamic callbacks
+          if (callbackData.startsWith("request_company_withdrawal_")) {
+            const companyId = callbackData.replace(
+              "request_company_withdrawal_",
+              ""
+            );
+            return adminHandlers.handleRequestCompanyWithdrawal(ctx, companyId);
+          }
+
+          if (callbackData.startsWith("confirm_company_withdrawal_")) {
+            const withdrawalId = callbackData.replace(
+              "confirm_company_withdrawal_",
+              ""
+            );
+            return adminHandlers.handleConfirmCompanyWithdrawal(
+              ctx,
+              withdrawalId
+            );
+          }
+
+          // Company withdrawal approval callbacks
+          if (callbackData.startsWith("company_approve_withdrawal_")) {
+            const withdrawalId = callbackData.replace(
+              "company_approve_withdrawal_",
+              ""
+            );
+            return companyHandlers.handleCompanyApproveWithdrawal(
+              ctx,
+              withdrawalId
+            );
+          }
+
+          if (callbackData.startsWith("company_deny_withdrawal_")) {
+            const withdrawalId = callbackData.replace(
+              "company_deny_withdrawal_",
+              ""
+            );
+            return companyHandlers.handleCompanyDenyWithdrawal(
+              ctx,
+              withdrawalId
+            );
           }
           if (callbackData.startsWith("product_action_")) {
             return userHandlers.handleProductActionMenu(ctx, callbackData);
