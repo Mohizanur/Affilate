@@ -1506,9 +1506,9 @@ class AdminHandlers {
           };
 
           await ctx.reply(msg, {
-            parse_mode: "Markdown",
+          parse_mode: "Markdown",
             reply_markup: keyboard,
-          });
+        });
         } catch (error) {
           console.error(`Error sending message:`, error);
           // Fallback: send without buttons

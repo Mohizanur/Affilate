@@ -522,6 +522,9 @@ class CallbackHandlers {
           if (callbackData === "admin_export_users") {
             return adminHandlers.handleExportUsers(ctx);
           }
+          if (callbackData === "admin_export_companies") {
+            return adminHandlers.handleExportCompanies(ctx);
+          }
           if (callbackData === "admin_search_companies") {
             return adminHandlers.handleSearchCompany(ctx);
           }
