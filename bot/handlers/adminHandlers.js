@@ -1368,19 +1368,14 @@ class AdminHandlers {
         // Simplified pagination buttons
         const paginationRows = [];
 
-        // Debug logging
-        console.log(
-          `Pagination Debug: page=${page}, totalPages=${totalPages}, companies=${companyAnalytics.length}`
-        );
-
-        // Simple pagination row
+        // Simple pagination row - use basic button structure
         const mainPaginationRow = [];
 
         // Previous button
         if (page > 1) {
           mainPaginationRow.push(
             Markup.button.callback(
-              "⬅️ Previous",
+              "Previous",
               `platform_analytics_dashboard_${page - 1}`
             )
           );
@@ -1390,24 +1385,20 @@ class AdminHandlers {
         if (page < totalPages) {
           mainPaginationRow.push(
             Markup.button.callback(
-              "Next ➡️",
+              "Next",
               `platform_analytics_dashboard_${page + 1}`
             )
           );
         }
 
-        console.log(
-          `Pagination buttons created: ${mainPaginationRow.length} buttons`
-        );
-        console.log(
-          `Pagination row content:`,
-          mainPaginationRow.map((btn) => btn.text)
-        );
-
         if (mainPaginationRow.length > 0) {
           paginationRows.push(mainPaginationRow);
-          console.log(`Added pagination row to paginationRows array`);
         }
+
+        // Debug logging
+        console.log(
+          `Pagination Debug: page=${page}, totalPages=${totalPages}, companies=${companyAnalytics.length}`
+        );
 
         // Action buttons
         const actionButtons = [
@@ -1417,13 +1408,6 @@ class AdminHandlers {
           [Markup.button.callback("🔙 Back to Admin", "admin_panel")],
         ];
 
-        // Add a test button to verify keyboard is working
-        if (totalPages > 1) {
-          actionButtons.unshift([
-            Markup.button.callback("🧪 Test Pagination", "test_pagination"),
-          ]);
-        }
-
         // Add pagination rows if they have buttons
         console.log(`paginationRows length: ${paginationRows.length}`);
         console.log(
@@ -1431,6 +1415,7 @@ class AdminHandlers {
         );
 
         if (paginationRows.length > 0) {
+          // Try adding pagination as first row
           actionButtons.unshift(...paginationRows);
           console.log(
             `Added pagination rows to actionButtons. New length: ${actionButtons.length} rows`
@@ -1443,7 +1428,7 @@ class AdminHandlers {
           if (page > 1) {
             fallbackRow.push(
               Markup.button.callback(
-                "⬅️ Previous",
+                "Previous",
                 `platform_analytics_dashboard_${page - 1}`
               )
             );
@@ -1451,7 +1436,7 @@ class AdminHandlers {
           if (page < totalPages) {
             fallbackRow.push(
               Markup.button.callback(
-                "Next ➡️",
+                "Next",
                 `platform_analytics_dashboard_${page + 1}`
               )
             );
@@ -1471,9 +1456,22 @@ class AdminHandlers {
           console.log(
             `Sending message with ${actionButtons.length} button rows`
           );
+
+          // Create keyboard manually to ensure proper structure
+          const keyboard = {
+            inline_keyboard: actionButtons.map((row) =>
+              row.map((btn) => ({
+                text: btn.text,
+                callback_data: btn.callback_data,
+              }))
+            ),
+          };
+
+          console.log(`Keyboard structure:`, JSON.stringify(keyboard, null, 2));
+
           await ctx.reply(msg, {
             parse_mode: "Markdown",
-            reply_markup: Markup.inlineKeyboard(actionButtons),
+            reply_markup: keyboard,
           });
           console.log(`Message sent successfully`);
         } catch (error) {
