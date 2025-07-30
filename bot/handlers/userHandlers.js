@@ -3090,11 +3090,22 @@ Toggle notifications:
       } catch (e) {
         /* ignore for now */
       }
-      // Seller/owner gets a clear sale confirmation (always send to ctx.from.id)
-      ctx.telegram.sendMessage(
-        ctx.from.id,
-        `✅ Sold ${quantity}x ${product.title} for $${total.toFixed(2)}.`
-      );
+      // Seller/owner gets detailed sale receipt (always send to ctx.from.id)
+      const sellerReceipt =
+        `🎉 *Sale Completed Successfully!*\n\n` +
+        `📦 Product: ${product.title}\n` +
+        `📊 Quantity: ${quantity}\n` +
+        `💰 Total Amount: $${total.toFixed(2)}\n` +
+        `👤 Buyer: ${buyerUsername || buyerId}\n` +
+        `📊 Platform Fee (${PLATFORM_FEE_PERCENT}%): $${platformFee.toFixed(
+          2
+        )}\n` +
+        `💵 Your Earnings: $${(total - platformFee).toFixed(2)}\n` +
+        `🔗 Referral Code Used: ${referral?.code || "None"}`;
+
+      await ctx.telegram.sendMessage(ctx.from.id, sellerReceipt, {
+        parse_mode: "Markdown",
+      });
       // Buyer message (send ONLY to buyerId)
       let buyerMsg = `🛒 *Thank you for your purchase!*\n\n`;
       buyerMsg += `• Product: ${product.title}\n`;

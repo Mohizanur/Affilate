@@ -421,27 +421,9 @@ class ReferralService {
           logger.warn(`Company has no telegramId: ${company?.id}`);
         }
 
-        // Notify admins
-        const adminService = require("./adminService");
-        const admins = await adminService.getAdminUsers();
-        const adminIds = admins.map((admin) => admin.telegramId);
-
-        if (adminIds.length > 0) {
-          logger.info(`Notifying ${adminIds.length} admins`);
-          await notificationInstance.notifyAdminAlert(
-            adminIds,
-            "New Referral Sale",
-            `💰 New referral sale completed!\n\n🏢 Company: ${
-              company?.name || "Unknown"
-            }\n👤 Buyer: ${buyerTelegramId}\n🔗 Referral Code: ${code}\n💰 Amount: $${amount}\n📊 Platform Fee: $${platformFee.toFixed(
-              2
-            )}`
-          );
-          logger.info(`Admin notifications sent successfully`);
-        } else {
-          logger.warn("No admin users found");
-        }
-
+        // Note: Admin notifications are handled in userHandlers.js processSale function
+        // to avoid double notifications and ensure all sale details are included
+        
         logger.info(
           `All notifications sent successfully for referral code ${code}`
         );
