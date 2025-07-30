@@ -1677,7 +1677,7 @@ class AdminHandlers {
       const users = await userService.getAllUsers();
       const companies = await companyService.getAllCompanies();
 
-      // Create PDF with professional table formatting
+      // Create PDF with ultra-safe approach
       const PDFDocument = require("pdfkit");
       const doc = new PDFDocument({
         margin: 50,
@@ -1709,227 +1709,173 @@ class AdminHandlers {
         }
       });
 
-      // Professional header
-      doc
-        .fontSize(20)
-        .font("Helvetica-Bold")
-        .text("System Backup Report", { align: "center" });
-      doc.moveDown(0.5);
-      doc
-        .fontSize(12)
-        .font("Helvetica")
-        .text(`Generated: ${new Date().toLocaleString()}`, { align: "center" });
-      doc
-        .fontSize(12)
-        .text(`Total Records: ${users.length + companies.length}`, {
-          align: "center",
-        });
-      doc.moveDown(2);
-
-      // Summary statistics
-      const adminCount = users.filter((u) => u.isAdmin).length;
-      const bannedCount = users.filter((u) => u.isBanned || u.banned).length;
-      const activeCompanies = companies.filter(
-        (c) => c.status === "active"
-      ).length;
-      const totalBalance = users.reduce(
-        (sum, u) => sum + (u.referralBalance || u.coinBalance || 0),
-        0
-      );
-
-      doc
-        .fontSize(14)
-        .font("Helvetica-Bold")
-        .text("System Overview:", { underline: true });
-      doc.fontSize(12).font("Helvetica").text(`• Total Users: ${users.length}`);
-      doc.fontSize(12).text(`• Administrators: ${adminCount}`);
-      doc.fontSize(12).text(`• Banned Users: ${bannedCount}`);
-      doc
-        .fontSize(12)
-        .text(`• Total User Balance: $${totalBalance.toFixed(2)}`);
-      doc.fontSize(12).text(`• Total Companies: ${companies.length}`);
-      doc.fontSize(12).text(`• Active Companies: ${activeCompanies}`);
-      doc.moveDown(2);
-
-      // Users section with robust table formatting
-      doc
-        .fontSize(16)
-        .font("Helvetica-Bold")
-        .text("Users:", { underline: true });
-      doc.moveDown(1);
-
-      if (users.length === 0) {
-        doc.fontSize(12).font("Helvetica").text("No users found.");
-      } else {
-        try {
-          // Use the existing safeDrawTable helper function
-          const userHeaders = [
-            "ID",
-            "Name",
-            "Username",
-            "Phone",
-            "Role",
-            "Admin",
-            "Banned",
-            "Balance",
-          ];
-          const userData = users.map((user) => [
-            user.id?.substring(0, 8) || "N/A",
-            `${user.firstName || user.first_name || ""} ${
-              user.lastName || user.last_name || ""
-            }`.trim() || "N/A",
-            user.username || "N/A",
-            user.phone || "N/A",
-            user.role || "user",
-            user.isAdmin ? "Yes" : "No",
-            user.isBanned || user.banned ? "Yes" : "No",
-            `$${(user.referralBalance || user.coinBalance || 0).toFixed(2)}`,
-          ]);
-
-          try {
-            this.safeDrawTable(doc, userHeaders, userData);
-          } catch (tableError) {
-            logger.error(
-              "safeDrawTable failed, trying simpleDrawTable:",
-              tableError
-            );
-            this.simpleDrawTable(doc, userHeaders, userData);
-          }
-        } catch (error) {
-          logger.error("Error drawing users table:", error);
-          // Fallback to simple text
-          doc.fontSize(12).font("Helvetica").text("Users data:");
-          doc.moveDown(0.5);
-          users.forEach((user) => {
-            doc
-              .fontSize(10)
-              .font("Helvetica")
-              .text(
-                `${user.id?.substring(0, 8) || "N/A"} | ${
-                  user.firstName || "N/A"
-                } | ${user.username || "N/A"} | ${user.phone || "N/A"} | ${
-                  user.role || "user"
-                } | ${user.isAdmin ? "Yes" : "No"} | ${
-                  user.isBanned || user.banned ? "Yes" : "No"
-                } | $${(user.referralBalance || user.coinBalance || 0).toFixed(
-                  2
-                )}`
-              );
-            doc.moveDown(0.3);
+      // Ultra-safe header - no coordinate calculations
+      try {
+        doc
+          .fontSize(20)
+          .font("Helvetica-Bold")
+          .text("System Backup Report", { align: "center" });
+        doc.moveDown(0.5);
+        doc
+          .fontSize(12)
+          .font("Helvetica")
+          .text(`Generated: ${new Date().toLocaleString()}`, { align: "center" });
+        doc
+          .fontSize(12)
+          .text(`Total Records: ${users.length + companies.length}`, {
+            align: "center",
           });
-        }
+        doc.moveDown(2);
+      } catch (headerError) {
+        logger.error("Error in header:", headerError);
       }
 
-      // Companies section with robust table formatting
-      doc.moveDown(2);
-      doc
-        .fontSize(16)
-        .font("Helvetica-Bold")
-        .text("Companies:", { underline: true });
-      doc.moveDown(1);
+      // Summary statistics - ultra-safe
+      try {
+        const adminCount = users.filter((u) => u.isAdmin).length;
+        const bannedCount = users.filter((u) => u.isBanned || u.banned).length;
+        const activeCompanies = companies.filter(
+          (c) => c.status === "active"
+        ).length;
+        const totalBalance = users.reduce(
+          (sum, u) => sum + (u.referralBalance || u.coinBalance || 0),
+          0
+        );
 
-      if (companies.length === 0) {
-        doc.fontSize(12).font("Helvetica").text("No companies found.");
-      } else {
-        try {
-          // Use the existing safeDrawTable helper function
-          const companyHeaders = [
-            "ID",
-            "Name",
-            "Owner",
-            "Email",
-            "Status",
-            "Created",
-          ];
-          const companyData = companies.map((company) => {
-            // Safe date conversion
-            let createdDate = "N/A";
-            try {
-              if (company.createdAt) {
-                const date = company.createdAt.toDate
-                  ? company.createdAt.toDate()
-                  : new Date(company.createdAt);
-                if (!isNaN(date.getTime())) {
-                  createdDate = date.toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  });
-                }
-              }
-            } catch (e) {
-              createdDate = "N/A";
-            }
-
-            return [
-              company.id?.substring(0, 8) || "N/A",
-              company.name || "N/A",
-              company.telegramId ? `@${company.telegramId}` : "N/A",
-              company.email || "N/A",
-              company.status || "active",
-              createdDate,
-            ];
-          });
-
-          try {
-            this.safeDrawTable(doc, companyHeaders, companyData);
-          } catch (tableError) {
-            logger.error("safeDrawTable failed for companies, trying simpleDrawTable:", tableError);
-            this.simpleDrawTable(doc, companyHeaders, companyData);
-          }
-        } catch (error) {
-          logger.error("Error drawing companies table:", error);
-          // Fallback to simple text
-          doc.fontSize(12).font("Helvetica").text("Companies data:");
-          doc.moveDown(0.5);
-          companies.forEach((company) => {
-            let createdDate = "N/A";
-            try {
-              if (company.createdAt) {
-                const date = company.createdAt.toDate
-                  ? company.createdAt.toDate()
-                  : new Date(company.createdAt);
-                if (!isNaN(date.getTime())) {
-                  createdDate = date.toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "short",
-                    day: "numeric",
-                  });
-                }
-              }
-            } catch (e) {
-              createdDate = "N/A";
-            }
-
-            doc
-              .fontSize(10)
-              .font("Helvetica")
-              .text(
-                `${company.id?.substring(0, 8) || "N/A"} | ${
-                  company.name || "N/A"
-                } | ${
-                  company.telegramId ? `@${company.telegramId}` : "N/A"
-                } | ${company.email || "N/A"} | ${
-                  company.status || "active"
-                } | ${createdDate}`
-              );
-            doc.moveDown(0.3);
-          });
-        }
+        doc
+          .fontSize(14)
+          .font("Helvetica-Bold")
+          .text("System Overview:", { underline: true });
+        doc.fontSize(12).font("Helvetica").text(`• Total Users: ${users.length}`);
+        doc.fontSize(12).text(`• Administrators: ${adminCount}`);
+        doc.fontSize(12).text(`• Banned Users: ${bannedCount}`);
+        doc
+          .fontSize(12)
+          .text(`• Total User Balance: $${totalBalance.toFixed(2)}`);
+        doc.fontSize(12).text(`• Total Companies: ${companies.length}`);
+        doc.fontSize(12).text(`• Active Companies: ${activeCompanies}`);
+        doc.moveDown(2);
+      } catch (summaryError) {
+        logger.error("Error in summary:", summaryError);
       }
 
-      // Professional footer
-      doc.moveDown(2);
-      doc
-        .fontSize(12)
-        .font("Helvetica-Bold")
-        .text("Backup Summary:", { underline: true });
-      doc.fontSize(10).font("Helvetica").text(`• Total Users: ${users.length}`);
-      doc.fontSize(10).text(`• Total Companies: ${companies.length}`);
-      doc.fontSize(10).text(`• Backup Date: ${new Date().toLocaleString()}`);
-      doc.fontSize(10).text(`• Backup Type: Full System Export`);
+      // Users section - ultra-safe text only
+      try {
+        doc
+          .fontSize(16)
+          .font("Helvetica-Bold")
+          .text("Users:", { underline: true });
+        doc.moveDown(1);
 
-      doc.end();
+        if (users.length === 0) {
+          doc.fontSize(12).font("Helvetica").text("No users found.");
+        } else {
+          // Simple text format - no tables, no coordinates
+          doc.fontSize(12).font("Helvetica-Bold").text("User List:");
+          doc.moveDown(0.5);
+          
+          users.forEach((user, index) => {
+            try {
+              const userInfo = [
+                `ID: ${user.id?.substring(0, 8) || "N/A"}`,
+                `Name: ${user.firstName || user.first_name || "N/A"}`,
+                `Username: ${user.username || "N/A"}`,
+                `Phone: ${user.phone || "N/A"}`,
+                `Role: ${user.role || "user"}`,
+                `Admin: ${user.isAdmin ? "Yes" : "No"}`,
+                `Banned: ${user.isBanned || user.banned ? "Yes" : "No"}`,
+                `Balance: $${(user.referralBalance || user.coinBalance || 0).toFixed(2)}`
+              ].join(" | ");
+              
+              doc.fontSize(10).font("Helvetica").text(userInfo);
+              doc.moveDown(0.3);
+            } catch (userError) {
+              logger.error("Error processing user:", userError);
+            }
+          });
+        }
+      } catch (usersError) {
+        logger.error("Error in users section:", usersError);
+      }
+
+      // Companies section - ultra-safe text only
+      try {
+        doc.moveDown(2);
+        doc
+          .fontSize(16)
+          .font("Helvetica-Bold")
+          .text("Companies:", { underline: true });
+        doc.moveDown(1);
+
+        if (companies.length === 0) {
+          doc.fontSize(12).font("Helvetica").text("No companies found.");
+        } else {
+          // Simple text format - no tables, no coordinates
+          doc.fontSize(12).font("Helvetica-Bold").text("Company List:");
+          doc.moveDown(0.5);
+          
+          companies.forEach((company, index) => {
+            try {
+              // Safe date conversion
+              let createdDate = "N/A";
+              try {
+                if (company.createdAt) {
+                  const date = company.createdAt.toDate
+                    ? company.createdAt.toDate()
+                    : new Date(company.createdAt);
+                  if (!isNaN(date.getTime())) {
+                    createdDate = date.toLocaleDateString("en-US", {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    });
+                  }
+                }
+              } catch (e) {
+                createdDate = "N/A";
+              }
+
+              const companyInfo = [
+                `ID: ${company.id?.substring(0, 8) || "N/A"}`,
+                `Name: ${company.name || "N/A"}`,
+                `Owner: ${company.telegramId ? `@${company.telegramId}` : "N/A"}`,
+                `Email: ${company.email || "N/A"}`,
+                `Status: ${company.status || "active"}`,
+                `Created: ${createdDate}`
+              ].join(" | ");
+              
+              doc.fontSize(10).font("Helvetica").text(companyInfo);
+              doc.moveDown(0.3);
+            } catch (companyError) {
+              logger.error("Error processing company:", companyError);
+            }
+          });
+        }
+      } catch (companiesError) {
+        logger.error("Error in companies section:", companiesError);
+      }
+
+      // Footer - ultra-safe
+      try {
+        doc.moveDown(2);
+        doc
+          .fontSize(12)
+          .font("Helvetica-Bold")
+          .text("Backup Summary:", { underline: true });
+        doc.fontSize(10).font("Helvetica").text(`• Total Users: ${users.length}`);
+        doc.fontSize(10).text(`• Total Companies: ${companies.length}`);
+        doc.fontSize(10).text(`• Backup Date: ${new Date().toLocaleString()}`);
+        doc.fontSize(10).text(`• Backup Type: Full System Export`);
+      } catch (footerError) {
+        logger.error("Error in footer:", footerError);
+      }
+
+      // End the document
+      try {
+        doc.end();
+      } catch (endError) {
+        logger.error("Error ending document:", endError);
+      }
     } catch (error) {
       logger.error("Error in backup system:", error);
       ctx.reply("❌ Failed to export data.");
