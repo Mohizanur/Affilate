@@ -1751,7 +1751,7 @@ class AdminHandlers {
       doc.fontSize(12).text(`• Active Companies: ${activeCompanies}`);
       doc.moveDown(2);
 
-      // Users section with bulletproof table
+      // Users section with simple table
       doc
         .fontSize(16)
         .font("Helvetica-Bold")
@@ -1784,10 +1784,10 @@ class AdminHandlers {
           `$${(user.referralBalance || user.coinBalance || 0).toFixed(2)}`,
         ]);
 
-        this.safeDrawTable(doc, headers, userData);
+        this.simpleDrawTable(doc, headers, userData);
       }
 
-      // Companies section with bulletproof table
+      // Companies section with simple table
       doc.moveDown(2);
       doc
         .fontSize(16)
@@ -1829,7 +1829,7 @@ class AdminHandlers {
           ];
         });
 
-        this.safeDrawTable(doc, headers, companyData);
+        this.simpleDrawTable(doc, headers, companyData);
       }
 
       // Professional footer
@@ -2997,6 +2997,49 @@ class AdminHandlers {
         .fontSize(12)
         .font("Helvetica")
         .text("Table rendering failed, showing data as text:");
+      doc.moveDown(0.5);
+      data.forEach((rowData, index) => {
+        doc.fontSize(10).font("Helvetica").text(rowData.join(" | "));
+        doc.moveDown(0.3);
+      });
+    }
+  }
+
+  // Simple table drawing function that avoids all coordinate calculations
+  simpleDrawTable(doc, headers, data) {
+    try {
+      // Use only simple text positioning with doc.y
+      doc.fontSize(12).font("Helvetica-Bold").text(headers.join("  "));
+      doc.moveDown(0.5);
+
+      // Simple horizontal line
+      const currentY = doc.y || 200;
+      if (!isNaN(currentY) && currentY >= 0 && currentY < 800) {
+        doc.moveTo(50, currentY).lineTo(545, currentY).stroke();
+      }
+      doc.moveDown(0.5);
+
+      // Draw data rows
+      data.forEach((rowData, index) => {
+        // Check if we need a new page
+        if (doc.y > 700) {
+          doc.addPage();
+          doc.fontSize(12).font("Helvetica-Bold").text(headers.join("  "));
+          doc.moveDown(0.5);
+          const newY = doc.y || 50;
+          if (!isNaN(newY) && newY >= 0 && newY < 800) {
+            doc.moveTo(50, newY).lineTo(545, newY).stroke();
+          }
+          doc.moveDown(0.5);
+        }
+
+        doc.fontSize(10).font("Helvetica").text(rowData.join("  "));
+        doc.moveDown(0.3);
+      });
+    } catch (error) {
+      logger.error("Error in simpleDrawTable:", error);
+      // Ultimate fallback - just show data as text
+      doc.fontSize(12).font("Helvetica").text("Data export:");
       doc.moveDown(0.5);
       data.forEach((rowData, index) => {
         doc.fontSize(10).font("Helvetica").text(rowData.join(" | "));
