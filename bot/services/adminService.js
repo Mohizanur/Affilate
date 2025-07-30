@@ -96,7 +96,6 @@ class AdminService {
   async getCompanyAnalytics() {
     try {
       const companiesSnap = await databaseService.companies().get();
-      logger.info(`Found ${companiesSnap.size} companies in database`);
 
       const analytics = [];
 
@@ -104,89 +103,43 @@ class AdminService {
         const company = doc.data();
         const companyId = doc.id;
 
-        logger.info(`Processing company: ${company.name} (ID: ${companyId})`);
-        logger.info(`Company data:`, company);
-
-        // Get company's products count - check for different field names
-        let productsSnap;
+        // Get company's products count - optimized query
+        let productCount = 0;
         try {
-          productsSnap = await databaseService
+          const productsSnap = await databaseService
             .getDb()
             .collection("products")
             .where("companyId", "==", companyId)
             .get();
-          logger.info(
-            `Found ${productsSnap.size} products with companyId field for ${company.name}`
-          );
+          productCount = productsSnap.size;
         } catch (error) {
           try {
-            productsSnap = await databaseService
+            const productsSnap = await databaseService
               .getDb()
               .collection("products")
               .where("company_id", "==", companyId)
               .get();
-            logger.info(
-              `Found ${productsSnap.size} products with company_id field for ${company.name}`
-            );
+            productCount = productsSnap.size;
           } catch (error2) {
-            // If both fail, get all products and filter
-            productsSnap = await databaseService
+            // Fallback: count manually if needed
+            const allProductsSnap = await databaseService
               .getDb()
               .collection("products")
               .get();
-            logger.info(
-              `Got all ${productsSnap.size} products, will filter manually for ${company.name}`
-            );
+            productCount = allProductsSnap.docs.filter((doc) => {
+              const product = doc.data();
+              return (product.companyId || product.company_id) === companyId;
+            }).length;
           }
         }
 
-        // Filter products that belong to this company
-        let productCount = 0;
-        for (const productDoc of productsSnap.docs) {
-          const product = productDoc.data();
-          const productCompanyId = product.companyId || product.company_id;
+        // Calculate platform fees and lifetime revenue
+        const [platformFees, lifetimeRevenue] = await Promise.all([
+          this.calculateCompanyPlatformFees(companyId),
+          this.calculateCompanyLifetimeRevenue(companyId),
+        ]);
 
-          // Debug the product data
-          logger.info(
-            `Product ${productDoc.id}: companyId=${
-              product.companyId
-            }, company_id=${product.company_id}, matches=${
-              productCompanyId === companyId
-            }`
-          );
-          logger.info(`Product data:`, product);
-
-          // Check if this product belongs to the company (handle both string and object types)
-          const matches =
-            productCompanyId === companyId ||
-            productCompanyId === doc.id ||
-            (typeof productCompanyId === "object" &&
-              productCompanyId?.id === companyId);
-
-          if (matches) {
-            productCount++;
-            logger.info(
-              `✅ Product ${productDoc.id} matches company ${company.name}`
-            );
-          } else {
-            logger.info(
-              `❌ Product ${productDoc.id} does not match company ${company.name}`
-            );
-          }
-        }
-
-        // Calculate actual platform fees and lifetime revenue
-        const platformFees = await this.calculateCompanyPlatformFees(companyId);
-        const lifetimeRevenue = await this.calculateCompanyLifetimeRevenue(
-          companyId
-        );
         const withdrawable = company.billingBalance || 0;
-
-        logger.info(`Company ${company.name} results:`);
-        logger.info(`- Product count: ${productCount}`);
-        logger.info(`- Platform fees: $${platformFees.toFixed(2)}`);
-        logger.info(`- Lifetime revenue: $${lifetimeRevenue.toFixed(2)}`);
-        logger.info(`- Withdrawable: $${withdrawable.toFixed(2)}`);
 
         analytics.push({
           id: companyId,
@@ -200,17 +153,8 @@ class AdminService {
           status: company.status || "pending",
           createdAt: company.createdAt,
         });
-
-        logger.info(
-          `Company ${
-            company.name
-          } (${companyId}): ${productCount} products, $${platformFees.toFixed(
-            2
-          )} platform fees, $${lifetimeRevenue.toFixed(2)} lifetime revenue`
-        );
       }
 
-      logger.info(`Total companies processed: ${analytics.length}`);
       return analytics;
     } catch (error) {
       logger.error("Error getting company analytics:", error);
@@ -1246,40 +1190,22 @@ class AdminService {
 
   async calculateCompanyPlatformFees(companyId) {
     try {
-      logger.info(`Calculating platform fees for company ${companyId}...`);
-
-      // Calculate platform fees from referrals for this company
-      // Check for different possible field names
+      // Calculate platform fees from all referrals for this company
       let referralsSnap;
 
       try {
-        // First try with companyId field
-        logger.info(`Trying to find referrals with companyId = ${companyId}`);
         referralsSnap = await databaseService
           .referrals()
           .where("companyId", "==", companyId)
           .get();
-        logger.info(
-          `Found ${referralsSnap.size} referrals with companyId field`
-        );
       } catch (error) {
         try {
-          // Try with company_id field
-          logger.info(
-            `Trying to find referrals with company_id = ${companyId}`
-          );
           referralsSnap = await databaseService
             .referrals()
             .where("company_id", "==", companyId)
             .get();
-          logger.info(
-            `Found ${referralsSnap.size} referrals with company_id field`
-          );
         } catch (error2) {
-          // If both fail, get all referrals and filter
-          logger.info(`Getting all referrals to filter manually`);
           referralsSnap = await databaseService.referrals().get();
-          logger.info(`Total referrals found: ${referralsSnap.size}`);
         }
       }
 
@@ -1287,39 +1213,18 @@ class AdminService {
 
       for (const doc of referralsSnap.docs) {
         const referral = doc.data();
-        logger.info(`Referral ${doc.id}:`, referral);
 
         // Check if this referral belongs to the company
         const referralCompanyId = referral.companyId || referral.company_id;
-        logger.info(
-          `Referral companyId: ${referral.companyId}, company_id: ${
-            referral.company_id
-          }, matches: ${referralCompanyId === companyId}`
-        );
-
         if (referralCompanyId !== companyId) {
-          logger.info(
-            `Skipping referral - doesn't belong to company ${companyId}`
-          );
           continue;
         }
 
         // Platform fee is typically 1.5% of the transaction amount
         const platformFee = (referral.amount || 0) * 0.015; // 1.5% platform fee
         totalPlatformFees += platformFee;
-
-        logger.info(
-          `Referral amount: $${
-            referral.amount || 0
-          }, platform fee: $${platformFee.toFixed(2)}`
-        );
       }
 
-      logger.info(
-        `Calculated platform fees for company ${companyId}: $${totalPlatformFees.toFixed(
-          2
-        )}`
-      );
       return totalPlatformFees;
     } catch (error) {
       logger.error("Error calculating company platform fees:", error);
@@ -1329,40 +1234,22 @@ class AdminService {
 
   async calculateCompanyLifetimeRevenue(companyId) {
     try {
-      logger.info(`Calculating lifetime revenue for company ${companyId}...`);
-
       // Calculate lifetime revenue from all referrals for this company
-      // Check for different possible field names
       let referralsSnap;
 
       try {
-        // First try with companyId field
-        logger.info(`Trying to find referrals with companyId = ${companyId}`);
         referralsSnap = await databaseService
           .referrals()
           .where("companyId", "==", companyId)
           .get();
-        logger.info(
-          `Found ${referralsSnap.size} referrals with companyId field`
-        );
       } catch (error) {
         try {
-          // Try with company_id field
-          logger.info(
-            `Trying to find referrals with company_id = ${companyId}`
-          );
           referralsSnap = await databaseService
             .referrals()
             .where("company_id", "==", companyId)
             .get();
-          logger.info(
-            `Found ${referralsSnap.size} referrals with company_id field`
-          );
         } catch (error2) {
-          // If both fail, get all referrals and filter
-          logger.info(`Getting all referrals to filter manually`);
           referralsSnap = await databaseService.referrals().get();
-          logger.info(`Total referrals found: ${referralsSnap.size}`);
         }
       }
 
@@ -1370,36 +1257,16 @@ class AdminService {
 
       for (const doc of referralsSnap.docs) {
         const referral = doc.data();
-        logger.info(`Referral ${doc.id}:`, referral);
 
         // Check if this referral belongs to the company
         const referralCompanyId = referral.companyId || referral.company_id;
-        logger.info(
-          `Referral companyId: ${referral.companyId}, company_id: ${
-            referral.company_id
-          }, matches: ${referralCompanyId === companyId}`
-        );
-
         if (referralCompanyId !== companyId) {
-          logger.info(
-            `Skipping referral - doesn't belong to company ${companyId}`
-          );
           continue;
         }
 
         totalRevenue += referral.amount || 0;
-        logger.info(
-          `Referral amount: $${
-            referral.amount || 0
-          }, total so far: $${totalRevenue.toFixed(2)}`
-        );
       }
 
-      logger.info(
-        `Calculated lifetime revenue for company ${companyId}: $${totalRevenue.toFixed(
-          2
-        )}`
-      );
       return totalRevenue;
     } catch (error) {
       logger.error("Error calculating company lifetime revenue:", error);
@@ -1411,85 +1278,59 @@ class AdminService {
     try {
       let totalWithdrawn = 0;
 
-      // Check the withdrawals collection (where actual withdrawals are stored)
+      // Check withdrawals collection for approved withdrawals
       try {
-        logger.info(
-          `Checking withdrawals collection for approved withdrawals...`
-        );
-
-        // Get approved withdrawals from the withdrawals collection
         const withdrawalsSnap = await databaseService
-          .withdrawals()
+          .getDb()
+          .collection("withdrawals")
           .where("status", "==", "approved")
           .get();
 
-        logger.info(`Found ${withdrawalsSnap.size} approved withdrawals`);
-
         for (const doc of withdrawalsSnap.docs) {
           const withdrawal = doc.data();
-          const amount = withdrawal.amount || 0;
-          totalWithdrawn += amount;
-
-          logger.info(
-            `Approved withdrawal: $${amount.toFixed(2)} for user ${
-              withdrawal.userId
-            }`
-          );
+          totalWithdrawn += withdrawal.amount || 0;
         }
-
-        // Also check for any other statuses that might indicate completed withdrawals
-        const otherStatuses = ["processed", "completed", "finalized"];
-
-        for (const status of otherStatuses) {
+      } catch (error) {
+        // Try alternative status values
+        const statuses = ["processed", "completed", "finalized"];
+        for (const status of statuses) {
           try {
-            const otherWithdrawalsSnap = await databaseService
-              .withdrawals()
+            const withdrawalsSnap = await databaseService
+              .getDb()
+              .collection("withdrawals")
               .where("status", "==", status)
               .get();
 
-            logger.info(
-              `Found ${otherWithdrawalsSnap.size} withdrawals with status '${status}'`
-            );
-
-            for (const doc of otherWithdrawalsSnap.docs) {
+            for (const doc of withdrawalsSnap.docs) {
               const withdrawal = doc.data();
-              const amount = withdrawal.amount || 0;
-              totalWithdrawn += amount;
-
-              logger.info(`Withdrawal (${status}): $${amount.toFixed(2)}`);
+              totalWithdrawn += withdrawal.amount || 0;
             }
-          } catch (error) {
-            logger.info(`No withdrawals with status '${status}'`);
+          } catch (statusError) {
+            // Continue to next status
           }
         }
-      } catch (error) {
-        logger.error("Error accessing withdrawals collection:", error);
       }
 
-      // Also check company_withdrawals collection if it exists
+      // Also check company withdrawals if available
       try {
         const companyWithdrawalsSnap = await databaseService
           .getDb()
           .collection("company_withdrawals")
-          .where("status", "==", "processed")
           .get();
-
-        logger.info(`Found ${companyWithdrawalsSnap.size} company withdrawals`);
 
         for (const doc of companyWithdrawalsSnap.docs) {
           const withdrawal = doc.data();
-          const amount = withdrawal.amount || 0;
-          totalWithdrawn += amount;
-
-          logger.info(`Company withdrawal: $${amount.toFixed(2)}`);
+          if (
+            withdrawal.status === "approved" ||
+            withdrawal.status === "completed"
+          ) {
+            totalWithdrawn += withdrawal.amount || 0;
+          }
         }
       } catch (error) {
-        logger.info("Company withdrawals collection not accessible or empty");
+        // Company withdrawals collection not accessible or empty
       }
 
-      logger.info(
-        `Total lifetime withdrawn from companies: $${totalWithdrawn.toFixed(2)}`
-      );
       return totalWithdrawn;
     } catch (error) {
       logger.error("Error calculating total lifetime withdrawn:", error);

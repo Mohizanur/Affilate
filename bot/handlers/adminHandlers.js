@@ -1395,11 +1395,6 @@ class AdminHandlers {
           paginationRows.push(mainPaginationRow);
         }
 
-        // Debug logging
-        console.log(
-          `Pagination Debug: page=${page}, totalPages=${totalPages}, companies=${companyAnalytics.length}`
-        );
-
         // Action buttons
         const actionButtons = [
           [Markup.button.callback("🏢 Company Details", "admin_companies_1")],
@@ -1409,21 +1404,12 @@ class AdminHandlers {
         ];
 
         // Add pagination rows if they have buttons
-        console.log(`paginationRows length: ${paginationRows.length}`);
-        console.log(
-          `actionButtons before adding pagination: ${actionButtons.length} rows`
-        );
-
         if (paginationRows.length > 0) {
           // Try adding pagination as first row
           actionButtons.unshift(...paginationRows);
-          console.log(
-            `Added pagination rows to actionButtons. New length: ${actionButtons.length} rows`
-          );
         } else if (totalPages > 1) {
           // Fallback: if no pagination buttons were created but we have multiple pages,
           // create a simple navigation row
-          console.log("Fallback: Creating simple pagination buttons");
           const fallbackRow = [];
           if (page > 1) {
             fallbackRow.push(
@@ -1446,17 +1432,8 @@ class AdminHandlers {
           }
         }
 
-        console.log(
-          `Final actionButtons structure:`,
-          actionButtons.map((row) => row.map((btn) => btn.text))
-        );
-
         // Try sending with different approach
         try {
-          console.log(
-            `Sending message with ${actionButtons.length} button rows`
-          );
-
           // Create keyboard manually to ensure proper structure
           const keyboard = {
             inline_keyboard: actionButtons.map((row) =>
@@ -1467,13 +1444,10 @@ class AdminHandlers {
             ),
           };
 
-          console.log(`Keyboard structure:`, JSON.stringify(keyboard, null, 2));
-
           await ctx.reply(msg, {
             parse_mode: "Markdown",
             reply_markup: keyboard,
           });
-          console.log(`Message sent successfully`);
         } catch (error) {
           console.error(`Error sending message:`, error);
           // Fallback: send without buttons
