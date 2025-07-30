@@ -1512,6 +1512,23 @@ class AdminService {
       logger.error("Error debugging data structure:", error);
     }
   }
+
+  async getAdminUsers() {
+    try {
+      const adminSnap = await databaseService
+        .users()
+        .where("role", "==", "admin")
+        .get();
+      
+      return adminSnap.docs.map(doc => ({
+        telegramId: doc.id,
+        ...doc.data()
+      }));
+    } catch (error) {
+      logger.error("Error getting admin users:", error);
+      return [];
+    }
+  }
 }
 
 console.log("Exiting services/adminService.js");

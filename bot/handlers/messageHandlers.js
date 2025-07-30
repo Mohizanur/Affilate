@@ -9,6 +9,7 @@ const { t } = require("../../utils/localize");
 
 const adminHandlers = require("./adminHandlers");
 const userHandlers = require("./userHandlers");
+const companyHandlers = require("./companyHandlers");
 
 function blockIfBanned(ctx, user) {
   if (user && (user.banned || user.isBanned)) {

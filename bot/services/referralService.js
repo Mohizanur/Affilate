@@ -375,12 +375,51 @@ class ReferralService {
           await buyerRef.update({ coinBalance: buyerBalance + buyerDiscount });
         }
       }
-      // // Notify referrer
-      // await getNotificationServiceInstance().sendNotification(
-      //   refCode.userId,
-      //   `🎉 Your referral code was used by a new buyer! You earned a 2% reward (manual payout or discount).`,
-      //   { type: "referral", action: "used", code }
-      // );
+      // Send notifications
+      const notificationService = require("./notificationService");
+      const { getNotificationServiceInstance } = notificationService;
+
+      try {
+        // Get company info for notifications
+        const companyService = require("./companyService");
+        const company = await companyService.getCompanyById(companyId);
+
+        // Notify referrer
+        await getNotificationServiceInstance().notifyNewReferral(
+          refCode.userId,
+          `User ${buyerTelegramId}`,
+          `Purchase from ${company?.name || "Company"}`,
+          amount * ((settings?.referralCommissionPercent || 2) / 100)
+        );
+
+        // Notify company/seller
+        if (company?.telegramId) {
+          await getNotificationServiceInstance().sendNotification(
+            company.telegramId,
+            `🎉 New referral sale!\n\n💰 Amount: $${amount}\n👤 Buyer: ${buyerTelegramId}\n🔗 Referral Code: ${code}\n\nYour product was purchased using a referral code!`,
+            { type: "company_sale" }
+          );
+        }
+
+        // Notify admins
+        const adminService = require("./adminService");
+        const admins = await adminService.getAdminUsers();
+        const adminIds = admins.map((admin) => admin.telegramId);
+
+        if (adminIds.length > 0) {
+          await getNotificationServiceInstance().notifyAdminAlert(
+            adminIds,
+            "New Referral Sale",
+            `💰 New referral sale completed!\n\n🏢 Company: ${
+              company?.name || "Unknown"
+            }\n👤 Buyer: ${buyerTelegramId}\n🔗 Referral Code: ${code}\n💰 Amount: $${amount}\n📊 Platform Fee: $${platformFee.toFixed(
+              2
+            )}`
+          );
+        }
+      } catch (notificationError) {
+        logger.error("Error sending notifications:", notificationError);
+      }
       logger.info(
         `Referral code ${code} used by ${buyerTelegramId} for company ${companyId}`
       );
