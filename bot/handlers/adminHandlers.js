@@ -1408,9 +1408,14 @@ class AdminHandlers {
         console.log(
           `Pagination buttons created: ${mainPaginationRow.length} buttons`
         );
+        console.log(
+          `Pagination row content:`,
+          mainPaginationRow.map((btn) => btn.text)
+        );
 
         if (mainPaginationRow.length > 0) {
           paginationRows.push(mainPaginationRow);
+          console.log(`Added pagination row to paginationRows array`);
         }
 
         // Action buttons
@@ -1422,8 +1427,16 @@ class AdminHandlers {
         ];
 
         // Add pagination rows if they have buttons
+        console.log(`paginationRows length: ${paginationRows.length}`);
+        console.log(
+          `actionButtons before adding pagination: ${actionButtons.length} rows`
+        );
+
         if (paginationRows.length > 0) {
           actionButtons.unshift(...paginationRows);
+          console.log(
+            `Added pagination rows to actionButtons. New length: ${actionButtons.length} rows`
+          );
         } else if (totalPages > 1) {
           // Fallback: if no pagination buttons were created but we have multiple pages,
           // create a simple navigation row
@@ -1449,6 +1462,11 @@ class AdminHandlers {
             actionButtons.unshift(fallbackRow);
           }
         }
+
+        console.log(
+          `Final actionButtons structure:`,
+          actionButtons.map((row) => row.map((btn) => btn.text))
+        );
 
         ctx.reply(msg, {
           parse_mode: "Markdown",
