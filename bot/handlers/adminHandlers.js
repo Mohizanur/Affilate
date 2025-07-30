@@ -1677,7 +1677,7 @@ class AdminHandlers {
       const users = await userService.getAllUsers();
       const companies = await companyService.getAllCompanies();
 
-      // Create PDF with real table formatting
+      // Create PDF with robust table formatting
       const PDFDocument = require("pdfkit");
       const doc = new PDFDocument({
         margin: 50,
@@ -1751,7 +1751,7 @@ class AdminHandlers {
       doc.fontSize(12).text(`• Active Companies: ${activeCompanies}`);
       doc.moveDown(2);
 
-      // Users section with real table
+      // Users section with simple table
       doc
         .fontSize(16)
         .font("Helvetica-Bold")
@@ -1761,6 +1761,7 @@ class AdminHandlers {
       if (users.length === 0) {
         doc.fontSize(12).font("Helvetica").text("No users found.");
       } else {
+        // Use simple table without complex positioning
         const headers = [
           "ID",
           "Name",
@@ -1771,129 +1772,25 @@ class AdminHandlers {
           "Banned",
           "Balance",
         ];
-        const colWidths = [70, 90, 90, 90, 60, 50, 50, 70];
-        const startX = 50;
-        let startY = doc.y || 200; // Ensure we have a valid Y coordinate
-        const rowHeight = 25;
-        const headerHeight = 30;
 
-        // Ensure startY is a valid number
-        if (isNaN(startY) || startY < 0) {
-          startY = 200;
-        }
+        // Draw header
+        doc.fontSize(12).font("Helvetica-Bold").text(headers.join("  "));
+        doc.moveDown(0.5);
 
-        // Draw table border
-        const tableWidth = colWidths.reduce((sum, width) => sum + width, 0);
-        doc.rect(startX, startY, tableWidth, headerHeight).stroke();
+        // Draw separator
+        doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+        doc.moveDown(0.5);
 
-        // Draw header text
-        let x = startX + 5;
-        headers.forEach((header, index) => {
-          doc
-            .fontSize(10)
-            .font("Helvetica-Bold")
-            .text(header, x, startY + 8);
-          x += colWidths[index];
-        });
-
-        // Draw header column separators
-        let separatorX = startX;
-        colWidths.forEach((width, colIndex) => {
-          if (colIndex > 0) {
-            const lineY1 = startY;
-            const lineY2 = startY + headerHeight;
-            if (
-              !isNaN(lineY1) &&
-              !isNaN(lineY2) &&
-              lineY1 >= 0 &&
-              lineY2 >= 0
-            ) {
-              doc
-                .moveTo(separatorX, lineY1)
-                .lineTo(separatorX, lineY2)
-                .stroke();
-            }
-          }
-          separatorX += width;
-        });
-
-        // Draw data rows with borders
+        // Draw data rows
         users.forEach((user, index) => {
-          const rowY = startY + headerHeight + index * rowHeight;
-
-          // Check if we need a new page
-          if (rowY > 700) {
+          if (doc.y > 700) {
             doc.addPage();
-            startY = doc.y || 50; // Ensure we have a valid Y coordinate
-
-            // Ensure startY is a valid number
-            if (isNaN(startY) || startY < 0) {
-              startY = 50;
-            }
-
-            // Repeat header on new page
-            doc.rect(startX, startY, tableWidth, headerHeight).stroke();
-            x = startX + 5;
-            headers.forEach((header, headerIndex) => {
-              doc
-                .fontSize(10)
-                .font("Helvetica-Bold")
-                .text(header, x, startY + 8);
-              x += colWidths[headerIndex];
-            });
-
-            // Draw header column separators
-            separatorX = startX;
-            colWidths.forEach((width, colIndex) => {
-              if (colIndex > 0) {
-                const lineY1 = startY;
-                const lineY2 = startY + headerHeight;
-                if (
-                  !isNaN(lineY1) &&
-                  !isNaN(lineY2) &&
-                  lineY1 >= 0 &&
-                  lineY2 >= 0
-                ) {
-                  doc
-                    .moveTo(separatorX, lineY1)
-                    .lineTo(separatorX, lineY2)
-                    .stroke();
-                }
-              }
-              separatorX += width;
-            });
+            doc.fontSize(12).font("Helvetica-Bold").text(headers.join("  "));
+            doc.moveDown(0.5);
+            doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+            doc.moveDown(0.5);
           }
 
-          // Ensure rowY is a valid number
-          if (isNaN(rowY) || rowY < 0) {
-            return; // Skip this row if coordinates are invalid
-          }
-
-          // Draw row border
-          doc.rect(startX, rowY, tableWidth, rowHeight).stroke();
-
-          // Draw column separators
-          separatorX = startX;
-          colWidths.forEach((width, colIndex) => {
-            if (colIndex > 0) {
-              const lineY1 = rowY;
-              const lineY2 = rowY + rowHeight;
-              if (
-                !isNaN(lineY1) &&
-                !isNaN(lineY2) &&
-                lineY1 >= 0 &&
-                lineY2 >= 0
-              ) {
-                doc
-                  .moveTo(separatorX, lineY1)
-                  .lineTo(separatorX, lineY2)
-                  .stroke();
-              }
-            }
-            separatorX += width;
-          });
-
-          // Draw data
           const rowData = [
             user.id?.substring(0, 8) || "N/A",
             `${user.firstName || user.first_name || ""} ${
@@ -1907,18 +1804,12 @@ class AdminHandlers {
             `$${(user.referralBalance || user.coinBalance || 0).toFixed(2)}`,
           ];
 
-          x = startX + 5;
-          rowData.forEach((data, dataIndex) => {
-            doc
-              .fontSize(8)
-              .font("Helvetica")
-              .text(data, x, rowY + 8);
-            x += colWidths[dataIndex];
-          });
+          doc.fontSize(10).font("Helvetica").text(rowData.join("  "));
+          doc.moveDown(0.3);
         });
       }
 
-      // Companies section with real table
+      // Companies section with simple table
       doc.moveDown(2);
       doc
         .fontSize(16)
@@ -1929,128 +1820,26 @@ class AdminHandlers {
       if (companies.length === 0) {
         doc.fontSize(12).font("Helvetica").text("No companies found.");
       } else {
+        // Use simple table without complex positioning
         const headers = ["ID", "Name", "Owner", "Email", "Status", "Created"];
-        const colWidths = [70, 90, 90, 90, 60, 70];
-        const startX = 50;
-        let startY = doc.y || 200; // Ensure we have a valid Y coordinate
-        const rowHeight = 25;
-        const headerHeight = 30;
 
-        // Ensure startY is a valid number
-        if (isNaN(startY) || startY < 0) {
-          startY = 200;
-        }
+        // Draw header
+        doc.fontSize(12).font("Helvetica-Bold").text(headers.join("  "));
+        doc.moveDown(0.5);
 
-        // Draw table border
-        const tableWidth = colWidths.reduce((sum, width) => sum + width, 0);
-        doc.rect(startX, startY, tableWidth, headerHeight).stroke();
+        // Draw separator
+        doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+        doc.moveDown(0.5);
 
-        // Draw header text
-        let x = startX + 5;
-        headers.forEach((header, index) => {
-          doc
-            .fontSize(10)
-            .font("Helvetica-Bold")
-            .text(header, x, startY + 8);
-          x += colWidths[index];
-        });
-
-        // Draw header column separators
-        let separatorX = startX;
-        colWidths.forEach((width, colIndex) => {
-          if (colIndex > 0) {
-            const lineY1 = startY;
-            const lineY2 = startY + headerHeight;
-            if (
-              !isNaN(lineY1) &&
-              !isNaN(lineY2) &&
-              lineY1 >= 0 &&
-              lineY2 >= 0
-            ) {
-              doc
-                .moveTo(separatorX, lineY1)
-                .lineTo(separatorX, lineY2)
-                .stroke();
-            }
-          }
-          separatorX += width;
-        });
-
-        // Draw data rows with borders
+        // Draw data rows
         companies.forEach((company, index) => {
-          const rowY = startY + headerHeight + index * rowHeight;
-
-          // Check if we need a new page
-          if (rowY > 700) {
+          if (doc.y > 700) {
             doc.addPage();
-            startY = doc.y || 50; // Ensure we have a valid Y coordinate
-
-            // Ensure startY is a valid number
-            if (isNaN(startY) || startY < 0) {
-              startY = 50;
-            }
-
-            // Repeat header on new page
-            doc.rect(startX, startY, tableWidth, headerHeight).stroke();
-            x = startX + 5;
-            headers.forEach((header, headerIndex) => {
-              doc
-                .fontSize(10)
-                .font("Helvetica-Bold")
-                .text(header, x, startY + 8);
-              x += colWidths[headerIndex];
-            });
-
-            // Draw header column separators
-            separatorX = startX;
-            colWidths.forEach((width, colIndex) => {
-              if (colIndex > 0) {
-                const lineY1 = startY;
-                const lineY2 = startY + headerHeight;
-                if (
-                  !isNaN(lineY1) &&
-                  !isNaN(lineY2) &&
-                  lineY1 >= 0 &&
-                  lineY2 >= 0
-                ) {
-                  doc
-                    .moveTo(separatorX, lineY1)
-                    .lineTo(separatorX, lineY2)
-                    .stroke();
-                }
-              }
-              separatorX += width;
-            });
+            doc.fontSize(12).font("Helvetica-Bold").text(headers.join("  "));
+            doc.moveDown(0.5);
+            doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+            doc.moveDown(0.5);
           }
-
-          // Ensure rowY is a valid number
-          if (isNaN(rowY) || rowY < 0) {
-            return; // Skip this row if coordinates are invalid
-          }
-
-          // Draw row border
-          doc.rect(startX, rowY, tableWidth, rowHeight).stroke();
-
-          // Draw column separators
-          separatorX = startX;
-          colWidths.forEach((width, colIndex) => {
-            if (colIndex > 0) {
-              const lineY1 = rowY;
-              const lineY2 = rowY + rowHeight;
-              if (
-                !isNaN(lineY1) &&
-                !isNaN(lineY2) &&
-                lineY1 >= 0 &&
-                lineY2 >= 0
-              ) {
-                doc
-                  .moveTo(separatorX, lineY1)
-                  .lineTo(separatorX, lineY2)
-                  .stroke();
-              }
-            }
-            separatorX += width;
-          });
 
           // Safe date conversion
           let createdDate = "N/A";
@@ -2071,7 +1860,6 @@ class AdminHandlers {
             createdDate = "N/A";
           }
 
-          // Draw data
           const rowData = [
             company.id?.substring(0, 8) || "N/A",
             company.name || "N/A",
@@ -2081,14 +1869,8 @@ class AdminHandlers {
             createdDate,
           ];
 
-          x = startX + 5;
-          rowData.forEach((data, dataIndex) => {
-            doc
-              .fontSize(8)
-              .font("Helvetica")
-              .text(data, x, rowY + 8);
-            x += colWidths[dataIndex];
-          });
+          doc.fontSize(10).font("Helvetica").text(rowData.join("  "));
+          doc.moveDown(0.3);
         });
       }
 
@@ -2256,106 +2038,45 @@ class AdminHandlers {
       doc.moveDown(2);
 
       // Real table with borders
-      doc.fontSize(14).font('Helvetica-Bold').text("Users:", { underline: true });
+      doc
+        .fontSize(14)
+        .font("Helvetica-Bold")
+        .text("Users:", { underline: true });
       doc.moveDown(1);
 
       if (users.length === 0) {
-        doc.fontSize(12).font('Helvetica').text("No users found.");
+        doc.fontSize(12).font("Helvetica").text("No users found.");
       } else {
-        const headers = ["ID", "Name", "Username", "Phone", "Role", "Admin", "Banned", "Balance"];
-        const colWidths = [70, 90, 90, 90, 60, 50, 50, 70];
-        const startX = 50;
-        let startY = doc.y || 200; // Ensure we have a valid Y coordinate
-        const rowHeight = 25;
-        const headerHeight = 30;
+        // Use simple table without complex positioning
+        const headers = [
+          "ID",
+          "Name",
+          "Username",
+          "Phone",
+          "Role",
+          "Admin",
+          "Banned",
+          "Balance",
+        ];
 
-        // Ensure startY is a valid number
-        if (isNaN(startY) || startY < 0) {
-          startY = 200;
-        }
+        // Draw header
+        doc.fontSize(12).font("Helvetica-Bold").text(headers.join("  "));
+        doc.moveDown(0.5);
 
-        // Draw table border
-        const tableWidth = colWidths.reduce((sum, width) => sum + width, 0);
-        doc.rect(startX, startY, tableWidth, headerHeight).stroke();
-        
-        // Draw header text
-        let x = startX + 5;
-        headers.forEach((header, index) => {
-          doc.fontSize(10).font('Helvetica-Bold').text(header, x, startY + 8);
-          x += colWidths[index];
-        });
+        // Draw separator
+        doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+        doc.moveDown(0.5);
 
-        // Draw header column separators
-        let separatorX = startX;
-        colWidths.forEach((width, colIndex) => {
-          if (colIndex > 0) {
-            const lineY1 = startY;
-            const lineY2 = startY + headerHeight;
-            if (!isNaN(lineY1) && !isNaN(lineY2) && lineY1 >= 0 && lineY2 >= 0) {
-              doc.moveTo(separatorX, lineY1).lineTo(separatorX, lineY2).stroke();
-            }
-          }
-          separatorX += width;
-        });
-
-        // Draw data rows with borders
+        // Draw data rows
         users.forEach((user, index) => {
-          const rowY = startY + headerHeight + (index * rowHeight);
-          
-          // Check if we need a new page
-          if (rowY > 700) {
+          if (doc.y > 700) {
             doc.addPage();
-            startY = doc.y || 50; // Ensure we have a valid Y coordinate
-            
-            // Ensure startY is a valid number
-            if (isNaN(startY) || startY < 0) {
-              startY = 50;
-            }
-            
-            // Repeat header on new page
-            doc.rect(startX, startY, tableWidth, headerHeight).stroke();
-            x = startX + 5;
-            headers.forEach((header, headerIndex) => {
-              doc.fontSize(10).font('Helvetica-Bold').text(header, x, startY + 8);
-              x += colWidths[headerIndex];
-            });
-            
-            // Draw header column separators
-            separatorX = startX;
-            colWidths.forEach((width, colIndex) => {
-              if (colIndex > 0) {
-                const lineY1 = startY;
-                const lineY2 = startY + headerHeight;
-                if (!isNaN(lineY1) && !isNaN(lineY2) && lineY1 >= 0 && lineY2 >= 0) {
-                  doc.moveTo(separatorX, lineY1).lineTo(separatorX, lineY2).stroke();
-                }
-              }
-              separatorX += width;
-            });
+            doc.fontSize(12).font("Helvetica-Bold").text(headers.join("  "));
+            doc.moveDown(0.5);
+            doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+            doc.moveDown(0.5);
           }
-          
-          // Ensure rowY is a valid number
-          if (isNaN(rowY) || rowY < 0) {
-            return; // Skip this row if coordinates are invalid
-          }
-          
-          // Draw row border
-          doc.rect(startX, rowY, tableWidth, rowHeight).stroke();
-          
-          // Draw column separators
-          separatorX = startX;
-          colWidths.forEach((width, colIndex) => {
-            if (colIndex > 0) {
-              const lineY1 = rowY;
-              const lineY2 = rowY + rowHeight;
-              if (!isNaN(lineY1) && !isNaN(lineY2) && lineY1 >= 0 && lineY2 >= 0) {
-                doc.moveTo(separatorX, lineY1).lineTo(separatorX, lineY2).stroke();
-              }
-            }
-            separatorX += width;
-          });
 
-          // Draw data
           const rowData = [
             user.id.substring(0, 8),
             `${user.firstName} ${user.lastName}`.trim() || "N/A",
@@ -2364,14 +2085,11 @@ class AdminHandlers {
             user.role,
             user.isAdmin ? "Yes" : "No",
             user.isBanned ? "Yes" : "No",
-            `$${user.balance.toFixed(2)}`
+            `$${user.balance.toFixed(2)}`,
           ];
 
-          x = startX + 5;
-          rowData.forEach((data, dataIndex) => {
-            doc.fontSize(8).font('Helvetica').text(data, x, rowY + 8);
-            x += colWidths[dataIndex];
-          });
+          doc.fontSize(10).font("Helvetica").text(rowData.join("  "));
+          doc.moveDown(0.3);
         });
       }
 
@@ -2540,100 +2258,27 @@ class AdminHandlers {
       if (companiesData.length === 0) {
         doc.fontSize(12).font('Helvetica').text("No companies found.");
       } else {
+        // Use simple table without complex positioning
         const headers = ["ID", "Name", "Owner", "Email", "Phone", "Status", "Products", "Created"];
-        const colWidths = [70, 90, 90, 90, 60, 50, 50, 70];
-        const startX = 50;
-        let startY = doc.y || 200; // Ensure we have a valid Y coordinate
-        const rowHeight = 25;
-        const headerHeight = 30;
-
-        // Ensure startY is a valid number
-        if (isNaN(startY) || startY < 0) {
-          startY = 200;
-        }
-
-        // Draw table border
-        const tableWidth = colWidths.reduce((sum, width) => sum + width, 0);
-        doc.rect(startX, startY, tableWidth, headerHeight).stroke();
         
-        // Draw header text
-        let x = startX + 5;
-        headers.forEach((header, index) => {
-          doc.fontSize(10).font('Helvetica-Bold').text(header, x, startY + 8);
-          x += colWidths[index];
-        });
+        // Draw header
+        doc.fontSize(12).font('Helvetica-Bold').text(headers.join("  "));
+        doc.moveDown(0.5);
+        
+        // Draw separator
+        doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+        doc.moveDown(0.5);
 
-        // Draw header column separators
-        let separatorX = startX;
-        colWidths.forEach((width, colIndex) => {
-          if (colIndex > 0) {
-            const lineY1 = startY;
-            const lineY2 = startY + headerHeight;
-            if (!isNaN(lineY1) && !isNaN(lineY2) && lineY1 >= 0 && lineY2 >= 0) {
-              doc.moveTo(separatorX, lineY1).lineTo(separatorX, lineY2).stroke();
-            }
-          }
-          separatorX += width;
-        });
-
-        // Draw data rows with borders
+        // Draw data rows
         companiesData.forEach((company, index) => {
-          const rowY = startY + headerHeight + (index * rowHeight);
-          
-          // Check if we need a new page
-          if (rowY > 700) {
+          if (doc.y > 700) {
             doc.addPage();
-            startY = doc.y || 50; // Ensure we have a valid Y coordinate
-            
-            // Ensure startY is a valid number
-            if (isNaN(startY) || startY < 0) {
-              startY = 50;
-            }
-            
-            // Repeat header on new page
-            doc.rect(startX, startY, tableWidth, headerHeight).stroke();
-            x = startX + 5;
-            headers.forEach((header, headerIndex) => {
-              doc.fontSize(10).font('Helvetica-Bold').text(header, x, startY + 8);
-              x += colWidths[headerIndex];
-            });
-            
-            // Draw header column separators
-            separatorX = startX;
-            colWidths.forEach((width, colIndex) => {
-              if (colIndex > 0) {
-                const lineY1 = startY;
-                const lineY2 = startY + headerHeight;
-                if (!isNaN(lineY1) && !isNaN(lineY2) && lineY1 >= 0 && lineY2 >= 0) {
-                  doc.moveTo(separatorX, lineY1).lineTo(separatorX, lineY2).stroke();
-                }
-              }
-              separatorX += width;
-            });
+            doc.fontSize(12).font('Helvetica-Bold').text(headers.join("  "));
+            doc.moveDown(0.5);
+            doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
+            doc.moveDown(0.5);
           }
-          
-          // Ensure rowY is a valid number
-          if (isNaN(rowY) || rowY < 0) {
-            return; // Skip this row if coordinates are invalid
-          }
-          
-          // Draw row border
-          doc.rect(startX, rowY, tableWidth, rowHeight).stroke();
-          
-          // Draw column separators
-          separatorX = startX;
-          colWidths.forEach((width, colIndex) => {
-            if (colIndex > 0) {
-              const lineY1 = rowY;
-              const lineY2 = rowY + rowHeight;
-              if (!isNaN(lineY1) && !isNaN(lineY2) && lineY1 >= 0 && lineY2 >= 0) {
-                doc.moveTo(separatorX, lineY1).lineTo(separatorX, lineY2).stroke();
-              }
-            }
-            separatorX += width;
-          });
 
-          // Draw data
           const rowData = [
             company.id.substring(0, 8),
             company.name || "N/A",
@@ -2645,11 +2290,8 @@ class AdminHandlers {
             company.createdAt
           ];
 
-          x = startX + 5;
-          rowData.forEach((data, dataIndex) => {
-            doc.fontSize(8).font('Helvetica').text(data, x, rowY + 8);
-            x += colWidths[dataIndex];
-          });
+          doc.fontSize(10).font('Helvetica').text(rowData.join("  "));
+          doc.moveDown(0.3);
         });
       }
 
