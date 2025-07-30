@@ -604,6 +604,11 @@ class CallbackHandlers {
             return userHandlers.handleShareCode(ctx);
           }
 
+          if (callbackData.startsWith("withdraw_company_")) {
+            const companyId = callbackData.replace("withdraw_company_", "");
+            return userHandlers.handleWithdrawCompany(ctx, companyId);
+          }
+
           if (callbackData.startsWith("request_withdrawal_")) {
             const companyId = callbackData.replace("request_withdrawal_", "");
             return adminHandlers.handleAdminRequestWithdrawal(ctx, companyId);
