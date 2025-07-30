@@ -1741,15 +1741,11 @@ class AdminHandlers {
       if (users.length === 0) {
         doc.fontSize(12).font('Helvetica').text("No users found.");
       } else {
-        const userColWidths = [60, 80, 80, 60, 60, 50, 50, 60];
-        const userHeaders = ["ID", "Name", "Username", "Phone", "Role", "Admin", "Banned", "Balance"];
+        // Use monospace font for proper table alignment
+        doc.font('Courier');
         
-        // Draw table header with proper spacing
-        let x = 50;
-        userHeaders.forEach((header, index) => {
-          doc.fontSize(12).font('Helvetica-Bold').text(header, x, doc.y);
-          x += userColWidths[index];
-        });
+        const userHeaders = ["ID        ", "Name          ", "Username    ", "Phone       ", "Role   ", "Admin ", "Banned", "Balance   "];
+        doc.fontSize(11).font('Courier-Bold').text(userHeaders.join(""));
         doc.moveDown(0.5);
         doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
         doc.moveDown(0.5);
@@ -1758,11 +1754,7 @@ class AdminHandlers {
           if (doc.y > 700) {
             doc.addPage();
             // Repeat header on new page
-            x = 50;
-            userHeaders.forEach((header, headerIndex) => {
-              doc.fontSize(12).font('Helvetica-Bold').text(header, x, doc.y);
-              x += userColWidths[headerIndex];
-            });
+            doc.fontSize(11).font('Courier-Bold').text(userHeaders.join(""));
             doc.moveDown(0.5);
             doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
             doc.moveDown(0.5);
@@ -1786,23 +1778,18 @@ class AdminHandlers {
           }
 
           const rowData = [
-            user.id?.substring(0, 8) || "N/A",
-            `${user.firstName || user.first_name || ""} ${user.lastName || user.last_name || ""}`.trim() || "N/A",
-            user.username || "N/A",
-            user.phone || "N/A",
-            user.role || "user",
-            user.isAdmin ? "Yes" : "No",
-            user.isBanned || user.banned ? "Yes" : "No",
-            `$${(user.referralBalance || user.coinBalance || 0).toFixed(2)}`
+            (user.id?.substring(0, 8) || "N/A").padEnd(10),
+            ((user.firstName || user.first_name || "") + " " + (user.lastName || user.last_name || "")).trim().padEnd(15) || "N/A".padEnd(15),
+            (user.username || "N/A").padEnd(12),
+            (user.phone || "N/A").padEnd(12),
+            (user.role || "user").padEnd(8),
+            (user.isAdmin ? "Yes" : "No").padEnd(8),
+            (user.isBanned || user.banned ? "Yes" : "No").padEnd(8),
+            (`$${(user.referralBalance || user.coinBalance || 0).toFixed(2)}`).padEnd(10)
           ];
 
-          // Draw each column with proper spacing
-          x = 50;
-          rowData.forEach((data, dataIndex) => {
-            doc.fontSize(10).font('Helvetica').text(data, x, doc.y);
-            x += userColWidths[dataIndex];
-          });
-          doc.moveDown(0.5);
+          doc.fontSize(9).font('Courier').text(rowData.join(""));
+          doc.moveDown(0.3);
         });
       }
 
@@ -1814,15 +1801,11 @@ class AdminHandlers {
       if (companies.length === 0) {
         doc.fontSize(12).font('Helvetica').text("No companies found.");
       } else {
-        const companyColWidths = [60, 100, 80, 100, 60, 60];
-        const companyHeaders = ["ID", "Name", "Owner", "Email", "Status", "Created"];
+        // Use monospace font for proper table alignment
+        doc.font('Courier');
         
-        // Draw table header with proper spacing
-        let x = 50;
-        companyHeaders.forEach((header, index) => {
-          doc.fontSize(12).font('Helvetica-Bold').text(header, x, doc.y);
-          x += companyColWidths[index];
-        });
+        const companyHeaders = ["ID        ", "Name          ", "Owner       ", "Email       ", "Status ", "Created   "];
+        doc.fontSize(11).font('Courier-Bold').text(companyHeaders.join(""));
         doc.moveDown(0.5);
         doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
         doc.moveDown(0.5);
@@ -1831,11 +1814,7 @@ class AdminHandlers {
           if (doc.y > 700) {
             doc.addPage();
             // Repeat header on new page
-            x = 50;
-            companyHeaders.forEach((header, headerIndex) => {
-              doc.fontSize(12).font('Helvetica-Bold').text(header, x, doc.y);
-              x += companyColWidths[headerIndex];
-            });
+            doc.fontSize(11).font('Courier-Bold').text(companyHeaders.join(""));
             doc.moveDown(0.5);
             doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
             doc.moveDown(0.5);
@@ -1859,21 +1838,16 @@ class AdminHandlers {
           }
 
           const rowData = [
-            company.id?.substring(0, 8) || "N/A",
-            company.name || "N/A",
-            company.telegramId ? `@${company.telegramId}` : "N/A",
-            company.email || "N/A",
-            company.status || "active",
-            createdDate
+            (company.id?.substring(0, 8) || "N/A").padEnd(10),
+            (company.name || "N/A").padEnd(15),
+            (company.telegramId ? `@${company.telegramId}` : "N/A").padEnd(12),
+            (company.email || "N/A").padEnd(12),
+            (company.status || "active").padEnd(8),
+            (createdDate).padEnd(10)
           ];
 
-          // Draw each column with proper spacing
-          x = 50;
-          rowData.forEach((data, dataIndex) => {
-            doc.fontSize(10).font('Helvetica').text(data, x, doc.y);
-            x += companyColWidths[dataIndex];
-          });
-          doc.moveDown(0.5);
+          doc.fontSize(9).font('Courier').text(rowData.join(""));
+          doc.moveDown(0.3);
         });
       }
 
@@ -2022,16 +1996,12 @@ class AdminHandlers {
       doc.fontSize(12).text(`• Total Balance: $${totalBalance.toFixed(2)}`);
       doc.moveDown(2);
 
-      // Define column widths for proper table formatting
-      const colWidths = [60, 80, 80, 60, 60, 50, 50, 60, 80];
-      const headers = ["ID", "Name", "Username", "Phone", "Role", "Admin", "Banned", "Balance", "Created"];
+      // Use monospace font for proper table alignment
+      doc.font('Courier');
       
-      // Draw table header with proper spacing
-      let x = 50;
-      headers.forEach((header, index) => {
-        doc.fontSize(12).font('Helvetica-Bold').text(header, x, doc.y);
-        x += colWidths[index];
-      });
+      // Table header with proper spacing
+      const headers = ["ID        ", "Name          ", "Username    ", "Phone       ", "Role   ", "Admin ", "Banned", "Balance   "];
+      doc.fontSize(11).font('Courier-Bold').text(headers.join(""));
       doc.moveDown(0.5);
       
       // Draw separator line
@@ -2043,35 +2013,25 @@ class AdminHandlers {
         if (doc.y > 700) {
           doc.addPage();
           // Repeat header on new page
-          x = 50;
-          headers.forEach((header, headerIndex) => {
-            doc.fontSize(12).font('Helvetica-Bold').text(header, x, doc.y);
-            x += colWidths[headerIndex];
-          });
+          doc.fontSize(11).font('Courier-Bold').text(headers.join(""));
           doc.moveDown(0.5);
           doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
           doc.moveDown(0.5);
         }
 
         const rowData = [
-          user.id.substring(0, 8),
-          `${user.firstName} ${user.lastName}`.trim() || "N/A",
-          user.username || "N/A",
-          user.phone || "N/A",
-          user.role,
-          user.isAdmin ? "Yes" : "No",
-          user.isBanned ? "Yes" : "No",
-          `$${user.balance.toFixed(2)}`,
-          user.createdAt
+          (user.id.substring(0, 8) || "N/A").padEnd(10),
+          ((user.firstName + " " + user.lastName).trim() || "N/A").padEnd(15),
+          (user.username || "N/A").padEnd(12),
+          (user.phone || "N/A").padEnd(12),
+          (user.role || "user").padEnd(8),
+          (user.isAdmin ? "Yes" : "No").padEnd(8),
+          (user.isBanned ? "Yes" : "No").padEnd(8),
+          (`$${user.balance.toFixed(2)}`).padEnd(10)
         ];
 
-        // Draw each column with proper spacing
-        x = 50;
-        rowData.forEach((data, dataIndex) => {
-          doc.fontSize(10).font('Helvetica').text(data, x, doc.y);
-          x += colWidths[dataIndex];
-        });
-        doc.moveDown(0.5);
+        doc.fontSize(9).font('Courier').text(rowData.join(""));
+        doc.moveDown(0.3);
       });
 
       doc.end();
@@ -2206,16 +2166,12 @@ class AdminHandlers {
       doc.fontSize(12).text(`• Average Products per Company: ${avgProducts}`);
       doc.moveDown(2);
 
-      // Define column widths for proper table formatting
-      const colWidths = [60, 100, 80, 100, 60, 60, 60, 80];
-      const headers = ["ID", "Name", "Owner", "Email", "Phone", "Status", "Products", "Created"];
+      // Use monospace font for proper table alignment
+      doc.font('Courier');
       
-      // Draw table header with proper spacing
-      let x = 50;
-      headers.forEach((header, index) => {
-        doc.fontSize(12).font('Helvetica-Bold').text(header, x, doc.y);
-        x += colWidths[index];
-      });
+      // Table header with proper spacing
+      const headers = ["ID        ", "Name          ", "Owner       ", "Email       ", "Phone   ", "Status ", "Products", "Created   "];
+      doc.fontSize(11).font('Courier-Bold').text(headers.join(""));
       doc.moveDown(0.5);
       
       // Draw separator line
@@ -2227,34 +2183,25 @@ class AdminHandlers {
         if (doc.y > 700) {
           doc.addPage();
           // Repeat header on new page
-          x = 50;
-          headers.forEach((header, headerIndex) => {
-            doc.fontSize(12).font('Helvetica-Bold').text(header, x, doc.y);
-            x += colWidths[headerIndex];
-          });
+          doc.fontSize(11).font('Courier-Bold').text(headers.join(""));
           doc.moveDown(0.5);
           doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
           doc.moveDown(0.5);
         }
 
         const rowData = [
-          company.id.substring(0, 8),
-          company.name || "N/A",
-          company.owner,
-          company.email,
-          company.phone,
-          company.status,
-          company.products.toString(),
-          company.createdAt
+          (company.id.substring(0, 8) || "N/A").padEnd(10),
+          (company.name || "N/A").padEnd(15),
+          (company.owner || "N/A").padEnd(12),
+          (company.email || "N/A").padEnd(12),
+          (company.phone || "N/A").padEnd(8),
+          (company.status || "active").padEnd(8),
+          (company.products.toString()).padEnd(8),
+          (company.createdAt || "N/A").padEnd(10)
         ];
 
-        // Draw each column with proper spacing
-        x = 50;
-        rowData.forEach((data, dataIndex) => {
-          doc.fontSize(10).font('Helvetica').text(data, x, doc.y);
-          x += colWidths[dataIndex];
-        });
-        doc.moveDown(0.5);
+        doc.fontSize(9).font('Courier').text(rowData.join(""));
+        doc.moveDown(0.3);
       });
 
       doc.end();
