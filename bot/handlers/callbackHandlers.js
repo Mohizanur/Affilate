@@ -522,6 +522,9 @@ class CallbackHandlers {
           if (callbackData === "admin_export_users") {
             return adminHandlers.handleExportUsers(ctx);
           }
+          if (callbackData === "admin_search_companies") {
+            return adminHandlers.handleSearchCompany(ctx);
+          }
           if (callbackData.startsWith("all_users_menu_")) {
             const parts = callbackData
               .replace("all_users_menu_", "")
@@ -687,9 +690,16 @@ class CallbackHandlers {
           }
 
           if (callbackData.startsWith("admin_companies_")) {
-            const page =
-              parseInt(callbackData.replace("admin_companies_", "")) || 1;
-            return adminHandlers.handleAdminListCompanies(ctx, page);
+            const parts = callbackData
+              .replace("admin_companies_", "")
+              .split("_");
+            const page = parseInt(parts[0]) || 1;
+            const searchQuery = parts.slice(1).join("_"); // Reconstruct search query
+            return adminHandlers.handleAdminListCompanies(
+              ctx,
+              page,
+              searchQuery
+            );
           }
 
           ctx.reply(

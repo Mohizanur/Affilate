@@ -683,7 +683,7 @@ class AdminHandlers {
   }
 
   // Company Management Methods
-  async handleAdminListCompanies(ctx, page = 1) {
+  async handleAdminListCompanies(ctx, page = 1, searchQuery = "") {
     try {
       if (!(await this.isAdminAsync(ctx.from.id)))
         return ctx.reply(
@@ -691,21 +691,44 @@ class AdminHandlers {
         );
 
       const companies = await companyService.getAllCompanies();
+      let filteredCompanies = [];
+
+      // Filter by search query if provided
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        filteredCompanies = companies.filter((company) => {
+          const matches =
+            company.name.toLowerCase().includes(query) ||
+            company.id.toLowerCase().includes(query) ||
+            (company.email && company.email.toLowerCase().includes(query)) ||
+            (company.phone && company.phone.toLowerCase().includes(query)) ||
+            (company.telegramId &&
+              company.telegramId.toString().includes(query));
+
+          return matches;
+        });
+      } else {
+        filteredCompanies = companies;
+      }
+
       const perPage = 10;
-      const totalPages = Math.ceil(companies.length / perPage) || 1;
+      const totalPages = Math.ceil(filteredCompanies.length / perPage) || 1;
       page = Number(page) || 1;
       const start = (page - 1) * perPage;
       const end = start + perPage;
 
-      let msg = `🏢 *All Companies (Page ${page}/${totalPages})*
+      let msg = `🏢 *All Companies (Page ${page}/${totalPages})*\n\n`;
 
-`;
-      msg += `📊 Total Companies: ${companies.length}
+      if (searchQuery) {
+        msg += `🔍 *Search Results for: "${searchQuery}"*\n`;
+      }
 
-`;
+      msg += `📊 Total Companies: ${filteredCompanies.length}\n\n`;
 
       const buttons = [];
-      for (const [index, company] of companies.slice(start, end).entries()) {
+      for (const [index, company] of filteredCompanies
+        .slice(start, end)
+        .entries()) {
         // Accurate product count
         let productCount = 0;
         try {
@@ -734,15 +757,10 @@ class AdminHandlers {
         const status = company.status || "active";
         const statusEmoji =
           status === "active" ? "✅" : status === "pending" ? "⏳" : "❌";
-        msg += `${start + index + 1}. ${statusEmoji} *${company.name}*
-`;
-        msg += `   Owner: ${ownerUsername}
-`;
-        msg += `   Status: ${status}
-`;
-        msg += `   Products: ${productCount}
-
-`;
+        msg += `${start + index + 1}. ${statusEmoji} *${company.name}*\n`;
+        msg += `   Owner: ${ownerUsername}\n`;
+        msg += `   Status: ${status}\n`;
+        msg += `   Products: ${productCount}\n\n`;
 
         buttons.push([
           Markup.button.callback(
@@ -756,11 +774,17 @@ class AdminHandlers {
       const navButtons = [];
       if (page > 1)
         navButtons.push(
-          Markup.button.callback("⬅️ Previous", `admin_companies_${page - 1}`)
+          Markup.button.callback(
+            "⬅️ Previous",
+            `admin_companies_${page - 1}${searchQuery ? `_${searchQuery}` : ""}`
+          )
         );
       if (page < totalPages)
         navButtons.push(
-          Markup.button.callback("➡️ Next", `admin_companies_${page + 1}`)
+          Markup.button.callback(
+            "➡️ Next",
+            `admin_companies_${page + 1}${searchQuery ? `_${searchQuery}` : ""}`
+          )
         );
       if (navButtons.length) buttons.push(navButtons);
 
@@ -907,7 +931,6 @@ class AdminHandlers {
             "company_analytics_summary"
           ),
         ],
-        [Markup.button.callback("➕ Add Company", "admin_add_company")],
         [Markup.button.callback("🔙 Back to Admin", "admin_panel")],
       ];
 
@@ -936,8 +959,7 @@ class AdminHandlers {
           t("msg__access_denied", {}, ctx.session?.language || "en")
         );
 
-      ctx.session.searchType = "company";
-      ctx.session.waitingForSearch = true;
+      ctx.session.state = "awaiting_all_companies_search";
 
       ctx.reply(
         t(
