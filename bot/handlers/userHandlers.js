@@ -3056,8 +3056,8 @@ Toggle notifications:
       // Fetch dynamic platform settings
       const settings = await getPlatformSettings();
       const PLATFORM_FEE_PERCENT = settings.platformFeePercent;
-      const REFERRAL_BONUS_PERCENT = settings.referralBonusPercent;
-      const BUYER_BONUS_PERCENT = settings.buyerBonusPercent;
+      const REFERRAL_BONUS_PERCENT = settings.referralCommissionPercent;
+      const BUYER_BONUS_PERCENT = settings.referralDiscountPercent;
 
       // Calculate platform fee
       const platformFee = total * (PLATFORM_FEE_PERCENT / 100);

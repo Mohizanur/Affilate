@@ -15,9 +15,13 @@ async function getPlatformSettings() {
     .doc("system")
     .get();
   let settings = doc.exists ? doc.data() : {};
-  settings.platformFeePercent = settings.platformFeePercent ?? 1.5;
-  settings.referralBonusPercent = settings.referralBonusPercent ?? 2.5;
-  settings.buyerBonusPercent = settings.buyerBonusPercent ?? 1;
+
+  // Map the database field names to the expected field names
+  settings.platformFeePercent = settings.platformFeePercentage ?? 1.5;
+  settings.referralCommissionPercent =
+    settings.referrerCommissionPercentage ?? 2.5;
+  settings.referralDiscountPercent = settings.buyerDiscountPercentage ?? 1;
+
   cachedSettings = settings;
   lastFetch = now;
   return settings;
