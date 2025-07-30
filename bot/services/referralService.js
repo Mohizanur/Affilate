@@ -317,7 +317,7 @@ class ReferralService {
       if (amount && typeof amount === "number") {
         // Fetch platform fee percent from settings
         const settings = await adminService.getPlatformSettings();
-        feePercent = settings.platformFeePercent || 1.5;
+        feePercent = settings.platformFeePercent;
         platformFee = amount * (feePercent / 100);
         // Add platform fee to admin balance (first admin user found)
         const adminSnap = await databaseService
@@ -423,7 +423,7 @@ class ReferralService {
 
         // Note: Admin notifications are handled in userHandlers.js processSale function
         // to avoid double notifications and ensure all sale details are included
-        
+
         logger.info(
           `All notifications sent successfully for referral code ${code}`
         );
@@ -544,8 +544,7 @@ class ReferralService {
           for (const ref of referrals) {
             // Use dynamic commission rate
             const settings = await adminService.getPlatformSettings();
-            const commissionRate =
-              settings.referralCommissionPercent / 100 || 0.025;
+            const commissionRate = settings.referralCommissionPercent / 100;
             earnings += (ref.amount || 0) * commissionRate;
             detailedReferrals.push({
               amount: ref.amount || 0,

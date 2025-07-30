@@ -1200,8 +1200,9 @@ class AdminService {
           continue;
         }
 
-        // Platform fee is typically 1.5% of the transaction amount
-        const platformFee = (referral.amount || 0) * 0.015; // 1.5% platform fee
+        // Platform fee is calculated from dynamic settings
+        const settings = await this.getPlatformSettings();
+        const platformFee = (referral.amount || 0) * (settings.platformFeePercent / 100);
         totalPlatformFees += platformFee;
       }
 
