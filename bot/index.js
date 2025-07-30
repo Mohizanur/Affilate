@@ -5,39 +5,27 @@ console.log(
   (process.env.BOT_TOKEN || "").slice(0, 8) + "..."
 );
 const { Telegraf } = require("telegraf");
-console.log("Loaded telegraf");
 const LocalSession = require("telegraf-session-local");
-console.log("Loaded telegraf-session-local");
 const databaseService = require("./config/database");
-console.log("Loaded config/database");
 const logger = require("../utils/logger");
-console.log("Loaded utils/logger");
 const fs = require("fs");
 const path = require("path");
 
 // Handler imports
 const userHandlers = require("./handlers/userHandlers");
-console.log("Loaded handlers/userHandlers");
 const companyHandlers = require("./handlers/companyHandlers");
-console.log("Loaded handlers/companyHandlers");
 const adminHandlers = require("./handlers/adminHandlers");
-console.log("Loaded handlers/adminHandlers");
 const callbackHandlers = require("./handlers/callbackHandlers");
-console.log("Loaded handlers/callbackHandlers");
 const MessageHandlers = require("./handlers/messageHandlers");
 const messageHandlers = new MessageHandlers();
-console.log("Loaded handlers/messageHandlers");
 
 // ✅ ADD THESE IMPORTS
 const adminService = require("./services/adminService");
-console.log("Loaded services/adminService");
 const userService = require("./services/userService");
-console.log("Loaded services/userService");
 const {
   NotificationService,
   setNotificationServiceInstance,
 } = require("./services/notificationService");
-console.log("Loaded services/notificationService");
 
 let bot;
 
@@ -54,7 +42,6 @@ function registerHandlers(bot) {
       try {
         const commandHandler = require(path.join(commandsDir, file));
         bot.command(commandName, commandHandler);
-        console.log(`✅ /${commandName} command handler registered`);
       } catch (e) {
         console.error(
           `❌ Error registering /${commandName} command:`,
@@ -66,9 +53,7 @@ function registerHandlers(bot) {
 
   // Register aliases
   bot.command("referrals", require("./commands/referral"));
-  console.log(`✅ /referrals command alias registered`);
   bot.command("browse", require("./commands/products"));
-  console.log(`✅ /browse command alias registered for /products`);
 
   const handlers = [
     { name: "User", handler: userHandlers },
@@ -85,7 +70,6 @@ function registerHandlers(bot) {
       } else if (typeof handler === "function") {
         handler(bot);
       }
-      console.log(`✅ ${name} handlers registered`);
     } catch (error) {
       console.error(`❌ Error registering ${name} handlers:`, error.message);
     }
@@ -143,34 +127,36 @@ async function startBot(app) {
     bot.use(async (ctx, next) => {
       try {
         // Skip maintenance check for admin commands
-        if (ctx.message?.text?.startsWith('/admin')) {
+        if (ctx.message?.text?.startsWith("/admin")) {
           return next();
         }
 
         // Check if maintenance mode is enabled
-        const adminService = require('./services/adminService');
+        const adminService = require("./services/adminService");
         const settings = await adminService.getPlatformSettings();
-        
+
         if (settings.maintenanceMode) {
           // Check if user is admin
-          const userService = require('./services/userService');
-          const user = await userService.userService.getUserByTelegramId(ctx.from.id);
-          
-          if (!user || (user.role !== 'admin' && !user.isAdmin)) {
+          const userService = require("./services/userService");
+          const user = await userService.userService.getUserByTelegramId(
+            ctx.from.id
+          );
+
+          if (!user || (user.role !== "admin" && !user.isAdmin)) {
             // Block non-admin users during maintenance
             return ctx.reply(
               `🔧 *System Maintenance*\n\n` +
-              `We're currently performing system maintenance.\n` +
-              `Please try again later.\n\n` +
-              `Thank you for your patience!`,
-              { parse_mode: 'Markdown' }
+                `We're currently performing system maintenance.\n` +
+                `Please try again later.\n\n` +
+                `Thank you for your patience!`,
+              { parse_mode: "Markdown" }
             );
           }
         }
-        
+
         return next();
       } catch (error) {
-        console.error('Error in maintenance middleware:', error);
+        console.error("Error in maintenance middleware:", error);
         // Continue to next middleware on error
         return next();
       }

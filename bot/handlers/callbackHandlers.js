@@ -62,16 +62,10 @@ class CallbackHandlers {
         return adminHandlers.handlePlatformAnalyticsDashboard(ctx, page);
       }
       // Route to appropriate handler based on callback data
-      console.log("CHECKING company_approve_withdrawal_");
       if (callbackData.startsWith("company_approve_withdrawal_")) {
-        console.log("INSIDE company_approve_withdrawal_ block");
         const withdrawalId = callbackData.replace(
           "company_approve_withdrawal_",
           ""
-        );
-        console.log(
-          "CALLING handleCompanyApproveWithdrawal with withdrawalId:",
-          withdrawalId
         );
         return adminHandlers.handleCompanyApproveWithdrawal(ctx, withdrawalId);
       }
@@ -199,14 +193,6 @@ class CallbackHandlers {
           return adminHandlers.handleAdminListUsers(ctx);
         case "platform_analytics_dashboard":
           return adminHandlers.handlePlatformAnalyticsDashboard(ctx);
-          // Pagination for platform analytics dashboard (move outside switch)
-          if (callbackData.startsWith("platform_analytics_dashboard_")) {
-            const page =
-              parseInt(
-                callbackData.replace("platform_analytics_dashboard_", "")
-              ) || 1;
-            return adminHandlers.handlePlatformAnalyticsDashboard(ctx, page);
-          }
         case "admin_withdrawals":
           return adminHandlers.handleCompanyWithdrawals(ctx);
         case "error_logs":

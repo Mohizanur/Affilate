@@ -28,16 +28,22 @@ process.on("unhandledRejection", (reason, promise) => {
 // Note: More specific error handlers are defined in bot/index.js
 console.log("=== server.js starting ===");
 
+// Load environment variables
 require("dotenv").config();
 console.log("Loaded dotenv");
+
 const express = require("express");
 console.log("Loaded express");
+
 const cors = require("cors");
 console.log("Loaded cors");
+
 const helmet = require("helmet");
 console.log("Loaded helmet");
+
 const rateLimit = require("express-rate-limit");
 console.log("Loaded express-rate-limit");
+
 const { startBot } = require("./bot");
 console.log("Loaded ./bot (startBot)");
 const apiRoutes = require("./api/routes");
