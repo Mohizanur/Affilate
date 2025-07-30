@@ -1820,6 +1820,37 @@ class AdminHandlers {
 
       for (const doc of usersSnap.docs) {
         const user = doc.data();
+
+        // Safe date conversion
+        let createdAt = "";
+        let lastActive = "";
+
+        try {
+          if (user.createdAt) {
+            const createdDate = user.createdAt.toDate
+              ? user.createdAt.toDate()
+              : new Date(user.createdAt);
+            if (!isNaN(createdDate.getTime())) {
+              createdAt = createdDate.toISOString();
+            }
+          }
+        } catch (e) {
+          createdAt = "";
+        }
+
+        try {
+          if (user.last_active) {
+            const lastActiveDate = user.last_active.toDate
+              ? user.last_active.toDate()
+              : new Date(user.last_active);
+            if (!isNaN(lastActiveDate.getTime())) {
+              lastActive = lastActiveDate.toISOString();
+            }
+          }
+        } catch (e) {
+          lastActive = "";
+        }
+
         users.push({
           id: doc.id,
           telegramId: user.telegramId || user.id,
@@ -1832,12 +1863,8 @@ class AdminHandlers {
           isAdmin: user.isAdmin || false,
           isBanned: user.isBanned || user.banned || false,
           balance: user.referralBalance || user.coinBalance || 0,
-          createdAt: user.createdAt
-            ? new Date(user.createdAt).toISOString()
-            : "",
-          lastActive: user.last_active
-            ? new Date(user.last_active).toISOString()
-            : "",
+          createdAt: createdAt,
+          lastActive: lastActive,
         });
       }
 
@@ -1927,14 +1954,20 @@ class AdminHandlers {
         x += columnWidths[6];
         doc.fontSize(8).text(`$${user.balance.toFixed(2)}`, x);
         x += columnWidths[7];
-        doc
-          .fontSize(8)
-          .text(
-            user.createdAt
-              ? new Date(user.createdAt).toLocaleDateString()
-              : "N/A",
-            x
-          );
+
+        // Safe date display
+        let createdDate = "N/A";
+        try {
+          if (user.createdAt) {
+            const date = new Date(user.createdAt);
+            if (!isNaN(date.getTime())) {
+              createdDate = date.toLocaleDateString();
+            }
+          }
+        } catch (e) {
+          createdDate = "N/A";
+        }
+        doc.fontSize(8).text(createdDate, x);
         doc.moveDown();
       });
 
@@ -1985,6 +2018,21 @@ class AdminHandlers {
           productCount = 0;
         }
 
+        // Safe date conversion
+        let createdAt = "";
+        try {
+          if (company.createdAt) {
+            const createdDate = company.createdAt.toDate
+              ? company.createdAt.toDate()
+              : new Date(company.createdAt);
+            if (!isNaN(createdDate.getTime())) {
+              createdAt = createdDate.toISOString();
+            }
+          }
+        } catch (e) {
+          createdAt = "";
+        }
+
         companiesData.push({
           id: company.id,
           name: company.name,
@@ -1993,9 +2041,7 @@ class AdminHandlers {
           phone: company.phone || "N/A",
           status: company.status || "active",
           products: productCount,
-          createdAt: company.createdAt
-            ? new Date(company.createdAt).toISOString()
-            : "",
+          createdAt: createdAt,
           description: company.description || "N/A",
         });
       }
@@ -2088,14 +2134,20 @@ class AdminHandlers {
         x += columnWidths[5];
         doc.fontSize(8).text(company.products.toString(), x);
         x += columnWidths[6];
-        doc
-          .fontSize(8)
-          .text(
-            company.createdAt
-              ? new Date(company.createdAt).toLocaleDateString()
-              : "N/A",
-            x
-          );
+
+        // Safe date display
+        let createdDate = "N/A";
+        try {
+          if (company.createdAt) {
+            const date = new Date(company.createdAt);
+            if (!isNaN(date.getTime())) {
+              createdDate = date.toLocaleDateString();
+            }
+          }
+        } catch (e) {
+          createdDate = "N/A";
+        }
+        doc.fontSize(8).text(createdDate, x);
         doc.moveDown();
       });
 
