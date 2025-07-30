@@ -3718,24 +3718,26 @@ Toggle notifications:
       if (!withdrawalDoc.exists)
         return ctx.reply(t("msg__withdrawal_not_found", {}, userLanguage));
       const withdrawal = withdrawalDoc.data();
-      if (withdrawal.status !== "pending")
+      if (withdrawal.status !== "company_pending")
         return ctx.reply(
           t("msg__withdrawal_already_processed", {}, userLanguage)
         );
+      
+      // Update withdrawal status
       await withdrawalRef.update({
         status: "approved",
         approvedAt: new Date(),
         approvedBy: ctx.from.id,
       });
+      
+      // Deduct the amount from user's balance for this company
+      const userService = require("../services/userService").userService;
+      await userService.deductCompanyEarnings(withdrawal.userId, withdrawal.companyId, withdrawal.amount);
+      
       // Notify user
-      const user =
-        await require("../services/userService").userService.getUserByTelegramId(
-          withdrawal.userId
-        );
-      const company =
-        await require("../services/companyService").getCompanyById(
-          withdrawal.companyId
-        );
+      const user = await userService.getUserByTelegramId(withdrawal.userId);
+      const company = await require("../services/companyService").getCompanyById(withdrawal.companyId);
+      
       const userDisplay = user.username
         ? `@${user.username}`
         : `${
@@ -3743,6 +3745,7 @@ Toggle notifications:
             user.firstName ||
             t("msg_no_payment_details", {}, userLanguage)
           } ${user.last_name || user.lastName || ""}`;
+      
       ctx.telegram.sendMessage(
         withdrawal.userId,
         `✅ Your withdrawal request from *${
@@ -3752,6 +3755,7 @@ Toggle notifications:
         )} has been *approved*!\n\nThank you for using our platform.`,
         { parse_mode: "Markdown" }
       );
+      
       ctx.reply(
         t(
           "msg__withdrawal_approved_and_user_userdisplay_noti",
@@ -3779,24 +3783,21 @@ Toggle notifications:
       if (!withdrawalDoc.exists)
         return ctx.reply(t("msg__withdrawal_not_found", {}, userLanguage));
       const withdrawal = withdrawalDoc.data();
-      if (withdrawal.status !== "pending")
+      if (withdrawal.status !== "company_pending")
         return ctx.reply(
           t("msg__withdrawal_already_processed", {}, userLanguage)
         );
+      
       await withdrawalRef.update({
         status: "declined",
         declinedAt: new Date(),
         declinedBy: ctx.from.id,
       });
+      
       // Notify user
-      const user =
-        await require("../services/userService").userService.getUserByTelegramId(
-          withdrawal.userId
-        );
-      const company =
-        await require("../services/companyService").getCompanyById(
-          withdrawal.companyId
-        );
+      const user = await require("../services/userService").userService.getUserByTelegramId(withdrawal.userId);
+      const company = await require("../services/companyService").getCompanyById(withdrawal.companyId);
+      
       const userDisplay = user.username
         ? `@${user.username}`
         : `${
@@ -3804,15 +3805,17 @@ Toggle notifications:
             user.firstName ||
             t("msg_no_payment_details", {}, userLanguage)
           } ${user.last_name || user.lastName || ""}`;
+      
       ctx.telegram.sendMessage(
         withdrawal.userId,
         `❌ Your withdrawal request from *${
           company?.name || withdrawal.companyId
         }* for $${withdrawal.amount.toFixed(
           2
-        )} has been *declined*.\n\nIf you have questions, please contact support.`,
+        )} has been *declined*.\n\nPlease contact the company for more information.`,
         { parse_mode: "Markdown" }
       );
+      
       ctx.reply(
         t(
           "msg__withdrawal_declined_and_user_userdisplay_noti",

@@ -565,7 +565,21 @@ class ReferralService {
             const w = doc.data();
             withdrawn += w.amount || 0;
           });
-          const withdrawable = Math.max(0, earnings - withdrawn);
+
+          // Also subtract earnings deductions
+          const deductionsSnap = await databaseService
+            .getDb()
+            .collection("earnings_deductions")
+            .where("userId", "==", userId)
+            .where("companyId", "==", companyId)
+            .get();
+          let deducted = 0;
+          deductionsSnap.forEach((doc) => {
+            const d = doc.data();
+            deducted += d.amount || 0;
+          });
+
+          const withdrawable = Math.max(0, earnings - withdrawn - deducted);
           companyStats[companyId] = {
             count: referrals.length,
             earnings: withdrawable,

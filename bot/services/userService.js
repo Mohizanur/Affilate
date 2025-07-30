@@ -688,6 +688,41 @@ class UserService {
     }
   }
 
+  async deductCompanyEarnings(telegramId, companyId, amount) {
+    try {
+      // Get user's current earnings for this company
+      const referralService = require("./referralService");
+      const stats = await referralService.getUserReferralStats(telegramId);
+      const companyStats = stats.companyStats && stats.companyStats[companyId];
+      
+      if (!companyStats) {
+        logger.warn(`No company stats found for user ${telegramId} and company ${companyId}`);
+        return false;
+      }
+      
+      // Create a deduction record
+      const deduction = {
+        userId: telegramId,
+        companyId: companyId,
+        amount: amount,
+        type: "withdrawal_deduction",
+        createdAt: new Date(),
+        withdrawalId: null // Will be linked if needed
+      };
+      
+      await databaseService
+        .getDb()
+        .collection("earnings_deductions")
+        .add(deduction);
+      
+      logger.info(`Deducted $${amount} from user ${telegramId} for company ${companyId}`);
+      return true;
+    } catch (error) {
+      logger.error("Error deducting company earnings:", error);
+      throw error;
+    }
+  }
+
   async getPendingWithdrawals() {
     try {
       const withdrawalsSnapshot = await databaseService
