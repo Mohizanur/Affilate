@@ -3616,25 +3616,31 @@ Toggle notifications:
       console.log("handleWithdrawCompany called with companyId:", companyId);
       const telegramId = ctx.from.id;
       console.log("User telegramId:", telegramId);
-      
+
       // Get user to get language
-      const user = await require("../services/userService").userService.getUserByTelegramId(telegramId);
+      const user =
+        await require("../services/userService").userService.getUserByTelegramId(
+          telegramId
+        );
       const userLanguage = user?.language || "en";
-      
-      const stats = await require("../services/referralService").getUserReferralStats(telegramId);
+
+      const stats =
+        await require("../services/referralService").getUserReferralStats(
+          telegramId
+        );
       console.log("User stats:", JSON.stringify(stats, null, 2));
-      
+
       const minPayout = parseFloat(process.env.MIN_PAYOUT_AMOUNT || "10");
       console.log("Min payout:", minPayout);
-      
+
       const companyStats = stats.companyStats && stats.companyStats[companyId];
       console.log("Company stats for", companyId, ":", companyStats);
-      
+
       if (!companyStats || companyStats.earnings < minPayout) {
         console.log("User not eligible for withdrawal:", {
           hasCompanyStats: !!companyStats,
           earnings: companyStats?.earnings,
-          minPayout: minPayout
+          minPayout: minPayout,
         });
         return ctx.reply(
           t(
@@ -3644,7 +3650,7 @@ Toggle notifications:
           )
         );
       }
-      
+
       console.log("User is eligible for withdrawal, proceeding...");
       // Create withdrawal request
       const withdrawal = {
@@ -3660,10 +3666,6 @@ Toggle notifications:
       // Get user and company info for message
       const company =
         await require("../services/companyService").getCompanyById(companyId);
-      const user =
-        await require("../services/userService").userService.getUserByTelegramId(
-          telegramId
-        );
       const userDisplay = user.username
         ? `@${user.username}`
         : `${
@@ -3739,22 +3741,29 @@ Toggle notifications:
         return ctx.reply(
           t("msg__withdrawal_already_processed", {}, userLanguage)
         );
-      
+
       // Update withdrawal status
       await withdrawalRef.update({
         status: "approved",
         approvedAt: new Date(),
         approvedBy: ctx.from.id,
       });
-      
+
       // Deduct the amount from user's balance for this company
       const userService = require("../services/userService").userService;
-      await userService.deductCompanyEarnings(withdrawal.userId, withdrawal.companyId, withdrawal.amount);
-      
+      await userService.deductCompanyEarnings(
+        withdrawal.userId,
+        withdrawal.companyId,
+        withdrawal.amount
+      );
+
       // Notify user
       const user = await userService.getUserByTelegramId(withdrawal.userId);
-      const company = await require("../services/companyService").getCompanyById(withdrawal.companyId);
-      
+      const company =
+        await require("../services/companyService").getCompanyById(
+          withdrawal.companyId
+        );
+
       const userDisplay = user.username
         ? `@${user.username}`
         : `${
@@ -3762,7 +3771,7 @@ Toggle notifications:
             user.firstName ||
             t("msg_no_payment_details", {}, userLanguage)
           } ${user.last_name || user.lastName || ""}`;
-      
+
       ctx.telegram.sendMessage(
         withdrawal.userId,
         `✅ Your withdrawal request from *${
@@ -3772,7 +3781,7 @@ Toggle notifications:
         )} has been *approved*!\n\nThank you for using our platform.`,
         { parse_mode: "Markdown" }
       );
-      
+
       ctx.reply(
         t(
           "msg__withdrawal_approved_and_user_userdisplay_noti",
@@ -3804,17 +3813,23 @@ Toggle notifications:
         return ctx.reply(
           t("msg__withdrawal_already_processed", {}, userLanguage)
         );
-      
+
       await withdrawalRef.update({
         status: "declined",
         declinedAt: new Date(),
         declinedBy: ctx.from.id,
       });
-      
+
       // Notify user
-      const user = await require("../services/userService").userService.getUserByTelegramId(withdrawal.userId);
-      const company = await require("../services/companyService").getCompanyById(withdrawal.companyId);
-      
+      const user =
+        await require("../services/userService").userService.getUserByTelegramId(
+          withdrawal.userId
+        );
+      const company =
+        await require("../services/companyService").getCompanyById(
+          withdrawal.companyId
+        );
+
       const userDisplay = user.username
         ? `@${user.username}`
         : `${
@@ -3822,7 +3837,7 @@ Toggle notifications:
             user.firstName ||
             t("msg_no_payment_details", {}, userLanguage)
           } ${user.last_name || user.lastName || ""}`;
-      
+
       ctx.telegram.sendMessage(
         withdrawal.userId,
         `❌ Your withdrawal request from *${
@@ -3832,7 +3847,7 @@ Toggle notifications:
         )} has been *declined*.\n\nPlease contact the company for more information.`,
         { parse_mode: "Markdown" }
       );
-      
+
       ctx.reply(
         t(
           "msg__withdrawal_declined_and_user_userdisplay_noti",
