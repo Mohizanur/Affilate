@@ -1529,6 +1529,48 @@ class AdminService {
       return [];
     }
   }
+
+  async getPlatformBalance() {
+    try {
+      const doc = await databaseService
+        .getDb()
+        .collection("settings")
+        .doc("system")
+        .get();
+      
+      if (!doc.exists) {
+        return 0;
+      }
+      
+      const data = doc.data();
+      return data.platformBalance || 0;
+    } catch (error) {
+      logger.error("Error getting platform balance:", error);
+      return 0;
+    }
+  }
+
+  async updatePlatformBalance(amount) {
+    try {
+      const currentBalance = await this.getPlatformBalance();
+      const newBalance = currentBalance + amount;
+      
+      await databaseService
+        .getDb()
+        .collection("settings")
+        .doc("system")
+        .set({ 
+          platformBalance: newBalance, 
+          updatedAt: new Date() 
+        }, { merge: true });
+      
+      logger.info(`Platform balance updated: ${currentBalance} + ${amount} = ${newBalance}`);
+      return newBalance;
+    } catch (error) {
+      logger.error("Error updating platform balance:", error);
+      throw error;
+    }
+  }
 }
 
 console.log("Exiting services/adminService.js");

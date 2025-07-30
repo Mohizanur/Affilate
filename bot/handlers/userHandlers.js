@@ -3058,6 +3058,10 @@ Toggle notifications:
       const PLATFORM_FEE_PERCENT = settings.platformFeePercent;
       const REFERRAL_BONUS_PERCENT = settings.referralBonusPercent;
       const BUYER_BONUS_PERCENT = settings.buyerBonusPercent;
+
+      // Calculate platform fee
+      const platformFee = total * (PLATFORM_FEE_PERCENT / 100);
+
       let referrerBonus = 0,
         buyerBonus = 0,
         newCode = null;
@@ -3226,33 +3230,64 @@ Toggle notifications:
         const notificationService = require("../services/notificationService");
         const { getNotificationServiceInstance } = notificationService;
         const adminService = require("../services/adminService");
-        
+
         const notificationInstance = getNotificationServiceInstance();
         if (notificationInstance) {
           // Notify company/seller (receipt)
           if (product.companyId) {
-            const company = await companyService.getCompanyById(product.companyId);
+            const company = await companyService.getCompanyById(
+              product.companyId
+            );
             if (company?.telegramId && company.telegramId !== ctx.from.id) {
               logger.info(`Sending receipt to company ${company.telegramId}`);
               await notificationInstance.sendDirectNotification(
                 company.telegramId,
-                `🎉 New sale completed!\n\n💰 Amount: $${total.toFixed(2)}\n👤 Buyer: ${buyerUsername || buyerId}\n📦 Product: ${product.title}\n📊 Quantity: ${quantity}\n\nYour product was sold!`,
+                `🎉 New sale completed!\n\n💰 Amount: $${total.toFixed(
+                  2
+                )}\n👤 Buyer: ${buyerUsername || buyerId}\n📦 Product: ${
+                  product.title
+                }\n📊 Quantity: ${quantity}\n\nYour product was sold!`,
                 { type: "company_sale" }
               );
               logger.info(`Receipt sent to company successfully`);
             }
           }
 
+          // Update platform balance with platform fee
+          const adminService = require("../services/adminService");
+          const newPlatformBalance = await adminService.updatePlatformBalance(
+            platformFee
+          );
+          logger.info(
+            `Platform balance updated: +$${platformFee.toFixed(
+              2
+            )} = $${newPlatformBalance.toFixed(2)}`
+          );
+
           // Notify admins
           const admins = await adminService.getAdminUsers();
-          const adminIds = admins.map(admin => admin.telegramId);
-          
+          const adminIds = admins.map((admin) => admin.telegramId);
+
           if (adminIds.length > 0) {
             logger.info(`Notifying ${adminIds.length} admins of sale`);
             await notificationInstance.notifyAdminAlert(
               adminIds,
               "New Sale Completed",
-              `💰 New sale completed!\n\n🏢 Company: ${product.companyId ? await companyService.getCompanyById(product.companyId).then(c => c?.name || 'Unknown') : 'Unknown'}\n👤 Buyer: ${buyerUsername || buyerId}\n📦 Product: ${product.title}\n📊 Quantity: ${quantity}\n💰 Amount: $${total.toFixed(2)}\n🔗 Referral Code: ${referral?.code || 'None'}`
+              `💰 New sale completed!\n\n🏢 Company: ${
+                product.companyId
+                  ? await companyService
+                      .getCompanyById(product.companyId)
+                      .then((c) => c?.name || "Unknown")
+                  : "Unknown"
+              }\n👤 Buyer: ${buyerUsername || buyerId}\n📦 Product: ${
+                product.title
+              }\n📊 Quantity: ${quantity}\n💰 Amount: $${total.toFixed(
+                2
+              )}\n📊 Platform Fee: $${platformFee.toFixed(
+                2
+              )}\n💳 Platform Balance: $${newPlatformBalance.toFixed(
+                2
+              )}\n🔗 Referral Code: ${referral?.code || "None"}`
             );
             logger.info(`Admin notifications sent successfully`);
           }
