@@ -128,59 +128,105 @@ class AdminHandlers {
     }
   }
 
-  async handleAllUsersMenu(ctx, page = 1) {
+  async handleAllUsersMenu(ctx, page = 1, searchQuery = "") {
     try {
       if (!(await this.isAdminAsync(ctx.from.id)))
         return ctx.reply(
           t("msg__access_denied", {}, ctx.session?.language || "en")
         );
 
-      const users = await userService.getAllUsers();
+      const usersSnap = await databaseService.users().get();
+      let users = [];
+
+      // Convert to array and filter if search query provided
+      for (const doc of usersSnap.docs) {
+        const user = doc.data();
+        const userData = {
+          id: doc.id,
+          telegramId: user.telegramId || user.id,
+          firstName: user.firstName || user.first_name || "",
+          lastName: user.lastName || user.last_name || "",
+          username: user.username || "",
+          phone: user.phone_number || user.phone || "",
+          role: user.role || "user",
+          isAdmin: user.isAdmin || false,
+          isBanned: user.isBanned || user.banned || false,
+          balance: user.referralBalance || user.coinBalance || 0,
+          createdAt: user.createdAt,
+        };
+
+        // Filter by search query if provided
+        if (searchQuery) {
+          const query = searchQuery.toLowerCase();
+          const matches =
+            userData.firstName.toLowerCase().includes(query) ||
+            userData.lastName.toLowerCase().includes(query) ||
+            userData.username.toLowerCase().includes(query) ||
+            userData.phone.toLowerCase().includes(query) ||
+            userData.telegramId.toString().includes(query);
+
+          if (matches) {
+            users.push(userData);
+          }
+        } else {
+          users.push(userData);
+        }
+      }
+
       const perPage = 10;
       const totalPages = Math.ceil(users.length / perPage) || 1;
       page = Number(page) || 1;
       const start = (page - 1) * perPage;
       const end = start + perPage;
 
-      let msg = `👥 *All Users (Page ${page}/${totalPages})*
+      let msg = `👥 *All Users (Page ${page}/${totalPages})*\n\n`;
 
-`;
-      msg += `📊 Total Users: ${users.length}
+      if (searchQuery) {
+        msg += `🔍 *Search Results for: "${searchQuery}"*\n`;
+      }
 
-`;
+      msg += `📊 Total Users: ${users.length}\n\n`;
 
       const buttons = [];
-      users.slice(start, end).forEach((user, index) => {
-        const username =
-          user.username || user.firstName || user.first_name || "Unknown";
-        const status = user.isBanned ? "🚫 Banned" : "✅ Active";
-        msg += `${start + index + 1}. ${username}
-`;
-        msg += `   ID: ${user.telegramId || user.id}
-`;
-        msg += `   Status: ${status}
-`;
-        msg += `   Balance: $${(user.referralBalance || 0).toFixed(2)}
+      for (const [index, user] of users.slice(start, end).entries()) {
+        const status = user.isBanned
+          ? "❌ Banned"
+          : user.isAdmin
+          ? "👑 Admin"
+          : "✅ Active";
+        const balance = user.balance ? `$${user.balance.toFixed(2)}` : "$0.00";
 
-`;
+        msg += `${start + index + 1}. ${status} *${user.firstName} ${
+          user.lastName
+        }*\n`;
+        msg += `   👤 @${user.username || "N/A"}\n`;
+        msg += `   📱 ${user.phone || "N/A"}\n`;
+        msg += `   💰 Balance: ${balance}\n`;
+        msg += `   🆔 ID: ${user.telegramId}\n\n`;
 
         buttons.push([
           Markup.button.callback(
-            `${username}`,
-            `admin_user_${user.telegramId || user.id}`
+            `${user.firstName} ${user.lastName}`,
+            `admin_user_${user.telegramId}`
           ),
         ]);
-      });
+      }
 
       // Pagination buttons
       const navButtons = [];
       if (page > 1)
         navButtons.push(
-          Markup.button.callback("⬅️ Previous", `all_users_menu_${page - 1}`)
+          Markup.button.callback(
+            "⬅️ Previous",
+            `all_users_menu_${page - 1}${searchQuery ? `_${searchQuery}` : ""}`
+          )
         );
       if (page < totalPages)
         navButtons.push(
-          Markup.button.callback("➡️ Next", `all_users_menu_${page + 1}`)
+          Markup.button.callback(
+            "➡️ Next",
+            `all_users_menu_${page + 1}${searchQuery ? `_${searchQuery}` : ""}`
+          )
         );
       if (navButtons.length) buttons.push(navButtons);
 
@@ -1747,7 +1793,87 @@ class AdminHandlers {
   }
 
   async handleExportUsers(ctx) {
-    ctx.reply("Not implemented: handleExportUsers");
+    try {
+      if (!(await this.isAdminAsync(ctx.from.id)))
+        return ctx.reply(
+          t("msg__access_denied", {}, ctx.session?.language || "en")
+        );
+
+      // Get all users
+      const usersSnap = await databaseService.users().get();
+      const users = [];
+
+      for (const doc of usersSnap.docs) {
+        const user = doc.data();
+        users.push({
+          id: doc.id,
+          telegramId: user.telegramId || user.id,
+          firstName: user.firstName || user.first_name || "",
+          lastName: user.lastName || user.last_name || "",
+          username: user.username || "",
+          phone: user.phone_number || user.phone || "",
+          email: user.email || "",
+          role: user.role || "user",
+          isAdmin: user.isAdmin || false,
+          isBanned: user.isBanned || user.banned || false,
+          balance: user.referralBalance || user.coinBalance || 0,
+          createdAt: user.createdAt
+            ? new Date(user.createdAt).toISOString()
+            : "",
+          lastActive: user.last_active
+            ? new Date(user.last_active).toISOString()
+            : "",
+        });
+      }
+
+      // Create CSV content
+      let csvContent =
+        "ID,Telegram ID,First Name,Last Name,Username,Phone,Email,Role,Is Admin,Is Banned,Balance,Created At,Last Active\n";
+
+      users.forEach((user) => {
+        const row = [
+          user.id,
+          user.telegramId,
+          `"${user.firstName}"`,
+          `"${user.lastName}"`,
+          `"${user.username}"`,
+          `"${user.phone}"`,
+          `"${user.email}"`,
+          user.role,
+          user.isAdmin ? "Yes" : "No",
+          user.isBanned ? "Yes" : "No",
+          user.balance,
+          user.createdAt,
+          user.lastActive,
+        ].join(",");
+        csvContent += row + "\n";
+      });
+
+      // Create buffer and send as document
+      const buffer = Buffer.from(csvContent, "utf-8");
+
+      await ctx.reply("📊 *User Export Complete*", {
+        parse_mode: "Markdown",
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback("🔙 Back to Users", "admin_users_1")],
+        ]),
+      });
+
+      // Send the CSV file
+      await ctx.replyWithDocument({
+        source: buffer,
+        filename: `users_export_${new Date().toISOString().split("T")[0]}.csv`,
+        caption: `📊 User Export - ${
+          users.length
+        } users exported on ${new Date().toLocaleString()}`,
+      });
+
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    } catch (error) {
+      logger.error("Error exporting users:", error);
+      ctx.reply("❌ Failed to export users. Please try again.");
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    }
   }
 
   async handleExportCompanies(ctx) {

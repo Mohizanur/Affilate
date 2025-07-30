@@ -519,9 +519,16 @@ class CallbackHandlers {
           if (callbackData.startsWith("all_users_search")) {
             return adminHandlers.handleAllUsersSearch(ctx);
           }
+          if (callbackData === "admin_export_users") {
+            return adminHandlers.handleExportUsers(ctx);
+          }
           if (callbackData.startsWith("all_users_menu_")) {
-            const page = parseInt(callbackData.replace("all_users_menu_", ""));
-            return adminHandlers.handleAllUsersMenu(ctx, page);
+            const parts = callbackData
+              .replace("all_users_menu_", "")
+              .split("_");
+            const page = parseInt(parts[0]) || 1;
+            const searchQuery = parts.slice(1).join("_"); // Reconstruct search query
+            return adminHandlers.handleAllUsersMenu(ctx, page, searchQuery);
           }
           if (callbackData.startsWith("all_companies_search")) {
             return adminHandlers.handleAllCompaniesSearch(ctx);
