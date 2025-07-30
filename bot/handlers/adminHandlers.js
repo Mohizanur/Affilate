@@ -7,6 +7,8 @@ const userService = require("../services/userService");
 console.log("Loaded services/userService in adminHandlers");
 const companyService = require("../services/companyService");
 console.log("Loaded services/companyService in adminHandlers");
+const databaseService = require("../config/database");
+console.log("Loaded config/database in adminHandlers");
 const logger = require("../../utils/logger");
 console.log("Loaded utils/logger in adminHandlers");
 const referralService = require("../services/referralService");
@@ -664,8 +666,7 @@ class AdminHandlers {
           t("msg__access_denied", {}, ctx.session?.language || "en")
         );
 
-      ctx.session.searchType = "user";
-      ctx.session.waitingForSearch = true;
+      ctx.session.state = "awaiting_all_users_search";
 
       ctx.reply(
         t(

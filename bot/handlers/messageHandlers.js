@@ -90,7 +90,7 @@ class MessageHandlers {
         return userHandlers.handleMyReferralCodes(ctx);
       }
 
-      ctx.reply(t(ctx, "unknown_command"));
+      ctx.reply(t("msg__unknown_command", {}, ctx.session?.language || "en"));
     } catch (error) {
       logger.error("Error in handleTextMessage:", error);
       ctx.reply(
