@@ -139,6 +139,43 @@ async function startBot(app) {
       new LocalSession({ database: "./temp/session_db.json" }).middleware()
     );
 
+    // Add maintenance mode middleware
+    bot.use(async (ctx, next) => {
+      try {
+        // Skip maintenance check for admin commands
+        if (ctx.message?.text?.startsWith('/admin')) {
+          return next();
+        }
+
+        // Check if maintenance mode is enabled
+        const adminService = require('./services/adminService');
+        const settings = await adminService.getPlatformSettings();
+        
+        if (settings.maintenanceMode) {
+          // Check if user is admin
+          const userService = require('./services/userService');
+          const user = await userService.userService.getUserByTelegramId(ctx.from.id);
+          
+          if (!user || (user.role !== 'admin' && !user.isAdmin)) {
+            // Block non-admin users during maintenance
+            return ctx.reply(
+              `🔧 *System Maintenance*\n\n` +
+              `We're currently performing system maintenance.\n` +
+              `Please try again later.\n\n` +
+              `Thank you for your patience!`,
+              { parse_mode: 'Markdown' }
+            );
+          }
+        }
+        
+        return next();
+      } catch (error) {
+        console.error('Error in maintenance middleware:', error);
+        // Continue to next middleware on error
+        return next();
+      }
+    });
+
     console.log("📦 Registering bot handlers...");
     try {
       console.log("Before registerHandlers");

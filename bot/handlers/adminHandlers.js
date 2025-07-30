@@ -1293,20 +1293,20 @@ class AdminHandlers {
         // Pagination buttons
         const paginationButtons = [];
         if (page > 1) {
-          paginationButtons.push(
+          paginationButtons.push([
             Markup.button.callback(
               "⬅️ Previous",
               `platform_analytics_dashboard_${page - 1}`
-            )
-          );
+            ),
+          ]);
         }
         if (page < totalPages) {
-          paginationButtons.push(
+          paginationButtons.push([
             Markup.button.callback(
               "Next ➡️",
               `platform_analytics_dashboard_${page + 1}`
-            )
-          );
+            ),
+          ]);
         }
 
         // Action buttons
@@ -1319,7 +1319,7 @@ class AdminHandlers {
 
         // Add pagination buttons if they exist
         if (paginationButtons.length > 0) {
-          actionButtons.unshift(paginationButtons);
+          actionButtons.unshift(...paginationButtons);
         }
 
         ctx.reply(msg, {
