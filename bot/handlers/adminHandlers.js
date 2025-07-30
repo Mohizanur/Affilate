@@ -110,10 +110,7 @@ class AdminHandlers {
           ),
         ],
         [Markup.button.callback("⚙️ System Settings", "admin_settings")],
-        [
-          Markup.button.callback("📢 Broadcast", "admin_broadcast"),
-          Markup.button.callback("💾 Backup", "admin_backup"),
-        ],
+        [Markup.button.callback("📢 Broadcast", "admin_broadcast")],
       ];
 
       ctx.reply(message, {
@@ -1661,25 +1658,6 @@ class AdminHandlers {
           ctx.session?.language || "en"
         )
       );
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    }
-  }
-
-  async handleBackupSystem(ctx) {
-    try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply(
-          t("msg__access_denied", {}, ctx.session?.language || "en")
-        );
-
-      ctx.reply(
-        "❌ Backup system has been removed. Use the individual export functions instead:\n\n📊 Export Users: Use the Users menu\n🏢 Export Companies: Use the Companies menu"
-      );
-
-      if (ctx.callbackQuery) ctx.answerCbQuery();
-    } catch (error) {
-      logger.error("Error in backup system:", error);
-      ctx.reply("❌ Backup system unavailable.");
       if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }

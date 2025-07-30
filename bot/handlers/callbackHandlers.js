@@ -171,8 +171,6 @@ class CallbackHandlers {
           return adminHandlers.handleSystemSettings(ctx);
         case "admin_logs":
           return adminHandlers.handleSystemLogs(ctx);
-        case "admin_backup":
-          return adminHandlers.handleBackupSystem(ctx);
         case "admin_broadcast":
           return adminHandlers.handleBroadcast(ctx);
 
