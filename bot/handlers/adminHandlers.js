@@ -23,6 +23,30 @@ function toDateSafe(x) {
   return x instanceof Date ? x : null;
 }
 
+// Helper function to escape Markdown characters
+function escapeMarkdown(text) {
+  if (!text) return text;
+  return text
+    .replace(/_/g, "\\_")
+    .replace(/\*/g, "\\*")
+    .replace(/\[/g, "\\[")
+    .replace(/\]/g, "\\]")
+    .replace(/\(/g, "\\(")
+    .replace(/\)/g, "\\)")
+    .replace(/~/g, "\\~")
+    .replace(/`/g, "\\`")
+    .replace(/>/g, "\\>")
+    .replace(/#/g, "\\#")
+    .replace(/\+/g, "\\+")
+    .replace(/-/g, "\\-")
+    .replace(/=/g, "\\=")
+    .replace(/\|/g, "\\|")
+    .replace(/\{/g, "\\{")
+    .replace(/\}/g, "\\}")
+    .replace(/\./g, "\\.")
+    .replace(/!/g, "\\!");
+}
+
 class AdminHandlers {
   constructor() {
     this.adminIds = process.env.ADMIN_IDS
@@ -194,19 +218,21 @@ class AdminHandlers {
       let msg = `👤 *User Details*
 
 `;
-      msg += `📱 Name: ${user.firstName || user.first_name || "Unknown"} ${
-        user.lastName || user.last_name || ""
-      }
+      msg += `📱 Name: ${escapeMarkdown(
+        user.firstName || user.first_name || "Unknown"
+      )} ${escapeMarkdown(user.lastName || user.last_name || "")}
 `;
-      msg += `🆔 ID: ${user.telegramId || user.id}
+      msg += `🆔 ID: ${escapeMarkdown(user.telegramId || user.id)}
 `;
-      msg += `👤 Username: @${user.username || "N/A"}
+      msg += `👤 Username: @${escapeMarkdown(user.username || "N/A")}
 `;
-      msg += `📞 Phone: ${user.phone_number || user.phone || "N/A"}
+      msg += `📞 Phone: ${escapeMarkdown(
+        user.phone_number || user.phone || "N/A"
+      )}
 `;
       msg += `💰 Balance: $${(user.referralBalance || 0).toFixed(2)}
 `;
-      msg += `🎯 Role: ${user.role || "user"}
+      msg += `🎯 Role: ${escapeMarkdown(user.role || "user")}
 `;
       msg += `📅 Joined: ${
         toDateSafe(user.createdAt)
