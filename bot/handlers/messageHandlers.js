@@ -35,6 +35,7 @@ class MessageHandlers {
       return;
     }
     try {
+      const messageText = ctx.message.text;
       const telegramId = ctx.from.id;
       const user = await userService.userService.getUserByTelegramId(
         telegramId
