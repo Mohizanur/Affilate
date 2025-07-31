@@ -624,6 +624,9 @@ class AdminService {
 
   async getDashboardData() {
     try {
+      // Force cache invalidation to get fresh data
+      this.invalidateDashboardCache();
+      
       return await getCachedOrFetch(
         CACHE_KEYS.DASHBOARD_DATA,
         async () => {

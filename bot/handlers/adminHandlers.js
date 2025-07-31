@@ -1367,6 +1367,7 @@ class AdminHandlers {
       const { platformStats, companyAnalytics, recentUsers, systemAlerts } =
         dashboard;
       console.log(`🔍 Got ${companyAnalytics.length} companies from dashboard`);
+      console.log(`💰 [DEBUG] First company analytics data:`, JSON.stringify(companyAnalytics[0], null, 2));
 
       // Create beautiful header with emojis and formatting
       let msg = `🎯 *PLATFORM ANALYTICS DASHBOARD*\n`;
