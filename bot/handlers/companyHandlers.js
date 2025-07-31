@@ -1008,60 +1008,60 @@ ${referralData.topReferrers
 
   async handleSellProductStep(ctx) {
     try {
-    const step = ctx.session.sellProductStep;
-    const text = ctx.message.text;
-    const userLanguage =
-      ctx.session?.language || ctx.from.language_code || "en";
+      const step = ctx.session.sellProductStep;
+      const text = ctx.message.text;
+      const userLanguage =
+        ctx.session?.language || ctx.from.language_code || "en";
 
       if (!ctx.session.sellProductData) {
         ctx.session.sellProductData = {};
       }
 
-    switch (step) {
-      case "search":
-        // Search products for this company
-        const company = await companyService.getCompanyByTelegramId(
-          ctx.from.id
-        );
-        const products = await companyService.getCompanyProducts(company.id);
-        const matches = products.filter((p) =>
-          p.title.toLowerCase().includes(text.toLowerCase())
-        );
-        if (!matches.length)
-          return ctx.reply(
-            t("msg__no_products_found_try_another_keyword", {}, userLanguage)
+      switch (step) {
+        case "search":
+          // Search products for this company
+          const company = await companyService.getCompanyByTelegramId(
+            ctx.from.id
           );
-        ctx.session.sellProductData.matches = matches;
-        ctx.session.sellProductStep = "select";
-        let msg = "Select a product to sell:\n";
-        matches.forEach((p, i) => {
-          msg += `${i + 1}. ${p.title} ($${p.price}) - Qty: ${
-            p.quantity ?? "N/A"
-          }\n`;
-        });
-        ctx.reply(msg + "\nSend the product number:");
-        break;
-      case "select":
-        const idx = parseInt(text) - 1;
-        const matchList = ctx.session.sellProductData.matches || [];
-        if (isNaN(idx) || idx < 0 || idx >= matchList.length)
-          return ctx.reply(t("msg__invalid_selection", {}, userLanguage));
-        ctx.session.sellProductData.product = matchList[idx];
-        ctx.session.sellProductStep = "buyer_username";
-        ctx.reply(
-          t("msg_enter_buyer_telegram_username_without_", {}, userLanguage)
-        );
-        break;
-      case "buyer_username":
+          const products = await companyService.getCompanyProducts(company.id);
+          const matches = products.filter((p) =>
+            p.title.toLowerCase().includes(text.toLowerCase())
+          );
+          if (!matches.length)
+            return ctx.reply(
+              t("msg__no_products_found_try_another_keyword", {}, userLanguage)
+            );
+          ctx.session.sellProductData.matches = matches;
+          ctx.session.sellProductStep = "select";
+          let msg = "Select a product to sell:\n";
+          matches.forEach((p, i) => {
+            msg += `${i + 1}. ${p.title} ($${p.price}) - Qty: ${
+              p.quantity ?? "N/A"
+            }\n`;
+          });
+          ctx.reply(msg + "\nSend the product number:");
+          break;
+        case "select":
+          const idx = parseInt(text) - 1;
+          const matchList = ctx.session.sellProductData.matches || [];
+          if (isNaN(idx) || idx < 0 || idx >= matchList.length)
+            return ctx.reply(t("msg__invalid_selection", {}, userLanguage));
+          ctx.session.sellProductData.product = matchList[idx];
+          ctx.session.sellProductStep = "buyer_username";
+          ctx.reply(
+            t("msg_enter_buyer_telegram_username_without_", {}, userLanguage)
+          );
+          break;
+        case "buyer_username":
           // Validate username format
           if (!text.startsWith("@")) {
             return ctx.reply(
               t(
                 "msg__please_enter_a_valid_username_starting_with",
-            {},
-            userLanguage
-          )
-        );
+                {},
+                userLanguage
+              )
+            );
           }
           ctx.session.sellProductData.buyerUsername = text;
           ctx.session.sellProductStep = "quantity";
@@ -1096,8 +1096,8 @@ ${referralData.topReferrers
             ctx.session.sellProductData.quantity *
             ctx.session.sellProductData.price;
 
-        ctx.reply(
-          t(
+          ctx.reply(
+            t(
               "msg__sale_summary",
               {
                 product: ctx.session.sellProductData.product.title,
@@ -1106,7 +1106,7 @@ ${referralData.topReferrers
                 price: ctx.session.sellProductData.price,
                 total: total,
               },
-            userLanguage
+              userLanguage
             ),
             {
               parse_mode: "Markdown",
@@ -1116,9 +1116,9 @@ ${referralData.topReferrers
               ]),
             }
           );
-        break;
+          break;
 
-      default:
+        default:
           ctx.reply(t("msg__invalid_step_please_try_again", {}, userLanguage));
           break;
       }
@@ -1353,9 +1353,14 @@ ${referralData.topReferrers
       const telegramId = ctx.from.id;
       const userLanguage = ctx.session?.language || "en";
 
+      console.log(`[DEBUG] handleCompanyDenyWithdrawal called for user ${telegramId}`);
+
       // Get company owned by this user
       const company = await companyService.getCompanyByTelegramId(telegramId);
+      console.log(`[DEBUG] Company lookup result:`, company);
+      
       if (!company) {
+        console.log(`[DEBUG] No company found for user ${telegramId}`);
         return ctx.reply(
           t("msg__you_are_not_registered_as_a_company", {}, userLanguage)
         );
@@ -1382,6 +1387,7 @@ ${referralData.topReferrers
 
       if (ctx.callbackQuery) ctx.answerCbQuery();
     } catch (error) {
+      console.log(`[DEBUG] Error in handleCompanyDenyWithdrawal:`, error);
       logger.error("Error denying company withdrawal:", error);
       ctx.reply("❌ Failed to deny withdrawal.");
       if (ctx.callbackQuery) ctx.answerCbQuery();
@@ -1393,6 +1399,11 @@ ${referralData.topReferrers
       const telegramId = ctx.from.id;
       const userLanguage = ctx.session?.language || "en";
 
+      console.log(
+        `[DEBUG] handleCompanyDenyWithdrawalReason called for user ${telegramId}`
+      );
+      console.log(`[DEBUG] Session data:`, JSON.stringify(ctx.session));
+
       const reason = ctx.message.text;
       if (!reason || reason.trim().length < 3) {
         return ctx.reply(
@@ -1401,12 +1412,19 @@ ${referralData.topReferrers
       }
 
       const withdrawalId = ctx.session.denyWithdrawalId;
+      console.log(`[DEBUG] Withdrawal ID: ${withdrawalId}`);
 
       const adminService = require("../services/adminService");
+      console.log(`[DEBUG] Calling adminService.companyDenyWithdrawal`);
+
       await adminService.companyDenyWithdrawal(
         withdrawalId,
         telegramId,
         reason
+      );
+
+      console.log(
+        `[DEBUG] adminService.companyDenyWithdrawal completed successfully`
       );
 
       // Clear session
@@ -1430,6 +1448,7 @@ ${referralData.topReferrers
         }
       );
     } catch (error) {
+      console.log(`[DEBUG] Error in handleCompanyDenyWithdrawalReason:`, error);
       logger.error("Error processing denial reason:", error);
       ctx.reply("❌ Failed to deny withdrawal.");
     }
