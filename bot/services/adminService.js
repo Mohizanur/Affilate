@@ -97,9 +97,8 @@ class AdminService {
     try {
       const companiesSnap = await databaseService.companies().get();
 
-      const analytics = [];
-
-      for (const doc of companiesSnap.docs) {
+      // Process all companies in parallel for better performance
+      const analyticsPromises = companiesSnap.docs.map(async (doc) => {
         const company = doc.data();
         const companyId = doc.id;
 
@@ -133,7 +132,7 @@ class AdminService {
           }
         }
 
-        // Calculate platform fees and lifetime revenue
+        // Calculate platform fees and lifetime revenue in parallel
         const [platformFees, lifetimeRevenue] = await Promise.all([
           this.calculateCompanyPlatformFees(companyId),
           this.calculateCompanyLifetimeRevenue(companyId),
@@ -141,7 +140,7 @@ class AdminService {
 
         const withdrawable = company.billingBalance || 0;
 
-        analytics.push({
+        return {
           id: companyId,
           name: company.name,
           ownerUsername: company.ownerUsername || company.telegramId,
@@ -152,8 +151,11 @@ class AdminService {
           hasWithdrawable: withdrawable > 0,
           status: company.status || "pending",
           createdAt: company.createdAt,
-        });
-      }
+        };
+      });
+
+      // Wait for all company analytics to complete
+      const analytics = await Promise.all(analyticsPromises);
 
       return analytics;
     } catch (error) {
@@ -550,14 +552,19 @@ class AdminService {
 
   async getDashboardData() {
     try {
-      const [platformStats, companyAnalytics, recentUsers, systemAlerts, quickStats] =
-        await Promise.all([
-          this.getPlatformStats(),
-          this.getCompanyAnalytics(),
-          userService.getRecentUsers(5),
-          this.getSystemAlerts(),
-          this.getQuickStats(), // Now included in parallel calls!
-        ]);
+      const [
+        platformStats,
+        companyAnalytics,
+        recentUsers,
+        systemAlerts,
+        quickStats,
+      ] = await Promise.all([
+        this.getPlatformStats(),
+        this.getCompanyAnalytics(),
+        userService.getRecentUsers(5),
+        this.getSystemAlerts(),
+        this.getQuickStats(), // Now included in parallel calls!
+      ]);
 
       return {
         platformStats,
@@ -1127,36 +1134,46 @@ class AdminService {
     try {
       // Get all companies and calculate platform fees from actual transactions
       const companiesSnap = await databaseService.companies().get();
-      let totalPlatformFees = 0;
-      let totalWithdrawable = 0;
-      let totalLifetimeRevenue = 0;
 
-      const companyStats = [];
-
-      for (const doc of companiesSnap.docs) {
+      // Process all companies in parallel for better performance
+      const companyStatsPromises = companiesSnap.docs.map(async (doc) => {
         const company = doc.data();
         const companyId = doc.id;
 
-        // Calculate actual platform fees from referrals and transactions
-        const platformFees = await this.calculateCompanyPlatformFees(companyId);
+        // Calculate actual platform fees from referrals and transactions in parallel
+        const [platformFees, lifetimeRevenue] = await Promise.all([
+          this.calculateCompanyPlatformFees(companyId),
+          this.calculateCompanyLifetimeRevenue(companyId),
+        ]);
+
         const withdrawable = company.billingBalance || 0;
-        const lifetimeRevenue = await this.calculateCompanyLifetimeRevenue(
-          companyId
-        );
 
-        totalPlatformFees += platformFees;
-        totalWithdrawable += withdrawable;
-        totalLifetimeRevenue += lifetimeRevenue;
-
-        companyStats.push({
+        return {
           id: companyId,
           name: company.name,
           platformFees,
           withdrawable,
           lifetimeRevenue,
           hasWithdrawable: withdrawable > 0,
-        });
-      }
+        };
+      });
+
+      // Wait for all company stats to complete
+      const companyStats = await Promise.all(companyStatsPromises);
+
+      // Calculate totals
+      const totalPlatformFees = companyStats.reduce(
+        (sum, stat) => sum + stat.platformFees,
+        0
+      );
+      const totalWithdrawable = companyStats.reduce(
+        (sum, stat) => sum + stat.withdrawable,
+        0
+      );
+      const totalLifetimeRevenue = companyStats.reduce(
+        (sum, stat) => sum + stat.lifetimeRevenue,
+        0
+      );
 
       return {
         totalPlatformFees,
