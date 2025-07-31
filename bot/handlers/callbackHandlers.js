@@ -106,6 +106,13 @@ class CallbackHandlers {
         const userId = callbackData.replace("unban_user_", "");
         return adminHandlers.handleUnbanUser(ctx, userId);
       }
+      // Handle Add Billing Balance dynamic callback
+      if (callbackData.startsWith("add_billing_balance_")) {
+        const companyId = callbackData.replace("add_billing_balance_", "");
+        console.log("🔍 add_billing_balance_ callback received");
+        console.log(`🔍 Company ID extracted: ${companyId}`);
+        return adminHandlers.handleAddCompanyBillingBalance(ctx, companyId);
+      }
       // Remove from Favorites and Cart handlers
       if (callbackData.startsWith("remove_favorite_")) {
         const productId = callbackData.replace("remove_favorite_", "");
@@ -204,11 +211,6 @@ class CallbackHandlers {
             "🔍 admin_withdrawals callback received, calling handlePendingCompanyWithdrawals"
           );
           return adminHandlers.handlePendingCompanyWithdrawals(ctx);
-        case "add_billing_balance_":
-          console.log("🔍 add_billing_balance_ callback received");
-          const companyId = callbackData.replace("add_billing_balance_", "");
-          console.log(`🔍 Company ID extracted: ${companyId}`);
-          return adminHandlers.handleAddCompanyBillingBalance(ctx, companyId);
         case "platform_withdrawals":
           return adminHandlers.handlePlatformWithdrawals(ctx);
         case "platform_withdrawal_request":
