@@ -98,10 +98,18 @@ class MessageHandlers {
         return adminHandlers.handleCompanyWithdrawalReason(ctx);
       }
       if (ctx.session && ctx.session.denyWithdrawalStep === "reason") {
+        console.log(`[DEBUG] denyWithdrawalStep condition met`);
+        console.log(`[DEBUG] denyWithdrawalId:`, ctx.session.denyWithdrawalId);
         // Check if it's a company withdrawal denial
         if (ctx.session.denyWithdrawalId) {
+          console.log(
+            `[DEBUG] Calling companyHandlers.handleCompanyDenyWithdrawalReason`
+          );
           return companyHandlers.handleCompanyDenyWithdrawalReason(ctx);
         } else {
+          console.log(
+            `[DEBUG] Calling adminHandlers.handleDenyPlatformWithdrawalReason`
+          );
           return adminHandlers.handleDenyPlatformWithdrawalReason(ctx);
         }
       }
