@@ -150,6 +150,7 @@ class AdminHandlers {
           role: user.role || "user",
           isAdmin: user.isAdmin || false,
           isBanned: user.isBanned || user.banned || false,
+          isVerified: user.phone_verified || user.phoneVerified || false,
           balance: user.referralBalance || user.coinBalance || 0,
           createdAt: user.createdAt,
         };
@@ -192,7 +193,9 @@ class AdminHandlers {
           ? "❌ Banned"
           : user.isAdmin
           ? "👑 Admin"
-          : "✅ Active";
+          : user.isVerified
+          ? "✅ Verified"
+          : "⏳ Unverified";
         const balance = user.balance ? `$${user.balance.toFixed(2)}` : "$0.00";
 
         msg += `${start + index + 1}. ${status} *${user.firstName} ${
@@ -292,6 +295,10 @@ class AdminHandlers {
       }
 `;
       msg += `🚫 Banned: ${user.isBanned ? "✅ Yes" : "❌ No"}
+`;
+      msg += `📱 Verified: ${
+        user.phone_verified || user.phoneVerified ? "✅ Yes" : "❌ No"
+      }
 `;
 
       const buttons = [
@@ -568,7 +575,9 @@ class AdminHandlers {
       const usersWithBalance = users.filter(
         (u) => (u.referralBalance || 0) > 0
       ).length;
-      const verifiedUsers = users.filter((u) => u.phoneVerified).length;
+      const verifiedUsers = users.filter(
+        (u) => u.phone_verified || u.phoneVerified
+      ).length;
       const adminUsers = users.filter((u) => u.role === "admin").length;
 
       // Create beautiful header with emojis and formatting
