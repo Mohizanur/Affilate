@@ -1364,7 +1364,7 @@ class AdminHandlers {
 
       try {
         totalLifetimeWithdrawn =
-        await adminService.calculateTotalLifetimeWithdrawn();
+          await adminService.calculateTotalLifetimeWithdrawn();
       } catch (error) {
         logger.error("Error calculating lifetime withdrawn:", error);
       }
@@ -2850,7 +2850,7 @@ class AdminHandlers {
 
       try {
         totalLifetimeWithdrawn =
-        await adminService.calculateTotalLifetimeWithdrawn();
+          await adminService.calculateTotalLifetimeWithdrawn();
       } catch (error) {
         logger.error("Error calculating lifetime withdrawn:", error);
       }
@@ -4446,7 +4446,7 @@ class AdminHandlers {
       ctx.reply(
         `💰 *Platform Withdrawal Request*\n\n` +
           `Available amount: *$${platformWithdrawable.withdrawable.toFixed(
-          2
+            2
           )}*\n\n` +
           `Please enter the withdrawal amount:`,
         {
@@ -5161,39 +5161,53 @@ class AdminHandlers {
 
   async handleConfirmCompanyWithdrawal(ctx, withdrawalId) {
     try {
-      if (!(await this.isAdminAsync(ctx.from.id)))
-        return ctx.reply(
-          t("msg__access_denied", {}, ctx.session?.language || "en")
-        );
+      const telegramId = ctx.from.id;
 
-      const result = await adminService.adminConfirmWithdrawal(
-        withdrawalId,
-        ctx.from.id
+      // Call the admin service to confirm the withdrawal
+      await adminService.adminConfirmWithdrawal(withdrawalId, telegramId);
+
+      await ctx.reply(
+        `✅ *Withdrawal Confirmed*\n\n` +
+          `The withdrawal has been processed and the company balance has been updated.`
       );
 
-      ctx.reply(
-        `💰 *Withdrawal Confirmed and Processed*\n\n` +
-          `Amount: *$${result.withdrawalAmount.toFixed(2)}*\n` +
-          `New Balance: *$${result.newBalance.toFixed(2)}*\n\n` +
-          `The withdrawal has been completed and the company balance has been updated.`,
-        {
-          parse_mode: "Markdown",
-          reply_markup: Markup.inlineKeyboard([
-            [
-              Markup.button.callback(
-                "🔙 Back to Withdrawals",
-                "pending_company_withdrawals"
-              ),
-            ],
-          ]),
-        }
-      );
-
-      if (ctx.callbackQuery) ctx.answerCbQuery();
+      // Refresh the dashboard to show updated balances
+      await this.handlePlatformAnalyticsDashboard(ctx);
     } catch (error) {
       logger.error("Error confirming company withdrawal:", error);
-      ctx.reply("❌ Failed to confirm withdrawal.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
+      await ctx.reply(
+        `❌ *Error Confirming Withdrawal*\n\n` +
+          `An error occurred while processing the withdrawal: ${error.message}`
+      );
+    }
+  }
+
+  async handleRejectCompanyWithdrawal(ctx, withdrawalId) {
+    try {
+      const telegramId = ctx.from.id;
+
+      // Update withdrawal status to rejected
+      const withdrawalRef = databaseService
+        .getDb()
+        .collection("company_withdrawal_requests")
+        .doc(withdrawalId);
+
+      await withdrawalRef.update({
+        status: "admin_rejected",
+        rejectedBy: telegramId,
+        rejectedAt: new Date(),
+      });
+
+      await ctx.reply(
+        `❌ *Withdrawal Rejected*\n\n` +
+          `The withdrawal request has been rejected and will not be processed.`
+      );
+    } catch (error) {
+      logger.error("Error rejecting company withdrawal:", error);
+      await ctx.reply(
+        `❌ *Error Rejecting Withdrawal*\n\n` +
+          `An error occurred while rejecting the withdrawal: ${error.message}`
+      );
     }
   }
 

@@ -102,6 +102,20 @@ class CallbackHandlers {
         );
         return companyHandlers.handleCompanyDenyWithdrawal(ctx, withdrawalId);
       }
+      if (callbackData.startsWith("confirm_company_withdrawal_")) {
+        const withdrawalId = callbackData.replace(
+          "confirm_company_withdrawal_",
+          ""
+        );
+        return adminHandlers.handleConfirmCompanyWithdrawal(ctx, withdrawalId);
+      }
+      if (callbackData.startsWith("reject_company_withdrawal_")) {
+        const withdrawalId = callbackData.replace(
+          "reject_company_withdrawal_",
+          ""
+        );
+        return adminHandlers.handleRejectCompanyWithdrawal(ctx, withdrawalId);
+      }
       // Add to Favorites and Add to Cart handlers
       if (callbackData.startsWith("add_favorite_")) {
         const productId = callbackData.replace("add_favorite_", "");

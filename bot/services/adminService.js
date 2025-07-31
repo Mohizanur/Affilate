@@ -2102,10 +2102,15 @@ class AdminService {
       } = require("./notificationService");
       const notificationService = getNotificationServiceInstance();
 
-      for (const admin of admins) {
-        if (admin.telegramId !== approvedBy) {
+      // Get unique admin IDs to prevent duplicates
+      const uniqueAdminIds = [
+        ...new Set(admins.map((admin) => admin.telegramId)),
+      ];
+
+      for (const adminId of uniqueAdminIds) {
+        if (adminId !== approvedBy) {
           await notificationService.sendNotification(
-            admin.telegramId,
+            adminId,
             `✅ *Company Withdrawal Approved*\n\n` +
               `Company: ${withdrawal.companyName}\n` +
               `Amount: *$${withdrawal.amount.toFixed(2)}*\n` +
@@ -2116,6 +2121,22 @@ class AdminService {
               type: "company_withdrawal",
               action: "admin_confirmation",
               withdrawalId,
+            },
+            {
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    {
+                      text: "✅ Confirm Receipt",
+                      callback_data: `confirm_company_withdrawal_${withdrawalId}`,
+                    },
+                    {
+                      text: "❌ Reject",
+                      callback_data: `reject_company_withdrawal_${withdrawalId}`,
+                    },
+                  ],
+                ],
+              },
             }
           );
         }
@@ -2160,9 +2181,14 @@ class AdminService {
       const notificationService =
         require("./notificationService").getNotificationServiceInstance();
 
-      for (const admin of admins) {
+      // Get unique admin IDs to prevent duplicates
+      const uniqueAdminIds = [
+        ...new Set(admins.map((admin) => admin.telegramId)),
+      ];
+
+      for (const adminId of uniqueAdminIds) {
         await notificationService.sendNotification(
-          admin.telegramId,
+          adminId,
           `❌ *Company Withdrawal Denied*\n\n` +
             `Company: ${withdrawal.companyName}\n` +
             `Amount: *$${withdrawal.amount.toFixed(2)}*\n` +
