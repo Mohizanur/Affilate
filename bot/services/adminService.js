@@ -1971,7 +1971,10 @@ class AdminService {
             adminUsername = `Admin ${adminUser.firstName}`;
           }
         } catch (error) {
-          logger.warn(`Could not get admin username for ${requestedBy}:`, error);
+          logger.warn(
+            `Could not get admin username for ${requestedBy}:`,
+            error
+          );
         }
 
         await notificationService.sendNotification(
@@ -2094,7 +2097,7 @@ class AdminService {
 
       // Notify admins about the approval
       const admins = await this.getAdminUsers();
-      const notificationService = require("./notificationService");
+      const notificationService = getNotificationServiceInstance();
 
       for (const admin of admins) {
         if (admin.telegramId !== approvedBy) {
@@ -2151,7 +2154,7 @@ class AdminService {
 
       // Notify admins about the denial
       const admins = await this.getAdminUsers();
-      const notificationService = require("./notificationService");
+      const notificationService = getNotificationServiceInstance();
 
       for (const admin of admins) {
         await notificationService.sendNotification(
@@ -2232,7 +2235,7 @@ class AdminService {
       );
 
       // Notify company owner
-      const notificationService = require("./notificationService");
+      const notificationService = getNotificationServiceInstance();
       await notificationService.sendNotification(
         company.telegramId,
         `💰 *Withdrawal Processed*\n\n` +
