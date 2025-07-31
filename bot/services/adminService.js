@@ -2084,6 +2084,13 @@ class AdminService {
         throw new Error("Withdrawal request is not pending");
       }
 
+      // Get the username of the approver
+      const userService = require("./userService").userService;
+      const approverUser = await userService.getUserByTelegramId(approvedBy);
+      const approverUsername = approverUser?.username
+        ? `@${approverUser.username}`
+        : approvedBy;
+
       // Update withdrawal status to approved
       await withdrawalRef.update({
         status: "company_approved",
@@ -2115,14 +2122,13 @@ class AdminService {
               `Company: ${withdrawal.companyName}\n` +
               `Amount: *$${withdrawal.amount.toFixed(2)}*\n` +
               `Reason: ${withdrawal.reason}\n` +
-              `Approved by: ${approvedBy}\n\n` +
+              `Approved by: ${approverUsername}\n\n` +
               `Please confirm receipt and process the withdrawal.`,
             {
               type: "company_withdrawal",
               action: "admin_confirmation",
               withdrawalId,
-            },
-            {
+              parse_mode: "Markdown",
               reply_markup: {
                 inline_keyboard: [
                   [
@@ -2166,6 +2172,13 @@ class AdminService {
         throw new Error("Withdrawal request is not pending");
       }
 
+      // Get the username of the denier
+      const userService = require("./userService").userService;
+      const denierUser = await userService.getUserByTelegramId(deniedBy);
+      const denierUsername = denierUser?.username
+        ? `@${denierUser.username}`
+        : deniedBy;
+
       // Update withdrawal status to denied
       await withdrawalRef.update({
         status: "company_denied",
@@ -2193,12 +2206,13 @@ class AdminService {
             `Company: ${withdrawal.companyName}\n` +
             `Amount: *$${withdrawal.amount.toFixed(2)}*\n` +
             `Reason: ${withdrawal.reason}\n` +
-            `Denied by: ${deniedBy}\n` +
+            `Denied by: ${denierUsername}\n` +
             `Denial reason: ${reason}`,
           {
             type: "company_withdrawal",
             action: "denied",
             withdrawalId,
+            parse_mode: "Markdown",
           }
         );
       }
