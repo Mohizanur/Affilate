@@ -1348,33 +1348,25 @@ class AdminHandlers {
         );
 
       const ITEMS_PER_PAGE = 3;
-      console.log(`🔍 Getting dashboard data...`);
-      const dashboard = await adminService.getDashboardData();
+      console.log(`🔍 Getting dashboard data in parallel...`);
+
+      // Make all database calls in parallel for better performance
+      const [dashboard, totalLifetimeWithdrawn, platformWithdrawable] =
+        await Promise.all([
+          adminService.getDashboardData(),
+          adminService.calculateTotalLifetimeWithdrawn().catch((error) => {
+            logger.error("Error calculating lifetime withdrawn:", error);
+            return 0;
+          }),
+          adminService.getPlatformWithdrawableAmount().catch((error) => {
+            logger.error("Error getting platform withdrawable amount:", error);
+            return { totalBalance: 0, pendingWithdrawals: 0, withdrawable: 0 };
+          }),
+        ]);
+
       const { platformStats, companyAnalytics, recentUsers, systemAlerts } =
         dashboard;
       console.log(`🔍 Got ${companyAnalytics.length} companies from dashboard`);
-
-      // Calculate total lifetime withdrawn and platform withdrawable amount
-      let totalLifetimeWithdrawn = 0;
-      let platformWithdrawable = {
-        totalBalance: 0,
-        pendingWithdrawals: 0,
-        withdrawable: 0,
-      };
-
-      try {
-        totalLifetimeWithdrawn =
-          await adminService.calculateTotalLifetimeWithdrawn();
-      } catch (error) {
-        logger.error("Error calculating lifetime withdrawn:", error);
-      }
-
-      try {
-        platformWithdrawable =
-          await adminService.getPlatformWithdrawableAmount();
-      } catch (error) {
-        logger.error("Error getting platform withdrawable amount:", error);
-      }
 
       // Create beautiful header with emojis and formatting
       let msg = `🎯 *PLATFORM ANALYTICS DASHBOARD*\n`;
@@ -1428,7 +1420,8 @@ class AdminHandlers {
         // Initialize action buttons array
         const actionButtons = [];
 
-        console.log(`🔍 Processing ${sortedCompanies.length} companies...`);
+        console.log(`🔍 Processing ${sortedCompanies.length} companies efficiently...`);
+        // Process companies efficiently
         sortedCompanies.forEach((company, index) => {
           console.log(
             `🔍 Processing company ${index + 1}: ${
@@ -2834,33 +2827,25 @@ class AdminHandlers {
         );
 
       const ITEMS_PER_PAGE = 3;
-      console.log(`🔍 Getting dashboard data...`);
-      const dashboard = await adminService.getDashboardData();
+      console.log(`🔍 Getting dashboard data in parallel...`);
+
+      // Make all database calls in parallel for better performance
+      const [dashboard, totalLifetimeWithdrawn, platformWithdrawable] =
+        await Promise.all([
+          adminService.getDashboardData(),
+          adminService.calculateTotalLifetimeWithdrawn().catch((error) => {
+            logger.error("Error calculating lifetime withdrawn:", error);
+            return 0;
+          }),
+          adminService.getPlatformWithdrawableAmount().catch((error) => {
+            logger.error("Error getting platform withdrawable amount:", error);
+            return { totalBalance: 0, pendingWithdrawals: 0, withdrawable: 0 };
+          }),
+        ]);
+
       const { platformStats, companyAnalytics, recentUsers, systemAlerts } =
         dashboard;
       console.log(`🔍 Got ${companyAnalytics.length} companies from dashboard`);
-
-      // Calculate total lifetime withdrawn and platform withdrawable amount
-      let totalLifetimeWithdrawn = 0;
-      let platformWithdrawable = {
-        totalBalance: 0,
-        pendingWithdrawals: 0,
-        withdrawable: 0,
-      };
-
-      try {
-        totalLifetimeWithdrawn =
-          await adminService.calculateTotalLifetimeWithdrawn();
-      } catch (error) {
-        logger.error("Error calculating lifetime withdrawn:", error);
-      }
-
-      try {
-        platformWithdrawable =
-          await adminService.getPlatformWithdrawableAmount();
-      } catch (error) {
-        logger.error("Error getting platform withdrawable amount:", error);
-      }
 
       // Create beautiful header with emojis and formatting
       let msg = `🎯 *PLATFORM ANALYTICS DASHBOARD*\n`;
@@ -2914,7 +2899,8 @@ class AdminHandlers {
         // Initialize action buttons array
         const actionButtons = [];
 
-        console.log(`🔍 Processing ${sortedCompanies.length} companies...`);
+        console.log(`🔍 Processing ${sortedCompanies.length} companies efficiently...`);
+        // Process companies efficiently
         sortedCompanies.forEach((company, index) => {
           console.log(
             `🔍 Processing company ${index + 1}: ${
