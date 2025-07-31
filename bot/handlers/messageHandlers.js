@@ -98,7 +98,12 @@ class MessageHandlers {
         return adminHandlers.handleCompanyWithdrawalReason(ctx);
       }
       if (ctx.session && ctx.session.denyWithdrawalStep === "reason") {
-        return companyHandlers.handleCompanyDenyWithdrawalReason(ctx);
+        // Check if it's a company withdrawal denial
+        if (ctx.session.denyWithdrawalId) {
+          return companyHandlers.handleCompanyDenyWithdrawalReason(ctx);
+        } else {
+          return adminHandlers.handleDenyPlatformWithdrawalReason(ctx);
+        }
       }
 
       if (ctx.session && ctx.session.state) {
