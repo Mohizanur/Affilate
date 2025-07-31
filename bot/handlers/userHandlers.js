@@ -132,10 +132,26 @@ class UserHandlers {
       // Get user's language preference
       const userLanguage = ctx.session?.language || user.language || "en";
 
+      // Get dynamic settings from admin
+      const adminService = require("../services/adminService");
+      const settings = await adminService.getPlatformSettings();
+
+      const platformFeePercent = settings.platformFeePercent || 1.5;
+      const referralCommissionPercent =
+        settings.referralCommissionPercent || 2.5;
+      const buyerDiscountPercent = settings.referralDiscountPercent || 1.0;
+
       const welcomeMessage =
         t("welcome", {}, userLanguage) +
         "\n\n" +
-        t("start_instructions", {}, userLanguage);
+        `1. Buy from any company and get a referral code\n` +
+        `2. Share your code (single-use, per company)\n` +
+        `3. When someone uses your code and buys, you get ${referralCommissionPercent}% reward, they get ${buyerDiscountPercent}% discount\n` +
+        `4. Company must approve the purchase for rewards to be paid\n` +
+        `5. All rewards, discounts, and balances are automatic and visible in your profile\n` +
+        `6. Platform takes ${platformFeePercent}% fee, companies pay monthly\n` +
+        `7. Use /help for full details\n\n` +
+        `Let's get started! 👇`;
 
       let buttons = [];
       // Only show company/product options if user.canRegisterCompany is true or user.isCompanyOwner === true
@@ -1425,6 +1441,63 @@ class UserHandlers {
       );
       const userLanguage = ctx.session?.language || user?.language || "en";
 
+      // Get dynamic settings from admin
+      const adminService = require("../services/adminService");
+      const settings = await adminService.getPlatformSettings();
+
+      const platformFeePercent = settings.platformFeePercent || 1.5;
+      const referralCommissionPercent =
+        settings.referralCommissionPercent || 2.5;
+      const buyerDiscountPercent = settings.referralDiscountPercent || 1.0;
+      const minWithdrawalAmount = settings.minWithdrawalAmount || 10;
+
+      const helpMessage = `🤖 *How ReferralBot Works*
+
+📋 *Step-by-Step Guide:*
+
+1️⃣ **Get Referral Code**
+   • Buy from any company to get a unique referral code
+   • Each code is single-use and company-specific
+   • Codes expire after use
+
+2️⃣ **Share Your Code**
+   • Share your code with friends and family
+   • They can use it for their next purchase
+   • One code per purchase
+
+3️⃣ **Earn Rewards**
+   • When someone uses your code and buys: 
+     - You get ${referralCommissionPercent}% reward
+     - They get ${buyerDiscountPercent}% discount
+   • Rewards are automatic and visible in your profile
+
+4️⃣ **Company Approval**
+   • Company must approve the purchase
+   • Rewards are paid only after approval
+   • All transactions are transparent
+
+💰 *Financial Details:*
+• Platform Fee: ${platformFeePercent}% per sale
+• Referrer Commission: ${referralCommissionPercent}% 
+• Buyer Discount: ${buyerDiscountPercent}%
+• Minimum Withdrawal: $${minWithdrawalAmount}
+• Withdrawal Time: 3-5 business days
+
+🏢 *For Companies:*
+• Approve purchases to trigger rewards
+• See all referrals, stats, and payouts
+• All logic is automatic and transparent
+• Monthly platform fees apply
+
+⚠️ *Important Rules:*
+• No self-referral allowed
+• Codes are single-use only
+• Company approval required for rewards
+• All fees and percentages are transparent
+
+📞 *Need Help?*
+Contact @Nife777online for support`;
+
       const buttons = [
         [
           Markup.button.callback(
@@ -1450,7 +1523,7 @@ class UserHandlers {
         ],
       ];
 
-      ctx.reply(t("help", {}, userLanguage), {
+      ctx.reply(helpMessage, {
         parse_mode: "Markdown",
         ...Markup.inlineKeyboard(buttons),
       });
@@ -3936,9 +4009,12 @@ Toggle notifications:
 
   async handleCompanyReferralDetails(ctx, companyId, pageArg) {
     // Get user to get language
-    const user = await require("../services/userService").userService.getUserByTelegramId(ctx.from.id);
+    const user =
+      await require("../services/userService").userService.getUserByTelegramId(
+        ctx.from.id
+      );
     const userLanguage = user?.language || "en";
-    
+
     const referralService = require("../services/referralService");
     const stats = await referralService.getUserReferralStats(ctx.from.id);
     const data = stats.companyStats && stats.companyStats[companyId];

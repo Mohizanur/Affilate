@@ -412,7 +412,7 @@
   "msg_product_category": "msg_product_category",
   "msg_product_confirmation": "msg_product_confirmation",
   "msg_proof_uploaded": "msg_proof_uploaded",
-  "msg_referral_statistics": "msg_referral_statistics",
+  "msg_referral_statistics": "📊 *Referral Statistics*\n\n📈 *Total Referrals:* {{totalReferrals}}\n✅ *Verified:* {{verifiedReferrals}}\n💰 *Total Rewards:* ${{totalRewards}}\n📊 *Recent Activity:*\n{{recentActivity}}",
   "msg_reward_applied": "msg_reward_applied",
   "msg_select_field_to_edit": "msg_select_field_to_edit",
   "msg_share_code_instructions": "msg_share_code_instructions",

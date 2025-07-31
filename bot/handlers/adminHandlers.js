@@ -1420,7 +1420,9 @@ class AdminHandlers {
         // Initialize action buttons array
         const actionButtons = [];
 
-        console.log(`🔍 Processing ${sortedCompanies.length} companies efficiently...`);
+        console.log(
+          `🔍 Processing ${sortedCompanies.length} companies efficiently...`
+        );
         // Process companies efficiently
         sortedCompanies.forEach((company, index) => {
           console.log(
@@ -1464,17 +1466,6 @@ class AdminHandlers {
                   company.name
                 } ($${company.withdrawable.toFixed(2)})`,
                 `request_company_withdrawal_${company.id}`
-              ),
-            ]);
-          } else {
-            // Add test button for companies without withdrawable amounts
-            console.log(
-              `🧪 Adding test button for ${company.name} with $${company.withdrawable} withdrawable`
-            );
-            actionButtons.push([
-              Markup.button.callback(
-                `🧪 Add $100 Test Balance (${company.name})`,
-                `add_billing_balance_${company.id}`
               ),
             ]);
           }
@@ -1526,13 +1517,7 @@ class AdminHandlers {
             ),
           ],
           [Markup.button.callback("📊 User Analytics", "user_analytics")],
-          [Markup.button.callback("🔙 Back to Admin", "admin_panel")],
-          [
-            Markup.button.callback(
-              "🧪 Test Dashboard",
-              "platform_analytics_dashboard"
-            ),
-          ]
+          [Markup.button.callback("🔙 Back to Admin", "admin_panel")]
         );
 
         console.log(
@@ -2899,7 +2884,9 @@ class AdminHandlers {
         // Initialize action buttons array
         const actionButtons = [];
 
-        console.log(`🔍 Processing ${sortedCompanies.length} companies efficiently...`);
+        console.log(
+          `🔍 Processing ${sortedCompanies.length} companies efficiently...`
+        );
         // Process companies efficiently
         sortedCompanies.forEach((company, index) => {
           console.log(
@@ -2943,17 +2930,6 @@ class AdminHandlers {
                   company.name
                 } ($${company.withdrawable.toFixed(2)})`,
                 `request_company_withdrawal_${company.id}`
-              ),
-            ]);
-          } else {
-            // Add test button for companies without withdrawable amounts
-            console.log(
-              `🧪 Adding test button for ${company.name} with $${company.withdrawable} withdrawable`
-            );
-            actionButtons.push([
-              Markup.button.callback(
-                `🧪 Add $100 Test Balance (${company.name})`,
-                `add_billing_balance_${company.id}`
               ),
             ]);
           }
@@ -3005,13 +2981,7 @@ class AdminHandlers {
             ),
           ],
           [Markup.button.callback("📊 User Analytics", "user_analytics")],
-          [Markup.button.callback("🔙 Back to Admin", "admin_panel")],
-          [
-            Markup.button.callback(
-              "🧪 Test Dashboard",
-              "platform_analytics_dashboard"
-            ),
-          ]
+          [Markup.button.callback("🔙 Back to Admin", "admin_panel")]
         );
 
         console.log(
@@ -4586,7 +4556,25 @@ class AdminHandlers {
       const buttons = [];
 
       for (const withdrawal of pendingWithdrawals) {
-        const date = new Date(withdrawal.createdAt).toLocaleDateString();
+        // Fix date handling for Firestore timestamps
+        let date = "N/A";
+        if (withdrawal.createdAt) {
+          try {
+            if (withdrawal.createdAt.toDate) {
+              // Firestore timestamp
+              date = withdrawal.createdAt.toDate().toLocaleDateString();
+            } else if (withdrawal.createdAt instanceof Date) {
+              // JavaScript Date
+              date = withdrawal.createdAt.toLocaleDateString();
+            } else {
+              // String or number
+              date = new Date(withdrawal.createdAt).toLocaleDateString();
+            }
+          } catch (error) {
+            date = "N/A";
+          }
+        }
+        
         msg += `💰 *$${withdrawal.amount.toFixed(2)}*\n`;
         msg += `📝 Reason: ${withdrawal.reason}\n`;
         msg += `👤 Requested by: ${withdrawal.requestedBy}\n`;
