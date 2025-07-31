@@ -1008,60 +1008,60 @@ ${referralData.topReferrers
 
   async handleSellProductStep(ctx) {
     try {
-      const step = ctx.session.sellProductStep;
-      const text = ctx.message.text;
-      const userLanguage =
-        ctx.session?.language || ctx.from.language_code || "en";
+    const step = ctx.session.sellProductStep;
+    const text = ctx.message.text;
+    const userLanguage =
+      ctx.session?.language || ctx.from.language_code || "en";
 
       if (!ctx.session.sellProductData) {
         ctx.session.sellProductData = {};
       }
 
-      switch (step) {
-        case "search":
-          // Search products for this company
-          const company = await companyService.getCompanyByTelegramId(
-            ctx.from.id
+    switch (step) {
+      case "search":
+        // Search products for this company
+        const company = await companyService.getCompanyByTelegramId(
+          ctx.from.id
+        );
+        const products = await companyService.getCompanyProducts(company.id);
+        const matches = products.filter((p) =>
+          p.title.toLowerCase().includes(text.toLowerCase())
+        );
+        if (!matches.length)
+          return ctx.reply(
+            t("msg__no_products_found_try_another_keyword", {}, userLanguage)
           );
-          const products = await companyService.getCompanyProducts(company.id);
-          const matches = products.filter((p) =>
-            p.title.toLowerCase().includes(text.toLowerCase())
-          );
-          if (!matches.length)
-            return ctx.reply(
-              t("msg__no_products_found_try_another_keyword", {}, userLanguage)
-            );
-          ctx.session.sellProductData.matches = matches;
-          ctx.session.sellProductStep = "select";
-          let msg = "Select a product to sell:\n";
-          matches.forEach((p, i) => {
-            msg += `${i + 1}. ${p.title} ($${p.price}) - Qty: ${
-              p.quantity ?? "N/A"
-            }\n`;
-          });
-          ctx.reply(msg + "\nSend the product number:");
-          break;
-        case "select":
-          const idx = parseInt(text) - 1;
-          const matchList = ctx.session.sellProductData.matches || [];
-          if (isNaN(idx) || idx < 0 || idx >= matchList.length)
-            return ctx.reply(t("msg__invalid_selection", {}, userLanguage));
-          ctx.session.sellProductData.product = matchList[idx];
-          ctx.session.sellProductStep = "buyer_username";
-          ctx.reply(
-            t("msg_enter_buyer_telegram_username_without_", {}, userLanguage)
-          );
-          break;
-        case "buyer_username":
+        ctx.session.sellProductData.matches = matches;
+        ctx.session.sellProductStep = "select";
+        let msg = "Select a product to sell:\n";
+        matches.forEach((p, i) => {
+          msg += `${i + 1}. ${p.title} ($${p.price}) - Qty: ${
+            p.quantity ?? "N/A"
+          }\n`;
+        });
+        ctx.reply(msg + "\nSend the product number:");
+        break;
+      case "select":
+        const idx = parseInt(text) - 1;
+        const matchList = ctx.session.sellProductData.matches || [];
+        if (isNaN(idx) || idx < 0 || idx >= matchList.length)
+          return ctx.reply(t("msg__invalid_selection", {}, userLanguage));
+        ctx.session.sellProductData.product = matchList[idx];
+        ctx.session.sellProductStep = "buyer_username";
+        ctx.reply(
+          t("msg_enter_buyer_telegram_username_without_", {}, userLanguage)
+        );
+        break;
+      case "buyer_username":
           // Validate username format
           if (!text.startsWith("@")) {
             return ctx.reply(
               t(
                 "msg__please_enter_a_valid_username_starting_with",
-                {},
-                userLanguage
-              )
-            );
+            {},
+            userLanguage
+          )
+        );
           }
           ctx.session.sellProductData.buyerUsername = text;
           ctx.session.sellProductStep = "quantity";
@@ -1096,8 +1096,8 @@ ${referralData.topReferrers
             ctx.session.sellProductData.quantity *
             ctx.session.sellProductData.price;
 
-          ctx.reply(
-            t(
+        ctx.reply(
+          t(
               "msg__sale_summary",
               {
                 product: ctx.session.sellProductData.product.title,
@@ -1106,7 +1106,7 @@ ${referralData.topReferrers
                 price: ctx.session.sellProductData.price,
                 total: total,
               },
-              userLanguage
+            userLanguage
             ),
             {
               parse_mode: "Markdown",
@@ -1116,9 +1116,9 @@ ${referralData.topReferrers
               ]),
             }
           );
-          break;
+        break;
 
-        default:
+      default:
           ctx.reply(t("msg__invalid_step_please_try_again", {}, userLanguage));
           break;
       }

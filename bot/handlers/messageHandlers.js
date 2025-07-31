@@ -86,9 +86,6 @@ class MessageHandlers {
       if (ctx.session && ctx.session.platformWithdrawalStep === "reason") {
         return adminHandlers.handlePlatformWithdrawalReason(ctx);
       }
-      if (ctx.session && ctx.session.denyWithdrawalStep === "reason") {
-        return adminHandlers.handleDenyPlatformWithdrawalReason(ctx);
-      }
 
       // Company withdrawal handlers
       if (ctx.session && ctx.session.companyWithdrawalStep === "amount") {
