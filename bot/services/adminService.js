@@ -1649,23 +1649,30 @@ class AdminService {
         `Platform withdrawal request created: ${withdrawalRef.id} for $${amount}`
       );
 
-      // Notify all admins about the withdrawal request
-      const admins = await this.getAdminUsers();
-      const notificationService = require("./notificationService");
+      // Notify admins about the withdrawal request
+      const {
+        getNotificationServiceInstance,
+      } = require("./notificationService");
+      const notificationService = getNotificationServiceInstance();
 
-      for (const admin of admins) {
-        if (admin.telegramId !== requestedBy) {
-          await notificationService.sendNotification(
-            admin.telegramId,
-            `🔔 New Platform Withdrawal Request\n\nAmount: $${amount.toFixed(
-              2
-            )}\nReason: ${reason}\nRequested by: ${requestedBy}`,
-            {
-              type: "platform_withdrawal",
-              action: "approval",
-              withdrawalId: withdrawalRef.id,
-            }
-          );
+      if (notificationService) {
+        const adminUsers = await this.getAdminUsers();
+        for (const admin of adminUsers) {
+          if (admin.telegramId && admin.telegramId !== requestedBy) {
+            await notificationService.sendNotification(
+              admin.telegramId,
+              `💰 *Platform Withdrawal Request*\n\n` +
+                `Amount: *$${amount.toFixed(2)}*\n` +
+                `Reason: ${reason}\n` +
+                `Requested by: Admin ${requestedBy}\n\n` +
+                `Please review and approve this withdrawal request.`,
+              {
+                type: "platform_withdrawal",
+                action: "admin_approval",
+                withdrawalId: withdrawalRef.id,
+              }
+            );
+          }
         }
       }
 
@@ -1730,18 +1737,24 @@ class AdminService {
       );
 
       // Notify the requester
-      const notificationService = require("./notificationService");
-      await notificationService.sendNotification(
-        withdrawal.requestedBy,
-        `✅ Platform Withdrawal Approved\n\nAmount: $${withdrawal.amount.toFixed(
-          2
-        )}\nReason: ${withdrawal.reason}\nApproved by: ${approvedBy}`,
-        {
-          type: "platform_withdrawal",
-          action: "approved",
-          withdrawalId,
-        }
-      );
+      const {
+        getNotificationServiceInstance,
+      } = require("./notificationService");
+      const notificationService = getNotificationServiceInstance();
+
+      if (notificationService) {
+        await notificationService.sendNotification(
+          withdrawal.requestedBy,
+          `✅ Platform Withdrawal Approved\n\nAmount: $${withdrawal.amount.toFixed(
+            2
+          )}\nReason: ${withdrawal.reason}\nApproved by: ${approvedBy}`,
+          {
+            type: "platform_withdrawal",
+            action: "approved",
+            withdrawalId,
+          }
+        );
+      }
 
       return true;
     } catch (error) {
@@ -1778,20 +1791,26 @@ class AdminService {
       logger.info(`Platform withdrawal denied: ${withdrawalId} by ${deniedBy}`);
 
       // Notify the requester
-      const notificationService = require("./notificationService");
-      await notificationService.sendNotification(
-        withdrawal.requestedBy,
-        `❌ Platform Withdrawal Denied\n\nAmount: $${withdrawal.amount.toFixed(
-          2
-        )}\nReason: ${
-          withdrawal.reason
-        }\nDenied by: ${deniedBy}\nDenial reason: ${reason}`,
-        {
-          type: "platform_withdrawal",
-          action: "denied",
-          withdrawalId,
-        }
-      );
+      const {
+        getNotificationServiceInstance,
+      } = require("./notificationService");
+      const notificationService = getNotificationServiceInstance();
+
+      if (notificationService) {
+        await notificationService.sendNotification(
+          withdrawal.requestedBy,
+          `❌ Platform Withdrawal Denied\n\nAmount: $${withdrawal.amount.toFixed(
+            2
+          )}\nReason: ${
+            withdrawal.reason
+          }\nDenied by: ${deniedBy}\nDenial reason: ${reason}`,
+          {
+            type: "platform_withdrawal",
+            action: "denied",
+            withdrawalId,
+          }
+        );
+      }
 
       return true;
     } catch (error) {
@@ -1935,20 +1954,30 @@ class AdminService {
       );
 
       // Notify company owner
-      const notificationService = require("./notificationService");
-      await notificationService.sendNotification(
-        company.telegramId,
-        `💰 *Withdrawal Request*\n\n` +
-          `Amount: *$${amount.toFixed(2)}*\n` +
-          `Reason: ${reason}\n` +
-          `Requested by: Admin ${requestedBy}\n\n` +
-          `Please approve or deny this withdrawal request.`,
-        {
-          type: "company_withdrawal",
-          action: "company_approval",
-          withdrawalId: withdrawalRef.id,
-        }
-      );
+      const {
+        getNotificationServiceInstance,
+      } = require("./notificationService");
+      const notificationService = getNotificationServiceInstance();
+
+      if (notificationService && company.telegramId) {
+        await notificationService.sendNotification(
+          company.telegramId,
+          `💰 *Withdrawal Request*\n\n` +
+            `Amount: *$${amount.toFixed(2)}*\n` +
+            `Reason: ${reason}\n` +
+            `Requested by: Admin ${requestedBy}\n\n` +
+            `Please approve or deny this withdrawal request.`,
+          {
+            type: "company_withdrawal",
+            action: "company_approval",
+            withdrawalId: withdrawalRef.id,
+          }
+        );
+      } else {
+        logger.warn(
+          `Notification service not available or company has no telegramId: ${company.telegramId}`
+        );
+      }
 
       return withdrawalRef.id;
     } catch (error) {
