@@ -1449,6 +1449,9 @@ class AdminHandlers {
 
           // Add withdrawal button for companies with withdrawable amounts
           if (company.hasWithdrawable && company.withdrawable > 0) {
+            console.log(
+              `🔍 Adding withdrawal button for ${company.name} with $${company.withdrawable}`
+            );
             actionButtons.push([
               Markup.button.callback(
                 `💰 Request Withdrawal ${
@@ -1459,6 +1462,9 @@ class AdminHandlers {
             ]);
           } else {
             // Add test button for companies without withdrawable amounts
+            console.log(
+              `🧪 Adding test button for ${company.name} with $${company.withdrawable} withdrawable`
+            );
             actionButtons.push([
               Markup.button.callback(
                 `🧪 Add $100 Test Balance (${company.name})`,
@@ -1516,6 +1522,15 @@ class AdminHandlers {
           [Markup.button.callback("📊 User Analytics", "user_analytics")],
           [Markup.button.callback("🔙 Back to Admin", "admin_panel")]
         );
+
+        console.log(
+          `🔍 Final actionButtons array has ${actionButtons.length} rows`
+        );
+        actionButtons.forEach((row, index) => {
+          console.log(
+            `  Row ${index}: ${row.map((btn) => btn.text).join(", ")}`
+          );
+        });
 
         // Add pagination rows if they have buttons
         if (paginationRows.length > 0) {
