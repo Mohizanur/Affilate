@@ -1430,6 +1430,13 @@ class AdminHandlers {
               company.name
             } (withdrawable: $${company.withdrawable})`
           );
+          console.log(
+            `💰 [DEBUG] Company ${company.name} lifetimeRevenue: $${company.lifetimeRevenue}`
+          );
+          console.log(
+            `💰 [DEBUG] Company ${company.name} full data:`,
+            JSON.stringify(company, null, 2)
+          );
 
           const statusEmoji =
             company.status === "active"
@@ -3357,7 +3364,7 @@ class AdminHandlers {
             date = "N/A";
           }
         }
-        
+
         const statusEmoji =
           {
             pending: "⏳",
@@ -3584,7 +3591,7 @@ class AdminHandlers {
                 date = "N/A";
               }
             }
-            
+
             msg += `💰 *$${w.amount.toFixed(2)}* - ${w.companyName}\n`;
             msg += `📝 Reason: ${w.reason}\n`;
             msg += `📅 Date: ${date}\n\n`;
@@ -3612,7 +3619,7 @@ class AdminHandlers {
                 date = "N/A";
               }
             }
-            
+
             msg += `💰 *$${w.amount.toFixed(2)}* - ${w.companyName}\n`;
             msg += `📝 Reason: ${w.reason}\n`;
             msg += `📅 Date: ${date}\n\n`;
