@@ -103,16 +103,26 @@ class AdminService {
         active = 0,
         referrers = 0;
       const now = Date.now();
+      
+      console.log(`🔍 [DEBUG] Total users found: ${total}`);
+      
       usersSnap.forEach((doc) => {
         const u = doc.data();
         // Check both phone_verified and phoneVerified fields
-        if (u.phone_verified || u.phoneVerified) verified++;
+        const isVerified = u.phone_verified || u.phoneVerified;
+        if (isVerified) {
+          verified++;
+          console.log(`✅ [DEBUG] Verified user found: ${doc.id}, phone_verified: ${u.phone_verified}, phoneVerified: ${u.phoneVerified}`);
+        }
         if (
           u.last_active &&
           now - new Date(u.last_active).getTime() < 7 * 24 * 60 * 60 * 1000
         )
           active++;
       });
+      
+      console.log(`📊 [DEBUG] Final counts - Total: ${total}, Verified: ${verified}, Active: ${active}`);
+      
       // Count users with at least one referral code
       const refCodesSnap = await databaseService
         .getDb()
@@ -1334,6 +1344,7 @@ class AdminService {
 
   async calculateCompanyLifetimeRevenue(companyId) {
     try {
+      console.log(`💰 [DEBUG] Calculating lifetime revenue for company: ${companyId}`);
       let totalRevenue = 0;
 
       // Calculate revenue from referrals
@@ -1343,14 +1354,17 @@ class AdminService {
           .referrals()
           .where("companyId", "==", companyId)
           .get();
+        console.log(`📊 [DEBUG] Found ${referralsSnap.size} referrals for company ${companyId}`);
       } catch (error) {
         try {
           referralsSnap = await databaseService
             .referrals()
             .where("company_id", "==", companyId)
             .get();
+          console.log(`📊 [DEBUG] Found ${referralsSnap.size} referrals using company_id for company ${companyId}`);
         } catch (error2) {
           referralsSnap = await databaseService.referrals().get();
+          console.log(`📊 [DEBUG] Found ${referralsSnap.size} total referrals, filtering for company ${companyId}`);
         }
       }
 
@@ -1358,7 +1372,9 @@ class AdminService {
         const referral = doc.data();
         const referralCompanyId = referral.companyId || referral.company_id;
         if (referralCompanyId === companyId) {
-          totalRevenue += referral.amount || 0;
+          const amount = referral.amount || 0;
+          totalRevenue += amount;
+          console.log(`💰 [DEBUG] Added referral revenue: $${amount} for company ${companyId}`);
         }
       }
 
@@ -1370,10 +1386,14 @@ class AdminService {
           .where("companyId", "==", companyId)
           .where("status", "==", "completed")
           .get();
+        
+        console.log(`🛒 [DEBUG] Found ${salesSnap.size} completed sales for company ${companyId}`);
 
         for (const doc of salesSnap.docs) {
           const sale = doc.data();
-          totalRevenue += sale.amount || 0;
+          const amount = sale.amount || 0;
+          totalRevenue += amount;
+          console.log(`💰 [DEBUG] Added sale revenue: $${amount} for company ${companyId}`);
         }
       } catch (error) {
         // Try alternative field names
@@ -1384,10 +1404,14 @@ class AdminService {
             .where("company_id", "==", companyId)
             .where("status", "==", "completed")
             .get();
+          
+          console.log(`🛒 [DEBUG] Found ${salesSnap.size} completed sales using company_id for company ${companyId}`);
 
           for (const doc of salesSnap.docs) {
             const sale = doc.data();
-            totalRevenue += sale.amount || 0;
+            const amount = sale.amount || 0;
+            totalRevenue += amount;
+            console.log(`💰 [DEBUG] Added sale revenue: $${amount} for company ${companyId}`);
           }
         } catch (error2) {
           // If both fail, try without status filter
@@ -1397,19 +1421,24 @@ class AdminService {
               .collection("sales")
               .where("companyId", "==", companyId)
               .get();
+            
+            console.log(`🛒 [DEBUG] Found ${salesSnap.size} total sales for company ${companyId}`);
 
             for (const doc of salesSnap.docs) {
               const sale = doc.data();
               if (sale.status === "completed" || !sale.status) {
-                totalRevenue += sale.amount || 0;
+                const amount = sale.amount || 0;
+                totalRevenue += amount;
+                console.log(`💰 [DEBUG] Added sale revenue: $${amount} for company ${companyId}`);
               }
             }
           } catch (error3) {
-            logger.warn(`Could not fetch sales for company ${companyId}:`, error3);
+            console.log(`⚠️ [DEBUG] Could not fetch sales for company ${companyId}:`, error3);
           }
         }
       }
 
+      console.log(`💰 [DEBUG] Total lifetime revenue for company ${companyId}: $${totalRevenue}`);
       return totalRevenue;
     } catch (error) {
       logger.error("Error calculating company lifetime revenue:", error);
