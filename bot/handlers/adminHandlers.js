@@ -1338,15 +1338,21 @@ class AdminHandlers {
 
   async handlePlatformAnalyticsDashboard(ctx, page = 1) {
     try {
+      console.log(
+        `🔍 handlePlatformAnalyticsDashboard called with page: ${page}`
+      );
+
       if (!(await this.isAdminAsync(ctx.from.id)))
         return ctx.reply(
           t("msg__access_denied", {}, ctx.session?.language || "en")
         );
 
       const ITEMS_PER_PAGE = 3;
+      console.log(`🔍 Getting dashboard data...`);
       const dashboard = await adminService.getDashboardData();
       const { platformStats, companyAnalytics, recentUsers, systemAlerts } =
         dashboard;
+      console.log(`🔍 Got ${companyAnalytics.length} companies from dashboard`);
 
       // Calculate total lifetime withdrawn and platform withdrawable amount
       let totalLifetimeWithdrawn = 0;
@@ -1422,7 +1428,10 @@ class AdminHandlers {
         // Initialize action buttons array
         const actionButtons = [];
 
+        console.log(`🔍 Processing ${sortedCompanies.length} companies...`);
         sortedCompanies.forEach((company, index) => {
+          console.log(`🔍 Processing company ${index + 1}: ${company.name} (withdrawable: $${company.withdrawable})`);
+          
           const statusEmoji =
             company.status === "active"
               ? "✅"
