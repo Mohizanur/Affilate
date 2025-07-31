@@ -12,6 +12,43 @@ console.log("Loaded referralService in adminService");
 const notificationService = require("./notificationService");
 const Validators = require("../../utils/validators");
 
+// Add caching layer at the top of the file
+const NodeCache = require("node-cache");
+const cache = new NodeCache({ stdTTL: 300 }); // 5 minutes cache
+
+// Cache keys
+const CACHE_KEYS = {
+  PLATFORM_STATS: "platform_stats",
+  COMPANY_ANALYTICS: "company_analytics",
+  QUICK_STATS: "quick_stats",
+  DASHBOARD_DATA: "dashboard_data",
+};
+
+// Helper function to get cached data or fetch and cache
+async function getCachedOrFetch(key, fetchFunction, ttl = 300) {
+  const cached = cache.get(key);
+  if (cached) {
+    console.log(`🔍 Cache HIT for ${key}`);
+    return cached;
+  }
+
+  console.log(`🔍 Cache MISS for ${key}, fetching...`);
+  const data = await fetchFunction();
+  cache.set(key, data, ttl);
+  return data;
+}
+
+// Helper function to invalidate cache
+function invalidateCache(pattern) {
+  const keys = cache.keys();
+  keys.forEach((key) => {
+    if (key.includes(pattern)) {
+      cache.del(key);
+      console.log(`🗑️ Invalidated cache: ${key}`);
+    }
+  });
+}
+
 // Helper: Get user doc and data, throw if not found
 async function _getUserOrThrow(telegramId) {
   const userDoc = await databaseService
@@ -95,69 +132,93 @@ class AdminService {
 
   async getCompanyAnalytics() {
     try {
-      const companiesSnap = await databaseService.companies().get();
+      return await getCachedOrFetch(
+        CACHE_KEYS.COMPANY_ANALYTICS,
+        async () => {
+          console.log("🚀 Fetching company analytics with batch processing...");
 
-      // Process all companies in parallel for better performance
-      const analyticsPromises = companiesSnap.docs.map(async (doc) => {
-        const company = doc.data();
-        const companyId = doc.id;
+          const companiesSnap = await databaseService.companies().get();
 
-        // Get company's products count - optimized query
-        let productCount = 0;
-        try {
-          const productsSnap = await databaseService
-            .getDb()
-            .collection("products")
-            .where("companyId", "==", companyId)
-            .get();
-          productCount = productsSnap.size;
-        } catch (error) {
-          try {
-            const productsSnap = await databaseService
-              .getDb()
-              .collection("products")
-              .where("company_id", "==", companyId)
-              .get();
-            productCount = productsSnap.size;
-          } catch (error2) {
-            // Fallback: count manually if needed
-            const allProductsSnap = await databaseService
-              .getDb()
-              .collection("products")
-              .get();
-            productCount = allProductsSnap.docs.filter((doc) => {
-              const product = doc.data();
-              return (product.companyId || product.company_id) === companyId;
-            }).length;
+          // Batch process companies in chunks of 50 for massive scale
+          const BATCH_SIZE = 50;
+          const companies = companiesSnap.docs;
+          const analytics = [];
+
+          for (let i = 0; i < companies.length; i += BATCH_SIZE) {
+            const batch = companies.slice(i, i + BATCH_SIZE);
+            console.log(
+              `🔍 Processing batch ${
+                Math.floor(i / BATCH_SIZE) + 1
+              }/${Math.ceil(companies.length / BATCH_SIZE)}`
+            );
+
+            // Process batch in parallel
+            const batchPromises = batch.map(async (doc) => {
+              const company = doc.data();
+              const companyId = doc.id;
+
+              // Get company's products count - optimized query
+              let productCount = 0;
+              try {
+                const productsSnap = await databaseService
+                  .getDb()
+                  .collection("products")
+                  .where("companyId", "==", companyId)
+                  .get();
+                productCount = productsSnap.size;
+              } catch (error) {
+                try {
+                  const productsSnap = await databaseService
+                    .getDb()
+                    .collection("products")
+                    .where("company_id", "==", companyId)
+                    .get();
+                  productCount = productsSnap.size;
+                } catch (error2) {
+                  // Fallback: count manually if needed
+                  const allProductsSnap = await databaseService
+                    .getDb()
+                    .collection("products")
+                    .get();
+                  productCount = allProductsSnap.docs.filter((doc) => {
+                    const product = doc.data();
+                    return (
+                      (product.companyId || product.company_id) === companyId
+                    );
+                  }).length;
+                }
+              }
+
+              // Calculate platform fees and lifetime revenue in parallel
+              const [platformFees, lifetimeRevenue] = await Promise.all([
+                this.calculateCompanyPlatformFees(companyId),
+                this.calculateCompanyLifetimeRevenue(companyId),
+              ]);
+
+              const withdrawable = company.billingBalance || 0;
+
+              return {
+                id: companyId,
+                name: company.name,
+                ownerUsername: company.ownerUsername || company.telegramId,
+                platformFees,
+                withdrawable,
+                lifetimeRevenue,
+                productCount,
+                hasWithdrawable: withdrawable > 0,
+                status: company.status || "pending",
+                createdAt: company.createdAt,
+              };
+            });
+
+            const batchResults = await Promise.all(batchPromises);
+            analytics.push(...batchResults);
           }
-        }
 
-        // Calculate platform fees and lifetime revenue in parallel
-        const [platformFees, lifetimeRevenue] = await Promise.all([
-          this.calculateCompanyPlatformFees(companyId),
-          this.calculateCompanyLifetimeRevenue(companyId),
-        ]);
-
-        const withdrawable = company.billingBalance || 0;
-
-        return {
-          id: companyId,
-          name: company.name,
-          ownerUsername: company.ownerUsername || company.telegramId,
-          platformFees,
-          withdrawable,
-          lifetimeRevenue,
-          productCount,
-          hasWithdrawable: withdrawable > 0,
-          status: company.status || "pending",
-          createdAt: company.createdAt,
-        };
-      });
-
-      // Wait for all company analytics to complete
-      const analytics = await Promise.all(analyticsPromises);
-
-      return analytics;
+          return analytics;
+        },
+        300
+      ); // 5 minutes cache for company analytics
     } catch (error) {
       logger.error("Error getting company analytics:", error);
       return [];
@@ -552,27 +613,35 @@ class AdminService {
 
   async getDashboardData() {
     try {
-      const [
-        platformStats,
-        companyAnalytics,
-        recentUsers,
-        systemAlerts,
-        quickStats,
-      ] = await Promise.all([
-        this.getPlatformStats(),
-        this.getCompanyAnalytics(),
-        userService.getRecentUsers(5),
-        this.getSystemAlerts(),
-        this.getQuickStats(), // Now included in parallel calls!
-      ]);
+      return await getCachedOrFetch(
+        CACHE_KEYS.DASHBOARD_DATA,
+        async () => {
+          console.log("🚀 Fetching dashboard data with parallel processing...");
 
-      return {
-        platformStats,
-        companyAnalytics,
-        recentUsers,
-        systemAlerts,
-        quickStats,
-      };
+          const [
+            platformStats,
+            companyAnalytics,
+            recentUsers,
+            systemAlerts,
+            quickStats,
+          ] = await Promise.all([
+            this.getPlatformStats(),
+            this.getCompanyAnalytics(),
+            userService.getRecentUsers(5),
+            this.getSystemAlerts(),
+            this.getQuickStats(),
+          ]);
+
+          return {
+            platformStats,
+            companyAnalytics,
+            recentUsers,
+            systemAlerts,
+            quickStats,
+          };
+        },
+        180
+      ); // 3 minutes cache for dashboard
     } catch (error) {
       logger.error("Error getting dashboard data:", error);
       throw error;
@@ -1132,56 +1201,78 @@ class AdminService {
 
   async getPlatformStats() {
     try {
-      // Get all companies and calculate platform fees from actual transactions
-      const companiesSnap = await databaseService.companies().get();
+      return await getCachedOrFetch(
+        CACHE_KEYS.PLATFORM_STATS,
+        async () => {
+          console.log("🚀 Fetching platform stats with batch processing...");
 
-      // Process all companies in parallel for better performance
-      const companyStatsPromises = companiesSnap.docs.map(async (doc) => {
-        const company = doc.data();
-        const companyId = doc.id;
+          // Get all companies and calculate platform fees from actual transactions
+          const companiesSnap = await databaseService.companies().get();
 
-        // Calculate actual platform fees from referrals and transactions in parallel
-        const [platformFees, lifetimeRevenue] = await Promise.all([
-          this.calculateCompanyPlatformFees(companyId),
-          this.calculateCompanyLifetimeRevenue(companyId),
-        ]);
+          // Batch process companies in chunks of 50 for massive scale
+          const BATCH_SIZE = 50;
+          const companies = companiesSnap.docs;
+          const companyStats = [];
 
-        const withdrawable = company.billingBalance || 0;
+          for (let i = 0; i < companies.length; i += BATCH_SIZE) {
+            const batch = companies.slice(i, i + BATCH_SIZE);
+            console.log(
+              `🔍 Processing platform stats batch ${
+                Math.floor(i / BATCH_SIZE) + 1
+              }/${Math.ceil(companies.length / BATCH_SIZE)}`
+            );
 
-        return {
-          id: companyId,
-          name: company.name,
-          platformFees,
-          withdrawable,
-          lifetimeRevenue,
-          hasWithdrawable: withdrawable > 0,
-        };
-      });
+            // Process batch in parallel
+            const batchPromises = batch.map(async (doc) => {
+              const company = doc.data();
+              const companyId = doc.id;
 
-      // Wait for all company stats to complete
-      const companyStats = await Promise.all(companyStatsPromises);
+              // Calculate actual platform fees from referrals and transactions in parallel
+              const [platformFees, lifetimeRevenue] = await Promise.all([
+                this.calculateCompanyPlatformFees(companyId),
+                this.calculateCompanyLifetimeRevenue(companyId),
+              ]);
 
-      // Calculate totals
-      const totalPlatformFees = companyStats.reduce(
-        (sum, stat) => sum + stat.platformFees,
-        0
-      );
-      const totalWithdrawable = companyStats.reduce(
-        (sum, stat) => sum + stat.withdrawable,
-        0
-      );
-      const totalLifetimeRevenue = companyStats.reduce(
-        (sum, stat) => sum + stat.lifetimeRevenue,
-        0
-      );
+              const withdrawable = company.billingBalance || 0;
 
-      return {
-        totalPlatformFees,
-        totalWithdrawable,
-        totalLifetimeRevenue,
-        companies: companyStats,
-        totalCompanies: companiesSnap.size,
-      };
+              return {
+                id: companyId,
+                name: company.name,
+                platformFees,
+                withdrawable,
+                lifetimeRevenue,
+                hasWithdrawable: withdrawable > 0,
+              };
+            });
+
+            const batchResults = await Promise.all(batchPromises);
+            companyStats.push(...batchResults);
+          }
+
+          // Calculate totals
+          const totalPlatformFees = companyStats.reduce(
+            (sum, stat) => sum + stat.platformFees,
+            0
+          );
+          const totalWithdrawable = companyStats.reduce(
+            (sum, stat) => sum + stat.withdrawable,
+            0
+          );
+          const totalLifetimeRevenue = companyStats.reduce(
+            (sum, stat) => sum + stat.lifetimeRevenue,
+            0
+          );
+
+          return {
+            totalPlatformFees,
+            totalWithdrawable,
+            totalLifetimeRevenue,
+            companies: companyStats,
+            totalCompanies: companiesSnap.size,
+          };
+        },
+        300
+      ); // 5 minutes cache for platform stats
     } catch (error) {
       logger.error("Error getting platform stats:", error);
       return {
@@ -2376,6 +2467,27 @@ class AdminService {
       logger.error("Error updating company billing balance:", error);
       throw error;
     }
+  }
+
+  // Cache invalidation methods
+  invalidateDashboardCache() {
+    invalidateCache('dashboard');
+    invalidateCache('platform_stats');
+    invalidateCache('company_analytics');
+    invalidateCache('quick_stats');
+    console.log('🗑️ Dashboard cache invalidated');
+  }
+
+  invalidateCompanyCache() {
+    invalidateCache('company_analytics');
+    invalidateCache('platform_stats');
+    console.log('🗑️ Company cache invalidated');
+  }
+
+  invalidatePlatformCache() {
+    invalidateCache('platform_stats');
+    invalidateCache('quick_stats');
+    console.log('🗑️ Platform cache invalidated');
   }
 }
 
