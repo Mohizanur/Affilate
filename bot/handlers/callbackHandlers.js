@@ -90,7 +90,17 @@ class CallbackHandlers {
           "company_approve_withdrawal_",
           ""
         );
-        return adminHandlers.handleCompanyApproveWithdrawal(ctx, withdrawalId);
+        return companyHandlers.handleCompanyApproveWithdrawal(
+          ctx,
+          withdrawalId
+        );
+      }
+      if (callbackData.startsWith("company_deny_withdrawal_")) {
+        const withdrawalId = callbackData.replace(
+          "company_deny_withdrawal_",
+          ""
+        );
+        return companyHandlers.handleCompanyDenyWithdrawal(ctx, withdrawalId);
       }
       // Add to Favorites and Add to Cart handlers
       if (callbackData.startsWith("add_favorite_")) {
@@ -484,6 +494,10 @@ class CallbackHandlers {
               "company_approve_withdrawal_",
               ""
             );
+            console.log(
+              "CALLING handleCompanyApproveWithdrawal with withdrawalId:",
+              withdrawalId
+            );
             return companyHandlers.handleCompanyApproveWithdrawal(
               ctx,
               withdrawalId
@@ -731,27 +745,6 @@ class CallbackHandlers {
             return adminHandlers.handleAdminConfirmWithdrawal(ctx, companyId);
           }
 
-          if (callbackData.startsWith("company_approve_withdrawal_")) {
-            const withdrawalId = callbackData.replace(
-              "company_approve_withdrawal_",
-              ""
-            );
-            console.log(
-              "CALLING handleCompanyApproveWithdrawal with withdrawalId:",
-              withdrawalId
-            );
-            return adminHandlers.handleCompanyApproveWithdrawal(
-              ctx,
-              withdrawalId
-            );
-          }
-          if (callbackData.startsWith("company_deny_withdrawal_")) {
-            const withdrawalId = callbackData.replace(
-              "company_deny_withdrawal_",
-              ""
-            );
-            return adminHandlers.handleCompanyDenyWithdrawal(ctx, withdrawalId);
-          }
           if (callbackData.startsWith("finalize_admin_withdrawal_")) {
             const withdrawalId = callbackData.replace(
               "finalize_admin_withdrawal_",
