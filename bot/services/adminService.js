@@ -1960,17 +1960,45 @@ class AdminService {
       const notificationService = getNotificationServiceInstance();
 
       if (notificationService && company.telegramId) {
+        // Get admin username
+        let adminUsername = "Admin";
+        try {
+          const userService = require("./userService").userService;
+          const adminUser = await userService.getUserByTelegramId(requestedBy);
+          if (adminUser && adminUser.username) {
+            adminUsername = `Admin @${adminUser.username}`;
+          } else if (adminUser && adminUser.firstName) {
+            adminUsername = `Admin ${adminUser.firstName}`;
+          }
+        } catch (error) {
+          logger.warn(`Could not get admin username for ${requestedBy}:`, error);
+        }
+
         await notificationService.sendNotification(
           company.telegramId,
           `💰 *Withdrawal Request*\n\n` +
             `Amount: *$${amount.toFixed(2)}*\n` +
             `Reason: ${reason}\n` +
-            `Requested by: Admin ${requestedBy}\n\n` +
+            `Requested by: ${adminUsername}\n\n` +
             `Please approve or deny this withdrawal request.`,
           {
             type: "company_withdrawal",
             action: "company_approval",
             withdrawalId: withdrawalRef.id,
+            reply_markup: {
+              inline_keyboard: [
+                [
+                  {
+                    text: "✅ Approve",
+                    callback_data: `company_approve_withdrawal_${withdrawalRef.id}`,
+                  },
+                  {
+                    text: "❌ Deny",
+                    callback_data: `company_deny_withdrawal_${withdrawalRef.id}`,
+                  },
+                ],
+              ],
+            },
           }
         );
       } else {
