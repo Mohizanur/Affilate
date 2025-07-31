@@ -550,12 +550,13 @@ class AdminService {
 
   async getDashboardData() {
     try {
-      const [platformStats, companyAnalytics, recentUsers, systemAlerts] =
+      const [platformStats, companyAnalytics, recentUsers, systemAlerts, quickStats] =
         await Promise.all([
           this.getPlatformStats(),
           this.getCompanyAnalytics(),
           userService.getRecentUsers(5),
           this.getSystemAlerts(),
+          this.getQuickStats(), // Now included in parallel calls!
         ]);
 
       return {
@@ -563,7 +564,7 @@ class AdminService {
         companyAnalytics,
         recentUsers,
         systemAlerts,
-        quickStats: await this.getQuickStats(),
+        quickStats,
       };
     } catch (error) {
       logger.error("Error getting dashboard data:", error);
@@ -634,19 +635,27 @@ class AdminService {
         databaseService.companies().get(), // Remove the status filter to count all companies
       ]);
 
-      // Calculate total platform fees from actual transactions
-      let totalPlatformFees = 0;
-      let totalWithdrawable = 0;
-
-      for (const doc of companiesSnap.docs) {
+      // Calculate total platform fees from actual transactions - PARALLEL!
+      const platformFeesPromises = companiesSnap.docs.map(async (doc) => {
         const company = doc.data();
         const companyId = doc.id;
-
-        // Calculate actual platform fees for this company
         const platformFees = await this.calculateCompanyPlatformFees(companyId);
-        totalPlatformFees += platformFees;
-        totalWithdrawable += company.billingBalance || 0;
-      }
+        return {
+          platformFees,
+          billingBalance: company.billingBalance || 0,
+        };
+      });
+
+      const results = await Promise.all(platformFeesPromises);
+
+      const totalPlatformFees = results.reduce(
+        (sum, result) => sum + result.platformFees,
+        0
+      );
+      const totalWithdrawable = results.reduce(
+        (sum, result) => sum + result.billingBalance,
+        0
+      );
 
       return {
         totalUsers: usersSnap.size,
