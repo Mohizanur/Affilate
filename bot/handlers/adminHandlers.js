@@ -835,12 +835,6 @@ class AdminHandlers {
 `;
       msg += `📋 Description: ${company.description || "N/A"}
 `;
-      msg += `💰 Platform Fees: $${(company.billingBalance || 0).toFixed(2)}
-`;
-      msg += `💳 Withdrawable: $${(company.billingBalance || 0).toFixed(2)}
-`;
-      msg += `📈 Lifetime Revenue: $${(company.billingBalance || 0).toFixed(2)}
-`;
       msg += `📦 Products: ${companyAnalytic?.productCount || 0}
 `;
       msg += `🎯 Status: ${company.status || "active"}
@@ -855,16 +849,6 @@ class AdminHandlers {
       const buttons = [
         [Markup.button.callback("🔙 Back to Companies", "admin_companies_1")],
       ];
-
-      // Add withdrawal button if company has withdrawable amount
-      if (company.billingBalance && company.billingBalance > 0) {
-        buttons.unshift([
-          Markup.button.callback(
-            `💳 Withdraw $${company.billingBalance.toFixed(2)}`,
-            `admin_withdraw_company_${companyId}`
-          ),
-        ]);
-      }
 
       ctx.reply(msg, {
         parse_mode: "Markdown",
@@ -1367,7 +1351,10 @@ class AdminHandlers {
       const { platformStats, companyAnalytics, recentUsers, systemAlerts } =
         dashboard;
       console.log(`🔍 Got ${companyAnalytics.length} companies from dashboard`);
-      console.log(`💰 [DEBUG] First company analytics data:`, JSON.stringify(companyAnalytics[0], null, 2));
+      console.log(
+        `💰 [DEBUG] First company analytics data:`,
+        JSON.stringify(companyAnalytics[0], null, 2)
+      );
 
       // Create beautiful header with emojis and formatting
       let msg = `🎯 *PLATFORM ANALYTICS DASHBOARD*\n`;
