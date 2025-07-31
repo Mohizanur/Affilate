@@ -2097,6 +2097,9 @@ class AdminService {
 
       // Notify admins about the approval
       const admins = await this.getAdminUsers();
+      const {
+        getNotificationServiceInstance,
+      } = require("./notificationService");
       const notificationService = getNotificationServiceInstance();
 
       for (const admin of admins) {
@@ -2154,7 +2157,8 @@ class AdminService {
 
       // Notify admins about the denial
       const admins = await this.getAdminUsers();
-      const notificationService = getNotificationServiceInstance();
+      const notificationService =
+        require("./notificationService").getNotificationServiceInstance();
 
       for (const admin of admins) {
         await notificationService.sendNotification(
@@ -2235,7 +2239,8 @@ class AdminService {
       );
 
       // Notify company owner
-      const notificationService = getNotificationServiceInstance();
+      const notificationService =
+        require("./notificationService").getNotificationServiceInstance();
       await notificationService.sendNotification(
         company.telegramId,
         `💰 *Withdrawal Processed*\n\n` +
