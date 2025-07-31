@@ -198,6 +198,9 @@ class CallbackHandlers {
           return adminHandlers.handleConfirmBroadcast(ctx);
         case "admin_withdrawals":
           return adminHandlers.handlePendingCompanyWithdrawals(ctx);
+        case "add_billing_balance_":
+          const companyId = callbackData.replace("add_billing_balance_", "");
+          return adminHandlers.handleAddCompanyBillingBalance(ctx, companyId);
         case "platform_withdrawals":
           return adminHandlers.handlePlatformWithdrawals(ctx);
         case "platform_withdrawal_request":

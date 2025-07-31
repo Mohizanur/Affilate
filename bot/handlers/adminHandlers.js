@@ -1457,6 +1457,14 @@ class AdminHandlers {
                 `request_company_withdrawal_${company.id}`
               ),
             ]);
+          } else {
+            // Add test button for companies without withdrawable amounts
+            actionButtons.push([
+              Markup.button.callback(
+                `🧪 Add $100 Test Balance (${company.name})`,
+                `add_billing_balance_${company.id}`
+              ),
+            ]);
           }
         });
 
@@ -3655,6 +3663,43 @@ class AdminHandlers {
     } catch (error) {
       logger.error("Error confirming company withdrawal:", error);
       ctx.reply("❌ Failed to confirm withdrawal.");
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    }
+  }
+
+  async handleAddCompanyBillingBalance(ctx, companyId) {
+    try {
+      if (!(await this.isAdminAsync(ctx.from.id)))
+        return ctx.reply(
+          t("msg__access_denied", {}, ctx.session?.language || "en")
+        );
+
+      // Add $100 billing balance to the company
+      const newBalance = await adminService.updateCompanyBillingBalance(
+        companyId,
+        100
+      );
+
+      ctx.reply(
+        `✅ Added $100.00 billing balance to company.\nNew balance: $${newBalance.toFixed(
+          2
+        )}`,
+        {
+          reply_markup: Markup.inlineKeyboard([
+            [
+              Markup.button.callback(
+                "🔙 Back to Analytics",
+                "platform_analytics_dashboard"
+              ),
+            ],
+          ]),
+        }
+      );
+
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    } catch (error) {
+      logger.error("Error adding company billing balance:", error);
+      ctx.reply("❌ Failed to add billing balance.");
       if (ctx.callbackQuery) ctx.answerCbQuery();
     }
   }

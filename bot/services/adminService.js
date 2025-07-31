@@ -1578,35 +1578,38 @@ class AdminService {
   async getPlatformWithdrawableAmount() {
     try {
       const platformBalance = await this.getPlatformBalance();
-      
+
       // Try to get pending withdrawals, but don't fail if it errors
       let pendingWithdrawals = [];
       try {
         pendingWithdrawals = await this.getPendingPlatformWithdrawals();
       } catch (error) {
-        logger.error("Error getting pending withdrawals, using empty array:", error);
+        logger.error(
+          "Error getting pending withdrawals, using empty array:",
+          error
+        );
         pendingWithdrawals = [];
       }
-      
+
       // Calculate total pending withdrawals
       const totalPending = pendingWithdrawals.reduce((sum, withdrawal) => {
         return sum + (withdrawal.amount || 0);
       }, 0);
-      
+
       // Withdrawable amount is balance minus pending withdrawals
       const withdrawable = Math.max(0, platformBalance - totalPending);
-      
+
       return {
         totalBalance: platformBalance,
         pendingWithdrawals: totalPending,
-        withdrawable: withdrawable
+        withdrawable: withdrawable,
       };
     } catch (error) {
       logger.error("Error getting platform withdrawable amount:", error);
       return {
         totalBalance: 0,
         pendingWithdrawals: 0,
-        withdrawable: 0
+        withdrawable: 0,
       };
     }
   }
@@ -1871,13 +1874,13 @@ class AdminService {
         .collection("platform_withdrawals")
         .limit(limit)
         .get();
-      
+
       // Sort in memory to avoid index requirement
-      const withdrawals = withdrawalsSnap.docs.map(doc => ({
+      const withdrawals = withdrawalsSnap.docs.map((doc) => ({
         id: doc.id,
-        ...doc.data()
+        ...doc.data(),
       }));
-      
+
       return withdrawals.sort((a, b) => {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
@@ -1992,7 +1995,7 @@ class AdminService {
         id: doc.id,
         ...doc.data(),
       }));
-      
+
       return withdrawals.sort((a, b) => {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
@@ -2215,6 +2218,32 @@ class AdminService {
     } catch (error) {
       logger.error("Error getting company withdrawal history:", error);
       return [];
+    }
+  }
+
+  async updateCompanyBillingBalance(companyId, amount) {
+    try {
+      const companyDoc = await databaseService.companies().doc(companyId).get();
+      if (!companyDoc.exists) {
+        throw new Error("Company not found");
+      }
+
+      const company = companyDoc.data();
+      const currentBalance = company.billingBalance || 0;
+      const newBalance = currentBalance + amount;
+
+      await databaseService.companies().doc(companyId).update({
+        billingBalance: newBalance,
+        updatedAt: new Date(),
+      });
+
+      logger.info(
+        `Company ${companyId} billing balance updated: ${currentBalance} + ${amount} = ${newBalance}`
+      );
+      return newBalance;
+    } catch (error) {
+      logger.error("Error updating company billing balance:", error);
+      throw error;
     }
   }
 }
