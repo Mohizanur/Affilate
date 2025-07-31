@@ -1430,8 +1430,12 @@ class AdminHandlers {
 
         console.log(`🔍 Processing ${sortedCompanies.length} companies...`);
         sortedCompanies.forEach((company, index) => {
-          console.log(`🔍 Processing company ${index + 1}: ${company.name} (withdrawable: $${company.withdrawable})`);
-          
+          console.log(
+            `🔍 Processing company ${index + 1}: ${
+              company.name
+            } (withdrawable: $${company.withdrawable})`
+          );
+
           const statusEmoji =
             company.status === "active"
               ? "✅"
@@ -3522,6 +3526,8 @@ class AdminHandlers {
 
   async handlePendingCompanyWithdrawals(ctx) {
     try {
+      console.log("🔍 handlePendingCompanyWithdrawals called");
+
       if (!(await this.isAdminAsync(ctx.from.id)))
         return ctx.reply(
           t("msg__access_denied", {}, ctx.session?.language || "en")

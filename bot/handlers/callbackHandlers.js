@@ -58,7 +58,10 @@ class CallbackHandlers {
         await ctx.answerCbQuery();
       } catch (error) {
         // Ignore callback query errors (they might be too old)
-        console.log("Callback query already answered or too old:", error.message);
+        console.log(
+          "Callback query already answered or too old:",
+          error.message
+        );
       }
 
       const user = await userService.userService.getUserByTelegramId(
@@ -197,6 +200,9 @@ class CallbackHandlers {
         case "confirm_broadcast":
           return adminHandlers.handleConfirmBroadcast(ctx);
         case "admin_withdrawals":
+          console.log(
+            "🔍 admin_withdrawals callback received, calling handlePendingCompanyWithdrawals"
+          );
           return adminHandlers.handlePendingCompanyWithdrawals(ctx);
         case "add_billing_balance_":
           const companyId = callbackData.replace("add_billing_balance_", "");
@@ -227,6 +233,9 @@ class CallbackHandlers {
         case "admin_list_users":
           return adminHandlers.handleAdminListUsers(ctx);
         case "platform_analytics_dashboard":
+          console.log(
+            "🔍 platform_analytics_dashboard callback received, calling handlePlatformAnalyticsDashboard"
+          );
           return adminHandlers.handlePlatformAnalyticsDashboard(ctx);
         case "error_logs":
           return adminHandlers.handleErrorLogs(ctx);
