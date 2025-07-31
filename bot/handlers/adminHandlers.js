@@ -1533,7 +1533,13 @@ class AdminHandlers {
             ),
           ],
           [Markup.button.callback("📊 User Analytics", "user_analytics")],
-          [Markup.button.callback("🔙 Back to Admin", "admin_panel")]
+          [Markup.button.callback("🔙 Back to Admin", "admin_panel")],
+          [
+            Markup.button.callback(
+              "🧪 Test Dashboard",
+              "platform_analytics_dashboard"
+            ),
+          ]
         );
 
         console.log(
