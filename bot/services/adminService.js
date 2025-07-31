@@ -206,9 +206,11 @@ class AdminService {
                 this.calculateCompanyLifetimeRevenue(companyId),
               ]);
 
+              console.log(`💰 [DEBUG] Company ${company.name} (${companyId}) - Calculated lifetimeRevenue: $${lifetimeRevenue}`);
+
               const withdrawable = company.billingBalance || 0;
 
-              return {
+              const companyAnalytics = {
                 id: companyId,
                 name: company.name,
                 ownerUsername: company.ownerUsername || company.telegramId,
@@ -220,6 +222,10 @@ class AdminService {
                 status: company.status || "pending",
                 createdAt: company.createdAt,
               };
+
+              console.log(`💰 [DEBUG] Company ${company.name} - Final analytics object lifetimeRevenue: $${companyAnalytics.lifetimeRevenue}`);
+
+              analytics.push(companyAnalytics);
             });
 
             const batchResults = await Promise.all(batchPromises);
