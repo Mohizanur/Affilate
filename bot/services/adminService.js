@@ -105,7 +105,8 @@ class AdminService {
       const now = Date.now();
       usersSnap.forEach((doc) => {
         const u = doc.data();
-        if (u.phone_verified) verified++;
+        // Check both phone_verified and phoneVerified fields
+        if (u.phone_verified || u.phoneVerified) verified++;
         if (
           u.last_active &&
           now - new Date(u.last_active).getTime() < 7 * 24 * 60 * 60 * 1000
@@ -1333,9 +1334,10 @@ class AdminService {
 
   async calculateCompanyLifetimeRevenue(companyId) {
     try {
-      // Calculate lifetime revenue from all referrals for this company
-      let referralsSnap;
+      let totalRevenue = 0;
 
+      // Calculate revenue from referrals
+      let referralsSnap;
       try {
         referralsSnap = await databaseService
           .referrals()
@@ -1352,18 +1354,60 @@ class AdminService {
         }
       }
 
-      let totalRevenue = 0;
-
       for (const doc of referralsSnap.docs) {
         const referral = doc.data();
-
-        // Check if this referral belongs to the company
         const referralCompanyId = referral.companyId || referral.company_id;
-        if (referralCompanyId !== companyId) {
-          continue;
+        if (referralCompanyId === companyId) {
+          totalRevenue += referral.amount || 0;
         }
+      }
 
-        totalRevenue += referral.amount || 0;
+      // Calculate revenue from sales collection
+      try {
+        const salesSnap = await databaseService
+          .getDb()
+          .collection("sales")
+          .where("companyId", "==", companyId)
+          .where("status", "==", "completed")
+          .get();
+
+        for (const doc of salesSnap.docs) {
+          const sale = doc.data();
+          totalRevenue += sale.amount || 0;
+        }
+      } catch (error) {
+        // Try alternative field names
+        try {
+          const salesSnap = await databaseService
+            .getDb()
+            .collection("sales")
+            .where("company_id", "==", companyId)
+            .where("status", "==", "completed")
+            .get();
+
+          for (const doc of salesSnap.docs) {
+            const sale = doc.data();
+            totalRevenue += sale.amount || 0;
+          }
+        } catch (error2) {
+          // If both fail, try without status filter
+          try {
+            const salesSnap = await databaseService
+              .getDb()
+              .collection("sales")
+              .where("companyId", "==", companyId)
+              .get();
+
+            for (const doc of salesSnap.docs) {
+              const sale = doc.data();
+              if (sale.status === "completed" || !sale.status) {
+                totalRevenue += sale.amount || 0;
+              }
+            }
+          } catch (error3) {
+            logger.warn(`Could not fetch sales for company ${companyId}:`, error3);
+          }
+        }
       }
 
       return totalRevenue;
