@@ -1364,7 +1364,7 @@ class AdminHandlers {
 
       try {
         totalLifetimeWithdrawn =
-          await adminService.calculateTotalLifetimeWithdrawn();
+        await adminService.calculateTotalLifetimeWithdrawn();
       } catch (error) {
         logger.error("Error calculating lifetime withdrawn:", error);
       }
@@ -2960,7 +2960,7 @@ class AdminHandlers {
       ctx.reply(
         `💰 *Platform Withdrawal Request*\n\n` +
           `Available amount: *$${platformWithdrawable.withdrawable.toFixed(
-            2
+          2
           )}*\n\n` +
           `Please enter the withdrawal amount:`,
         {
@@ -3588,6 +3588,14 @@ class AdminHandlers {
         ),
       ]);
 
+      // Add test button to trigger dashboard function
+      buttons.push([
+        Markup.button.callback(
+          "🧪 Test Dashboard Function",
+          "platform_analytics_dashboard"
+        ),
+      ]);
+
       ctx.reply(msg, {
         parse_mode: "Markdown",
         reply_markup: Markup.inlineKeyboard(buttons),
@@ -3705,11 +3713,16 @@ class AdminHandlers {
 
   async handleAddCompanyBillingBalance(ctx, companyId) {
     try {
+      console.log(
+        `🔍 handleAddCompanyBillingBalance called with companyId: ${companyId}`
+      );
+
       if (!(await this.isAdminAsync(ctx.from.id)))
         return ctx.reply(
           t("msg__access_denied", {}, ctx.session?.language || "en")
         );
 
+      console.log(`🔍 Adding $100 billing balance to company: ${companyId}`);
       // Add $100 billing balance to the company
       const newBalance = await adminService.updateCompanyBillingBalance(
         companyId,

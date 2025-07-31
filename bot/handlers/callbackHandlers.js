@@ -205,7 +205,9 @@ class CallbackHandlers {
           );
           return adminHandlers.handlePendingCompanyWithdrawals(ctx);
         case "add_billing_balance_":
+          console.log("🔍 add_billing_balance_ callback received");
           const companyId = callbackData.replace("add_billing_balance_", "");
+          console.log(`🔍 Company ID extracted: ${companyId}`);
           return adminHandlers.handleAddCompanyBillingBalance(ctx, companyId);
         case "platform_withdrawals":
           return adminHandlers.handlePlatformWithdrawals(ctx);
