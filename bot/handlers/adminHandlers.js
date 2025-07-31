@@ -1350,16 +1350,22 @@ class AdminHandlers {
 
       // Calculate total lifetime withdrawn and platform withdrawable amount
       let totalLifetimeWithdrawn = 0;
-      let platformWithdrawable = { totalBalance: 0, pendingWithdrawals: 0, withdrawable: 0 };
-      
+      let platformWithdrawable = {
+        totalBalance: 0,
+        pendingWithdrawals: 0,
+        withdrawable: 0,
+      };
+
       try {
-        totalLifetimeWithdrawn = await adminService.calculateTotalLifetimeWithdrawn();
+        totalLifetimeWithdrawn =
+          await adminService.calculateTotalLifetimeWithdrawn();
       } catch (error) {
         logger.error("Error calculating lifetime withdrawn:", error);
       }
-      
+
       try {
-        platformWithdrawable = await adminService.getPlatformWithdrawableAmount();
+        platformWithdrawable =
+          await adminService.getPlatformWithdrawableAmount();
       } catch (error) {
         logger.error("Error getting platform withdrawable amount:", error);
       }
@@ -1413,6 +1419,9 @@ class AdminHandlers {
           companyAnalytics.length
         )} of ${companyAnalytics.length} companies\n\n`;
 
+        // Initialize action buttons array
+        const actionButtons = [];
+
         sortedCompanies.forEach((company, index) => {
           const statusEmoji =
             company.status === "active"
@@ -1440,7 +1449,7 @@ class AdminHandlers {
 
           // Add withdrawal button for companies with withdrawable amounts
           if (company.hasWithdrawable && company.withdrawable > 0) {
-            buttons.push([
+            actionButtons.push([
               Markup.button.callback(
                 `💰 Request Withdrawal ${
                   company.name
@@ -1481,8 +1490,8 @@ class AdminHandlers {
           paginationRows.push(mainPaginationRow);
         }
 
-        // Action buttons
-        const actionButtons = [
+        // Add standard action buttons to the existing actionButtons array
+        actionButtons.push(
           [Markup.button.callback("🏢 Company Details", "admin_companies_1")],
           [
             Markup.button.callback(
@@ -1497,8 +1506,8 @@ class AdminHandlers {
             ),
           ],
           [Markup.button.callback("📊 User Analytics", "user_analytics")],
-          [Markup.button.callback("🔙 Back to Admin", "admin_panel")],
-        ];
+          [Markup.button.callback("🔙 Back to Admin", "admin_panel")]
+        );
 
         // Add pagination rows if they have buttons
         if (paginationRows.length > 0) {
