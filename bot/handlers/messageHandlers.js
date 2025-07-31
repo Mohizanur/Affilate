@@ -181,11 +181,13 @@ class MessageHandlers {
               )
             );
           }
-          // Fetch dynamic settings
-          const settings = await getPlatformSettings();
-          const PLATFORM_FEE_PERCENT = settings.platformFeePercent;
-          const REFERRAL_BONUS_PERCENT = settings.referralBonusPercent;
-          const BUYER_BONUS_PERCENT = settings.buyerBonusPercent;
+          // Fetch dynamic settings from admin service
+          const adminService = require("../services/adminService");
+          const settings = await adminService.getPlatformSettings();
+          const PLATFORM_FEE_PERCENT = settings.platformFeePercent || 1.5;
+          const REFERRAL_BONUS_PERCENT =
+            settings.referralCommissionPercent || 2.5;
+          const BUYER_BONUS_PERCENT = settings.referralDiscountPercent || 1.0;
           const discount = amount * (BUYER_BONUS_PERCENT / 100);
           const referrerReward = amount * (REFERRAL_BONUS_PERCENT / 100);
           const platformFee = amount * (PLATFORM_FEE_PERCENT / 100);
@@ -194,11 +196,22 @@ class MessageHandlers {
           const message = `
 💰 *Fee & Reward Calculation*
 
-Purchase Amount: $${amount.toFixed(2)}
-- Buyer Discount (${BUYER_BONUS_PERCENT}%): $${discount.toFixed(2)}
-- Referrer Reward (${REFERRAL_BONUS_PERCENT}%): $${referrerReward.toFixed(2)}
-- Platform Fee (${PLATFORM_FEE_PERCENT}%): $${platformFee.toFixed(2)}
-= Company Payout: $${companyPayout.toFixed(2)}
+📊 *Purchase Details:*
+• Purchase Amount: $${amount.toFixed(2)}
+
+💸 *Deductions:*
+• Buyer Discount (${BUYER_BONUS_PERCENT}%): -$${discount.toFixed(2)}
+• Referrer Reward (${REFERRAL_BONUS_PERCENT}%): -$${referrerReward.toFixed(2)}
+• Platform Fee (${PLATFORM_FEE_PERCENT}%): -$${platformFee.toFixed(2)}
+
+💰 *Final Result:*
+• Company Payout: $${companyPayout.toFixed(2)}
+
+📈 *Breakdown:*
+• Buyer saves: $${discount.toFixed(2)}
+• Referrer earns: $${referrerReward.toFixed(2)}
+• Platform collects: $${platformFee.toFixed(2)}
+• Company receives: $${companyPayout.toFixed(2)}
 `;
           ctx.session.state = null;
           return ctx.reply(message, { parse_mode: "Markdown" });

@@ -1509,12 +1509,7 @@ Contact @Nife777online for support`;
             "my_referrals"
           ),
         ],
-        [
-          Markup.button.callback(
-            t("btn_fee_calculator", {}, userLanguage),
-            "fee_calculator"
-          ),
-        ],
+        [Markup.button.callback("💰 Fee Calculator", "fee_calculator")],
         [
           Markup.button.callback(
             t("btn_back_to_menu", {}, userLanguage),
@@ -1536,17 +1531,21 @@ Contact @Nife777online for support`;
   async handleFeeCalculator(ctx) {
     try {
       ctx.session = {}; // Reset session state
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
+      );
+      const userLanguage = ctx.session?.language || user?.language || "en";
+
       ctx.session.state = "awaiting_fee_calculator_amount";
       await ctx.reply(
-        t(
-          "msg_enter_a_purchase_amount_to_calculate_fees_and_",
-          {},
-          userLanguage
-        )
+        "💰 *Fee Calculator*\n\n" +
+          "Enter a purchase amount to calculate fees and rewards:\n\n" +
+          "Example: `100` for $100.00",
+        { parse_mode: "Markdown" }
       );
     } catch (error) {
       logger.error("Error in handleFeeCalculator:", error);
-      ctx.reply(t("msg__something_went_wrong", {}, userLanguage));
+      ctx.reply("❌ Something went wrong. Please try again.");
     }
   }
 
