@@ -103,16 +103,18 @@ class AdminService {
         active = 0,
         referrers = 0;
       const now = Date.now();
-      
+
       console.log(`🔍 [DEBUG] Total users found: ${total}`);
-      
+
       usersSnap.forEach((doc) => {
         const u = doc.data();
         // Check both phone_verified and phoneVerified fields
         const isVerified = u.phone_verified || u.phoneVerified;
         if (isVerified) {
           verified++;
-          console.log(`✅ [DEBUG] Verified user found: ${doc.id}, phone_verified: ${u.phone_verified}, phoneVerified: ${u.phoneVerified}`);
+          console.log(
+            `✅ [DEBUG] Verified user found: ${doc.id}, phone_verified: ${u.phone_verified}, phoneVerified: ${u.phoneVerified}`
+          );
         }
         if (
           u.last_active &&
@@ -120,9 +122,11 @@ class AdminService {
         )
           active++;
       });
-      
-      console.log(`📊 [DEBUG] Final counts - Total: ${total}, Verified: ${verified}, Active: ${active}`);
-      
+
+      console.log(
+        `📊 [DEBUG] Final counts - Total: ${total}, Verified: ${verified}, Active: ${active}`
+      );
+
       // Count users with at least one referral code
       const refCodesSnap = await databaseService
         .getDb()
@@ -143,102 +147,135 @@ class AdminService {
 
   async getCompanyAnalytics() {
     try {
-      return await getCachedOrFetch(
-        CACHE_KEYS.COMPANY_ANALYTICS,
-        async () => {
-          console.log("🚀 Fetching company analytics with batch processing...");
+      console.log(
+        "🚀 Fetching company analytics with optimized batch processing..."
+      );
 
-          const companiesSnap = await databaseService.companies().get();
+      // Fetch all data in parallel to avoid N+1 queries
+      const [
+        companiesSnap,
+        allProductsSnap,
+        allReferralsSnap,
+        allSalesSnap,
+        platformSettings,
+      ] = await Promise.all([
+        databaseService.companies().get(),
+        databaseService.getDb().collection("products").get(),
+        databaseService.referrals().get(),
+        databaseService.getDb().collection("sales").get(),
+        this.getPlatformSettings(),
+      ]);
 
-          // Batch process companies in chunks of 50 for massive scale
-          const BATCH_SIZE = 50;
-          const companies = companiesSnap.docs;
-          const analytics = [];
+      console.log(
+        `📊 Processing ${companiesSnap.size} companies with batch data...`
+      );
 
-          for (let i = 0; i < companies.length; i += BATCH_SIZE) {
-            const batch = companies.slice(i, i + BATCH_SIZE);
-            console.log(
-              `🔍 Processing batch ${
-                Math.floor(i / BATCH_SIZE) + 1
-              }/${Math.ceil(companies.length / BATCH_SIZE)}`
-            );
+      // Pre-process all data into maps for O(1) lookups
+      const productsByCompany = new Map();
+      const referralsByCompany = new Map();
+      const salesByCompany = new Map();
 
-            // Process batch in parallel
-            const batchPromises = batch.map(async (doc) => {
-              const company = doc.data();
-              const companyId = doc.id;
+      // Process products with memory optimization for large datasets
+      console.log(`🔍 Processing ${allProductsSnap.size} products...`);
+      allProductsSnap.docs.forEach((doc) => {
+        const product = doc.data();
+        const companyId = product.companyId || product.company_id;
+        if (companyId) {
+          productsByCompany.set(
+            companyId,
+            (productsByCompany.get(companyId) || 0) + 1
+          );
+        }
+      });
 
-              // Get company's products count - optimized query
-              let productCount = 0;
-              try {
-                const productsSnap = await databaseService
-                  .getDb()
-                  .collection("products")
-                  .where("companyId", "==", companyId)
-                  .get();
-                productCount = productsSnap.size;
-              } catch (error) {
-                try {
-                  const productsSnap = await databaseService
-                    .getDb()
-                    .collection("products")
-                    .where("company_id", "==", companyId)
-                    .get();
-                  productCount = productsSnap.size;
-                } catch (error2) {
-                  // Fallback: count manually if needed
-                  const allProductsSnap = await databaseService
-                    .getDb()
-                    .collection("products")
-                    .get();
-                  productCount = allProductsSnap.docs.filter((doc) => {
-                    const product = doc.data();
-                    return (
-                      (product.companyId || product.company_id) === companyId
-                    );
-                  }).length;
-                }
-              }
-
-              // Calculate platform fees and lifetime revenue in parallel
-              const [platformFees, lifetimeRevenue] = await Promise.all([
-                this.calculateCompanyPlatformFees(companyId),
-                this.calculateCompanyLifetimeRevenue(companyId),
-              ]);
-
-              // Calculate actual withdrawable amount based on sales and platform fees
-              // Withdrawable = Lifetime Revenue - Platform Fees - Already Withdrawn
-              const alreadyWithdrawn = company.totalWithdrawn || 0;
-              const withdrawable = Math.max(0, lifetimeRevenue - platformFees - alreadyWithdrawn);
-
-              console.log(`💰 [DEBUG] Company ${company.name} (${companyId}) - Calculated lifetimeRevenue: $${lifetimeRevenue}`);
-
-              const companyAnalytics = {
-                id: companyId,
-                name: company.name,
-                ownerUsername: company.ownerUsername || company.telegramId,
-                platformFees,
-                withdrawable,
-                lifetimeRevenue,
-                productCount,
-                hasWithdrawable: withdrawable > 0,
-                status: company.status || "pending",
-                createdAt: company.createdAt,
-              };
-
-              console.log(`💰 [DEBUG] Company ${company.name} - Final analytics object lifetimeRevenue: $${companyAnalytics.lifetimeRevenue}`);
-
-              analytics.push(companyAnalytics);
-            });
-
-            const batchResults = await Promise.all(batchPromises);
-            analytics.push(...batchResults);
+      // Process referrals with memory optimization for large datasets
+      console.log(`🔍 Processing ${allReferralsSnap.size} referrals...`);
+      allReferralsSnap.docs.forEach((doc) => {
+        const referral = doc.data();
+        const companyId = referral.companyId || referral.company_id;
+        if (companyId) {
+          if (!referralsByCompany.has(companyId)) {
+            referralsByCompany.set(companyId, []);
           }
+          referralsByCompany.get(companyId).push(referral);
+        }
+      });
 
-          return analytics;
-        },
-        300
-      ); // 5 minutes cache for company analytics
+      // Process sales with memory optimization for large datasets
+      console.log(`🔍 Processing ${allSalesSnap.size} sales...`);
+      allSalesSnap.docs.forEach((doc) => {
+        const sale = doc.data();
+        const companyId = sale.companyId || sale.company_id;
+        if (companyId && (sale.status === "completed" || !sale.status)) {
+          if (!salesByCompany.has(companyId)) {
+            salesByCompany.set(companyId, []);
+          }
+          salesByCompany.get(companyId).push(sale);
+        }
+      });
+
+      const analytics = [];
+
+      // Process companies efficiently using pre-fetched data
+      for (const doc of companiesSnap.docs) {
+        const company = doc.data();
+        const companyId = doc.id;
+
+        // Get product count from pre-processed map
+        const productCount = productsByCompany.get(companyId) || 0;
+
+        // Calculate platform fees from pre-processed referrals
+        const companyReferrals = referralsByCompany.get(companyId) || [];
+        let totalPlatformFees = 0;
+        companyReferrals.forEach((referral) => {
+          const platformFee =
+            (referral.amount || 0) *
+            (platformSettings.platformFeePercent / 100);
+          totalPlatformFees += platformFee;
+        });
+
+        // Calculate lifetime revenue from pre-processed data
+        const companySales = salesByCompany.get(companyId) || [];
+        let totalRevenue = 0;
+
+        // Add revenue from referrals
+        companyReferrals.forEach((referral) => {
+          totalRevenue += referral.amount || 0;
+        });
+
+        // Add revenue from sales
+        companySales.forEach((sale) => {
+          totalRevenue += sale.amount || 0;
+        });
+
+        // Calculate withdrawable amount
+        const alreadyWithdrawn = company.totalWithdrawn || 0;
+        const withdrawable = Math.max(
+          0,
+          totalRevenue - totalPlatformFees - alreadyWithdrawn
+        );
+
+        analytics.push({
+          id: companyId,
+          name: company.name,
+          ownerUsername: company.ownerUsername || company.telegramId,
+          platformFees: totalPlatformFees,
+          withdrawable,
+          lifetimeRevenue: totalRevenue,
+          productCount,
+          hasWithdrawable: withdrawable > 0,
+          status: company.status || "pending",
+          createdAt: company.createdAt,
+        });
+      }
+
+      // Clear maps to free memory for large datasets
+      productsByCompany.clear();
+      referralsByCompany.clear();
+      salesByCompany.clear();
+
+      console.log(`✅ Processed ${analytics.length} companies efficiently`);
+      return analytics;
     } catch (error) {
       logger.error("Error getting company analytics:", error);
       return [];
@@ -633,9 +670,6 @@ class AdminService {
 
   async getDashboardData() {
     try {
-      // Force cache invalidation to get fresh data
-      this.invalidateDashboardCache();
-      
       return await getCachedOrFetch(
         CACHE_KEYS.DASHBOARD_DATA,
         async () => {
@@ -663,8 +697,8 @@ class AdminService {
             quickStats,
           };
         },
-        180
-      ); // 3 minutes cache for dashboard
+        300
+      ); // 5 minutes cache for dashboard
     } catch (error) {
       logger.error("Error getting dashboard data:", error);
       throw error;
@@ -729,36 +763,53 @@ class AdminService {
 
   async getQuickStats() {
     try {
-      const [usersSnap, companiesSnap] = await Promise.all([
-        databaseService.users().get(),
-        databaseService.companies().get(), // Remove the status filter to count all companies
-      ]);
+      // Fetch all data in parallel to avoid N+1 queries
+      const [usersSnap, companiesSnap, allReferralsSnap, platformSettings] =
+        await Promise.all([
+          databaseService.users().get(),
+          databaseService.companies().get(),
+          databaseService.referrals().get(),
+          this.getPlatformSettings(),
+        ]);
 
-      // Calculate total platform fees from actual transactions - PARALLEL!
-      const platformFeesPromises = companiesSnap.docs.map(async (doc) => {
-        const company = doc.data();
-        const companyId = doc.id;
-        const platformFees = await this.calculateCompanyPlatformFees(companyId);
-        return {
-          platformFees,
-          billingBalance: company.billingBalance || 0,
-        };
+      // Pre-process referrals data for efficient calculation
+      const referralsByCompany = new Map();
+      allReferralsSnap.docs.forEach((doc) => {
+        const referral = doc.data();
+        const companyId = referral.companyId || referral.company_id;
+        if (companyId) {
+          if (!referralsByCompany.has(companyId)) {
+            referralsByCompany.set(companyId, []);
+          }
+          referralsByCompany.get(companyId).push(referral);
+        }
       });
 
-      const results = await Promise.all(platformFeesPromises);
+      // Calculate platform fees efficiently using pre-fetched data
+      let totalPlatformFees = 0;
+      let totalWithdrawable = 0;
 
-      const totalPlatformFees = results.reduce(
-        (sum, result) => sum + result.platformFees,
-        0
-      );
-      const totalWithdrawable = results.reduce(
-        (sum, result) => sum + result.billingBalance,
-        0
-      );
+      companiesSnap.docs.forEach((doc) => {
+        const company = doc.data();
+        const companyId = doc.id;
+
+        // Calculate platform fees from pre-processed referrals
+        const companyReferrals = referralsByCompany.get(companyId) || [];
+        let companyPlatformFees = 0;
+        companyReferrals.forEach((referral) => {
+          const platformFee =
+            (referral.amount || 0) *
+            (platformSettings.platformFeePercent / 100);
+          companyPlatformFees += platformFee;
+        });
+
+        totalPlatformFees += companyPlatformFees;
+        totalWithdrawable += company.billingBalance || 0;
+      });
 
       return {
         totalUsers: usersSnap.size,
-        totalCompanies: companiesSnap.size, // This will now show the correct count
+        totalCompanies: companiesSnap.size,
         totalPlatformFees,
         totalWithdrawable,
       };
@@ -1227,52 +1278,101 @@ class AdminService {
       return await getCachedOrFetch(
         CACHE_KEYS.PLATFORM_STATS,
         async () => {
-          console.log("🚀 Fetching platform stats with batch processing...");
+          console.log(
+            "🚀 Fetching platform stats with optimized batch processing..."
+          );
 
-          // Get all companies and calculate platform fees from actual transactions
-          const companiesSnap = await databaseService.companies().get();
+          // Fetch all data in parallel to avoid N+1 queries
+          const [
+            companiesSnap,
+            allReferralsSnap,
+            allSalesSnap,
+            platformSettings,
+          ] = await Promise.all([
+            databaseService.companies().get(),
+            databaseService.referrals().get(),
+            databaseService.getDb().collection("sales").get(),
+            this.getPlatformSettings(),
+          ]);
 
-          // Batch process companies in chunks of 50 for massive scale
-          const BATCH_SIZE = 50;
-          const companies = companiesSnap.docs;
+          console.log(
+            `📊 Processing ${companiesSnap.size} companies with batch data...`
+          );
+
+          // Pre-process all data into maps for O(1) lookups
+          const referralsByCompany = new Map();
+          const salesByCompany = new Map();
+
+          // Process referrals
+          allReferralsSnap.docs.forEach((doc) => {
+            const referral = doc.data();
+            const companyId = referral.companyId || referral.company_id;
+            if (companyId) {
+              if (!referralsByCompany.has(companyId)) {
+                referralsByCompany.set(companyId, []);
+              }
+              referralsByCompany.get(companyId).push(referral);
+            }
+          });
+
+          // Process sales
+          allSalesSnap.docs.forEach((doc) => {
+            const sale = doc.data();
+            const companyId = sale.companyId || sale.company_id;
+            if (companyId && (sale.status === "completed" || !sale.status)) {
+              if (!salesByCompany.has(companyId)) {
+                salesByCompany.set(companyId, []);
+              }
+              salesByCompany.get(companyId).push(sale);
+            }
+          });
+
           const companyStats = [];
 
-          for (let i = 0; i < companies.length; i += BATCH_SIZE) {
-            const batch = companies.slice(i, i + BATCH_SIZE);
-            console.log(
-              `🔍 Processing platform stats batch ${
-                Math.floor(i / BATCH_SIZE) + 1
-              }/${Math.ceil(companies.length / BATCH_SIZE)}`
-            );
+          // Process companies efficiently using pre-fetched data
+          for (const doc of companiesSnap.docs) {
+            const company = doc.data();
+            const companyId = doc.id;
 
-            // Process batch in parallel
-            const batchPromises = batch.map(async (doc) => {
-              const company = doc.data();
-              const companyId = doc.id;
-
-              // Calculate actual platform fees from referrals and transactions in parallel
-              const [platformFees, lifetimeRevenue] = await Promise.all([
-                this.calculateCompanyPlatformFees(companyId),
-                this.calculateCompanyLifetimeRevenue(companyId),
-              ]);
-
-              // Calculate actual withdrawable amount based on sales and platform fees
-              // Withdrawable = Lifetime Revenue - Platform Fees - Already Withdrawn
-              const alreadyWithdrawn = company.totalWithdrawn || 0;
-              const withdrawable = Math.max(0, lifetimeRevenue - platformFees - alreadyWithdrawn);
-
-              return {
-                id: companyId,
-                name: company.name,
-                platformFees,
-                withdrawable,
-                lifetimeRevenue,
-                hasWithdrawable: withdrawable > 0,
-              };
+            // Calculate platform fees from pre-processed referrals
+            const companyReferrals = referralsByCompany.get(companyId) || [];
+            let totalPlatformFees = 0;
+            companyReferrals.forEach((referral) => {
+              const platformFee =
+                (referral.amount || 0) *
+                (platformSettings.platformFeePercent / 100);
+              totalPlatformFees += platformFee;
             });
 
-            const batchResults = await Promise.all(batchPromises);
-            companyStats.push(...batchResults);
+            // Calculate lifetime revenue from pre-processed data
+            const companySales = salesByCompany.get(companyId) || [];
+            let totalRevenue = 0;
+
+            // Add revenue from referrals
+            companyReferrals.forEach((referral) => {
+              totalRevenue += referral.amount || 0;
+            });
+
+            // Add revenue from sales
+            companySales.forEach((sale) => {
+              totalRevenue += sale.amount || 0;
+            });
+
+            // Calculate withdrawable amount
+            const alreadyWithdrawn = company.totalWithdrawn || 0;
+            const withdrawable = Math.max(
+              0,
+              totalRevenue - totalPlatformFees - alreadyWithdrawn
+            );
+
+            companyStats.push({
+              id: companyId,
+              name: company.name,
+              platformFees: totalPlatformFees,
+              withdrawable,
+              lifetimeRevenue: totalRevenue,
+              hasWithdrawable: withdrawable > 0,
+            });
           }
 
           // Calculate totals
@@ -1289,6 +1389,9 @@ class AdminService {
             0
           );
 
+          console.log(
+            `✅ Processed ${companyStats.length} companies efficiently`
+          );
           return {
             totalPlatformFees,
             totalWithdrawable,
@@ -1359,7 +1462,9 @@ class AdminService {
 
   async calculateCompanyLifetimeRevenue(companyId) {
     try {
-      console.log(`💰 [DEBUG] Calculating lifetime revenue for company: ${companyId}`);
+      console.log(
+        `💰 [DEBUG] Calculating lifetime revenue for company: ${companyId}`
+      );
       let totalRevenue = 0;
 
       // Calculate revenue from referrals
@@ -1369,17 +1474,23 @@ class AdminService {
           .referrals()
           .where("companyId", "==", companyId)
           .get();
-        console.log(`📊 [DEBUG] Found ${referralsSnap.size} referrals for company ${companyId}`);
+        console.log(
+          `📊 [DEBUG] Found ${referralsSnap.size} referrals for company ${companyId}`
+        );
       } catch (error) {
         try {
           referralsSnap = await databaseService
             .referrals()
             .where("company_id", "==", companyId)
             .get();
-          console.log(`📊 [DEBUG] Found ${referralsSnap.size} referrals using company_id for company ${companyId}`);
+          console.log(
+            `📊 [DEBUG] Found ${referralsSnap.size} referrals using company_id for company ${companyId}`
+          );
         } catch (error2) {
           referralsSnap = await databaseService.referrals().get();
-          console.log(`📊 [DEBUG] Found ${referralsSnap.size} total referrals, filtering for company ${companyId}`);
+          console.log(
+            `📊 [DEBUG] Found ${referralsSnap.size} total referrals, filtering for company ${companyId}`
+          );
         }
       }
 
@@ -1389,7 +1500,9 @@ class AdminService {
         if (referralCompanyId === companyId) {
           const amount = referral.amount || 0;
           totalRevenue += amount;
-          console.log(`💰 [DEBUG] Added referral revenue: $${amount} for company ${companyId}`);
+          console.log(
+            `💰 [DEBUG] Added referral revenue: $${amount} for company ${companyId}`
+          );
         }
       }
 
@@ -1401,14 +1514,18 @@ class AdminService {
           .where("companyId", "==", companyId)
           .where("status", "==", "completed")
           .get();
-        
-        console.log(`🛒 [DEBUG] Found ${salesSnap.size} completed sales for company ${companyId}`);
+
+        console.log(
+          `🛒 [DEBUG] Found ${salesSnap.size} completed sales for company ${companyId}`
+        );
 
         for (const doc of salesSnap.docs) {
           const sale = doc.data();
           const amount = sale.amount || 0;
           totalRevenue += amount;
-          console.log(`💰 [DEBUG] Added sale revenue: $${amount} for company ${companyId}`);
+          console.log(
+            `💰 [DEBUG] Added sale revenue: $${amount} for company ${companyId}`
+          );
         }
       } catch (error) {
         // Try alternative field names
@@ -1419,14 +1536,18 @@ class AdminService {
             .where("company_id", "==", companyId)
             .where("status", "==", "completed")
             .get();
-          
-          console.log(`🛒 [DEBUG] Found ${salesSnap.size} completed sales using company_id for company ${companyId}`);
+
+          console.log(
+            `🛒 [DEBUG] Found ${salesSnap.size} completed sales using company_id for company ${companyId}`
+          );
 
           for (const doc of salesSnap.docs) {
             const sale = doc.data();
             const amount = sale.amount || 0;
             totalRevenue += amount;
-            console.log(`💰 [DEBUG] Added sale revenue: $${amount} for company ${companyId}`);
+            console.log(
+              `💰 [DEBUG] Added sale revenue: $${amount} for company ${companyId}`
+            );
           }
         } catch (error2) {
           // If both fail, try without status filter
@@ -1436,24 +1557,33 @@ class AdminService {
               .collection("sales")
               .where("companyId", "==", companyId)
               .get();
-            
-            console.log(`🛒 [DEBUG] Found ${salesSnap.size} total sales for company ${companyId}`);
+
+            console.log(
+              `🛒 [DEBUG] Found ${salesSnap.size} total sales for company ${companyId}`
+            );
 
             for (const doc of salesSnap.docs) {
               const sale = doc.data();
               if (sale.status === "completed" || !sale.status) {
                 const amount = sale.amount || 0;
                 totalRevenue += amount;
-                console.log(`💰 [DEBUG] Added sale revenue: $${amount} for company ${companyId}`);
+                console.log(
+                  `💰 [DEBUG] Added sale revenue: $${amount} for company ${companyId}`
+                );
               }
             }
           } catch (error3) {
-            console.log(`⚠️ [DEBUG] Could not fetch sales for company ${companyId}:`, error3);
+            console.log(
+              `⚠️ [DEBUG] Could not fetch sales for company ${companyId}:`,
+              error3
+            );
           }
         }
       }
 
-      console.log(`💰 [DEBUG] Total lifetime revenue for company ${companyId}: $${totalRevenue}`);
+      console.log(
+        `💰 [DEBUG] Total lifetime revenue for company ${companyId}: $${totalRevenue}`
+      );
       return totalRevenue;
     } catch (error) {
       logger.error("Error calculating company lifetime revenue:", error);
@@ -1522,85 +1652,6 @@ class AdminService {
     } catch (error) {
       logger.error("Error calculating total lifetime withdrawn:", error);
       return 0;
-    }
-  }
-
-  async getCompanyAnalytics() {
-    try {
-      const companiesSnap = await databaseService.companies().get();
-
-      const analytics = [];
-
-      for (const doc of companiesSnap.docs) {
-        const company = doc.data();
-        const companyId = doc.id;
-
-        // Get company's products count - optimized query
-        let productCount = 0;
-        try {
-          const productsSnap = await databaseService
-            .getDb()
-            .collection("products")
-            .where("companyId", "==", companyId)
-            .get();
-          productCount = productsSnap.size;
-        } catch (error) {
-          try {
-            const productsSnap = await databaseService
-              .getDb()
-              .collection("products")
-              .where("company_id", "==", companyId)
-              .get();
-            productCount = productsSnap.size;
-          } catch (error2) {
-            // Fallback: count manually if needed
-            const allProductsSnap = await databaseService
-              .getDb()
-              .collection("products")
-              .get();
-            productCount = allProductsSnap.docs.filter((doc) => {
-              const product = doc.data();
-              return (product.companyId || product.company_id) === companyId;
-            }).length;
-          }
-        }
-
-        // Calculate platform fees and lifetime revenue
-        const [platformFees, lifetimeRevenue] = await Promise.all([
-          this.calculateCompanyPlatformFees(companyId),
-          this.calculateCompanyLifetimeRevenue(companyId),
-        ]);
-
-        // Calculate actual withdrawable amount based on sales and platform fees
-        // Withdrawable = Lifetime Revenue - Platform Fees - Already Withdrawn
-        const alreadyWithdrawn = company.totalWithdrawn || 0;
-        const withdrawable = Math.max(0, lifetimeRevenue - platformFees - alreadyWithdrawn);
-
-        // Debug logging for company billing balance
-        console.log(`🔍 Company ${company.name} (${companyId}):`);
-        console.log(`   - Billing Balance: $${withdrawable}`);
-        console.log(`   - Platform Fees: $${platformFees}`);
-        console.log(`   - Lifetime Revenue: $${lifetimeRevenue}`);
-        console.log(`   - Has Withdrawable: ${withdrawable > 0}`);
-
-        analytics.push({
-          id: companyId,
-          name: company.name,
-          ownerUsername: company.ownerUsername || company.telegramId,
-          platformFees,
-          withdrawable,
-          lifetimeRevenue,
-          productCount,
-          hasWithdrawable: withdrawable > 0,
-          status: company.status || "pending",
-          createdAt: company.createdAt,
-        });
-      }
-
-      return analytics;
-    } catch (error) {
-      logger.error("Error getting company analytics:", error);
-      return [];
     }
   }
 
@@ -2546,19 +2597,19 @@ class AdminService {
     try {
       const companyRef = databaseService.companies().doc(companyId);
       const companyDoc = await companyRef.get();
-      
+
       if (!companyDoc.exists) {
         throw new Error(`Company ${companyId} not found`);
       }
-      
+
       const currentBalance = companyDoc.data().billingBalance || 0;
       const newBalance = currentBalance + amount;
-      
+
       await companyRef.update({
         billingBalance: newBalance,
         updatedAt: new Date(),
       });
-      
+
       logger.info(
         `Company ${companyId} billing balance updated: ${currentBalance} + ${amount} = ${newBalance}`
       );
@@ -2573,19 +2624,19 @@ class AdminService {
     try {
       const companyRef = databaseService.companies().doc(companyId);
       const companyDoc = await companyRef.get();
-      
+
       if (!companyDoc.exists) {
         throw new Error(`Company ${companyId} not found`);
       }
-      
+
       const currentWithdrawn = companyDoc.data().totalWithdrawn || 0;
       const newTotalWithdrawn = currentWithdrawn + amount;
-      
+
       await companyRef.update({
         totalWithdrawn: newTotalWithdrawn,
         updatedAt: new Date(),
       });
-      
+
       logger.info(
         `Company ${companyId} total withdrawn updated: ${currentWithdrawn} + ${amount} = ${newTotalWithdrawn}`
       );
@@ -2598,23 +2649,23 @@ class AdminService {
 
   // Cache invalidation methods
   invalidateDashboardCache() {
-    invalidateCache('dashboard');
-    invalidateCache('platform_stats');
-    invalidateCache('company_analytics');
-    invalidateCache('quick_stats');
-    console.log('🗑️ Dashboard cache invalidated');
+    invalidateCache("dashboard");
+    invalidateCache("platform_stats");
+    invalidateCache("company_analytics");
+    invalidateCache("quick_stats");
+    console.log("🗑️ Dashboard cache invalidated");
   }
 
   invalidateCompanyCache() {
-    invalidateCache('company_analytics');
-    invalidateCache('platform_stats');
-    console.log('🗑️ Company cache invalidated');
+    invalidateCache("company_analytics");
+    invalidateCache("platform_stats");
+    console.log("🗑️ Company cache invalidated");
   }
 
   invalidatePlatformCache() {
-    invalidateCache('platform_stats');
-    invalidateCache('quick_stats');
-    console.log('🗑️ Platform cache invalidated');
+    invalidateCache("platform_stats");
+    invalidateCache("quick_stats");
+    console.log("🗑️ Platform cache invalidated");
   }
 }
 
