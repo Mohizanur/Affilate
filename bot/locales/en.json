@@ -582,5 +582,6 @@
   "msg__failed_to_unban_user": "❌ Failed to unban user. Please try again.",
   "msg__user_promoted": "✅ User has been promoted to admin!",
   "msg__failed_to_promote_user": "❌ Failed to promote user. Please try again.",
-  "msg__user_demoted": "✅ User has been demoted from admin."
+  "msg__user_demoted": "✅ User has been demoted from admin.",
+  "msg__failed_to_demote_user": "❌ Failed to demote user. Please try again."
 }

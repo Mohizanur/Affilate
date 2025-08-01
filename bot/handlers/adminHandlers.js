@@ -412,6 +412,31 @@ class AdminHandlers {
     }
   }
 
+  async handleDemoteUserId(ctx, userId) {
+    try {
+      const user = await userService.userService.getUserByTelegramId(userId);
+      if (!user) {
+        return ctx.reply("❌ User not found");
+      }
+
+      await userService.userService.updateUser(userId, {
+        role: "user",
+        isAdmin: false,
+        demotedAt: new Date(),
+      });
+
+      ctx.reply(
+        `✅ User ${
+          user.firstName || user.first_name || userId
+        } demoted from Admin`
+      );
+      if (ctx.callbackQuery) ctx.answerCbQuery();
+    } catch (error) {
+      logger.error("Error demoting user:", error);
+      ctx.reply("❌ Failed to demote user");
+    }
+  }
+
   async handlePromoteToCompanyManager(ctx, userId) {
     try {
       const user = await userService.userService.getUserByTelegramId(userId);
