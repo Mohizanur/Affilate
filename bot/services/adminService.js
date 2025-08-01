@@ -1567,6 +1567,13 @@ class AdminService {
 
         const withdrawable = company.billingBalance || 0;
 
+        // Debug logging for company billing balance
+        console.log(`🔍 Company ${company.name} (${companyId}):`);
+        console.log(`   - Billing Balance: $${withdrawable}`);
+        console.log(`   - Platform Fees: $${platformFees}`);
+        console.log(`   - Lifetime Revenue: $${lifetimeRevenue}`);
+        console.log(`   - Has Withdrawable: ${withdrawable > 0}`);
+
         analytics.push({
           id: companyId,
           name: company.name,
