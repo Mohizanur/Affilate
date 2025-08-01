@@ -1542,32 +1542,17 @@ class AdminHandlers {
               "💰 Company Withdrawals",
               "admin_withdrawals"
             ),
-          ],
-          [
-            Markup.button.callback(
-              "💳 Platform Withdrawals",
-              "platform_withdrawals"
-            ),
           ]
         );
 
-        // Add platform withdrawal button if there's withdrawable amount
-        if (platformWithdrawable.withdrawable > 0) {
-          actionButtons.push([
-            Markup.button.callback(
-              `💰 Request Platform Withdrawal ($${platformWithdrawable.withdrawable.toFixed(2)})`,
-              "platform_withdrawal_request"
-            ),
-          ]);
-        }
+        // Platform withdrawal removed - only company-specific withdrawals are allowed
 
         actionButtons.push(
           [Markup.button.callback("📊 User Analytics", "user_analytics")],
           [Markup.button.callback("🔙 Back to Admin", "admin_panel")]
         );
 
-        // Ensure platform withdrawal button is always visible
-        console.log(`🔍 Platform withdrawal button added to actionButtons`);
+        // Platform withdrawal functionality removed
 
         console.log(
           `🔍 Final actionButtons array has ${actionButtons.length} rows`
@@ -1576,11 +1561,6 @@ class AdminHandlers {
           console.log(
             `  Row ${index}: ${row.map((btn) => btn.text).join(", ")}`
           );
-          // Check if platform withdrawal button is in this row
-          const platformWithdrawalBtn = row.find(btn => btn.callback_data === "platform_withdrawals");
-          if (platformWithdrawalBtn) {
-            console.log(`✅ Platform withdrawal button found in row ${index}: ${platformWithdrawalBtn.text}`);
-          }
         });
 
         // Add pagination rows if they have buttons
