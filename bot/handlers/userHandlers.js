@@ -788,7 +788,6 @@ class UserHandlers {
       "msg_referral_statistics",
       {
         totalReferrals: stats.totalReferrals,
-        verifiedReferrals: stats.verifiedReferrals || 0,
         totalRewards: stats.totalEarnings.toFixed(2),
         recentActivity:
           stats.recentActivity || t("msg_no_recent_activity", {}, userLanguage),
@@ -1328,9 +1327,9 @@ class UserHandlers {
             phone: user.phoneVerified
               ? t("msg_phone_verified", {}, userLanguage)
               : t("msg_phone_not_verified", {}, userLanguage),
-            companies: user.companies?.length || 0,
-            balance: (user.referralBalance || 0).toFixed(2),
-            referrals: user.totalReferrals || 0,
+            companies: user.joinedCompanies?.length || 0,
+            balance: (user.coinBalance || 0).toFixed(2),
+            referrals: user.verifiedReferralCount || 0,
           },
           userLanguage
         );
@@ -1958,27 +1957,25 @@ Toggle notifications:
           ctx.session.companyRegistrationData.website =
             text === "skip" ? null : text;
           ctx.session.companyRegistrationStep = "phone";
-          ctx.reply("📞 Enter company phone:", { parse_mode: "Markdown" });
+          ctx.reply(t("msg_enter_company_phone", {}, userLanguage));
           break;
         case "phone":
           ctx.session.companyRegistrationData.phone = text;
           ctx.session.companyRegistrationStep = "email";
-          ctx.reply("📧 Enter company email:", { parse_mode: "Markdown" });
+          ctx.reply(t("msg_enter_company_email", {}, userLanguage));
           break;
         case "email":
           if (!/^\S+@\S+\.\S+$/.test(text)) {
-            return ctx.reply("❌ Please enter a valid email:");
+            return ctx.reply(t("msg_enter_valid_email", {}, userLanguage));
           }
           ctx.session.companyRegistrationData.email = text;
           ctx.session.companyRegistrationStep = "address";
-          ctx.reply("📍 Enter company address:", { parse_mode: "Markdown" });
+          ctx.reply(t("msg_enter_company_address", {}, userLanguage));
           break;
         case "address":
           ctx.session.companyRegistrationData.address = text;
           ctx.session.companyRegistrationStep = "location";
-          ctx.reply("🌐 Enter company location (or type skip if none):", {
-            parse_mode: "Markdown",
-          });
+          ctx.reply(t("msg_enter_company_location", {}, userLanguage));
           break;
         case "location":
           ctx.session.companyRegistrationData.location =
