@@ -1318,6 +1318,10 @@ class UserHandlers {
       if (user.phone_verified && !user.phoneVerified)
         user.phoneVerified = user.phone_verified;
 
+      // Get referral stats to show actual total referrals
+      const referralService = require("../services/referralService");
+      const stats = await referralService.getReferralStats(telegramId);
+
       const message =
         t("msg_profile_title", {}, userLanguage) +
         t(
@@ -1329,7 +1333,7 @@ class UserHandlers {
               : t("msg_phone_not_verified", {}, userLanguage),
             companies: user.joinedCompanies?.length || 0,
             balance: (user.coinBalance || 0).toFixed(2),
-            referrals: user.verifiedReferralCount || 0,
+            referrals: stats.totalReferrals || 0,
           },
           userLanguage
         );

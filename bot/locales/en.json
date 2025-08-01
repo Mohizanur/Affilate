@@ -509,7 +509,7 @@
   "msg_proof_uploaded": "✅ Proof uploaded",
   "msg_share_code_instructions": "📤 Share this code with others:\n\n",
   "msg_failed_generate_share": "❌ Failed to generate share message. Please try again.",
-  "help": "🤖 *Welcome to the Affiliate Bot!*\n\nHere's how to get started:\n\n🛍️ **Browse Products** - Find products to purchase\n👥 **My Referrals** - Track your referral earnings\n🧮 **Fee Calculator** - Calculate fees and bonuses\n\nNeed help? Contact support!",
+  "help": "🤖 *How ReferralBot Works:*\n\n1️⃣ Buy from any company to get a referral code (unique, single-use, per company)\n2️⃣ Share your code with friends\n3️⃣ When a friend uses your code and buys, you get {{referralCommissionPercent}}% reward, they get {{buyerDiscountPercent}}% discount\n4️⃣ Company must approve the purchase for rewards to be paid\n5️⃣ All rewards, discounts, and balances are automatic and visible in your profile\n6️⃣ Platform takes {{platformFeePercent}}% fee from each sale, companies pay 500-1000 birr/month\n7️⃣ Withdrawals take 3-5 days and may have a small fee\n8️⃣ No self-referral, codes expire after use\n\n*For Companies:*\n- Approve purchases to trigger rewards\n- See all referrals, stats, and payouts in your dashboard\n- All logic is automatic and transparent\n\nFor more info, contact @Nife777online",
   "msg_failed_load_help": "❌ Failed to load help. Please try again.",
   "msg_enter_a_purchase_amount_to_calculate_fees_and_": "💰 Enter a purchase amount to calculate fees and bonuses:",
   "msg__something_went_wrong": "❌ Something went wrong. Please try again.",
