@@ -361,7 +361,7 @@ What would you like to do?
       } else {
         message += `You have ${products.length} product(s):\n\n`;
         products.forEach((product, index) => {
-          message += `${index + 1}. ${product.title} - $${product.price}\n`;
+          message += `${index + 1}. ${product.title} - $${product.price} (Qty: ${product.quantity || 0})\n`;
         });
       }
       const buttons = [
