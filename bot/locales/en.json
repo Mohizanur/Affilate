@@ -203,6 +203,7 @@
   "msg__company_deleted_successfully": "✅ Company deleted successfully!",
   "msg__failed_to_delete_company": "❌ Failed to delete company.",
   "msg__you_are_not_eligible_to_withdraw_from_this_co": "❌ You are not eligible to withdraw from this company yet.",
+  "msg__withdrawal_amount_below_minimum": "❌ Withdrawal amount ($${earnings}) is below the minimum required amount ($${minPayout}). Please earn more before requesting a withdrawal.",
   "msg__your_withdrawal_request_has_been_sent_for_app": "✅ Your withdrawal request has been sent for approval. You will be notified once it is processed.",
   "msg__failed_to_request_withdrawal": "❌ Failed to request withdrawal.",
   "msg__withdrawal_not_found": "❌ Withdrawal not found.",

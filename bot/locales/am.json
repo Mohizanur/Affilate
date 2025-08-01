@@ -628,6 +628,7 @@
   "msg__withdrawal_not_found": "አልተገኘም።",
   "msg__withdrawal_request_denied": "የወጪ ጥያቄ",
   "msg__withdrawal_request_sent_to_company_owner_for_": "ተልኳል።",
+  "msg__withdrawal_amount_below_minimum": "❌ የወጪ መጠን ($${earnings}) ከዝቅተኛው የሚያስፈልገው መጠን ($${minPayout}) በታች ነው። እባክዎ የወጪ ጥያቄ ከመስጠት በፊት ተጨማሪ ያግኙ።",
   "msg__you_are_already_registered_as_a_company_use_c": "ተመዝግቧል።",
   "msg__you_are_banned_from_using_this_bot": "እርስዎ ከዚህ ቦት አጠቃቀም የተከለከሉ ናቸው።",
   "msg__you_are_not_eligible_to_register_a_company_pl": "ኩባንያ",

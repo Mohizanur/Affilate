@@ -851,7 +851,8 @@ class UserHandlers {
         ),
       ]);
 
-      if (data.earnings >= minPayout) {
+      // Show withdrawal button for any positive amount
+      if (data.earnings > 0) {
         buttons.push([
           require("telegraf").Markup.button.callback(
             t(
@@ -3717,16 +3718,29 @@ Toggle notifications:
       const companyStats = stats.companyStats && stats.companyStats[companyId];
       console.log("Company stats for", companyId, ":", companyStats);
 
-      if (!companyStats || companyStats.earnings < minPayout) {
-        console.log("User not eligible for withdrawal:", {
-          hasCompanyStats: !!companyStats,
-          earnings: companyStats?.earnings,
-          minPayout: minPayout,
-        });
+      if (!companyStats) {
+        console.log("No company stats found for withdrawal");
         return ctx.reply(
           t(
             "msg__you_are_not_eligible_to_withdraw_from_this_co",
             {},
+            userLanguage
+          )
+        );
+      }
+
+      if (companyStats.earnings < minPayout) {
+        console.log("User not eligible for withdrawal:", {
+          earnings: companyStats.earnings,
+          minPayout: minPayout,
+        });
+        return ctx.reply(
+          t(
+            "msg__withdrawal_amount_below_minimum",
+            {
+              earnings: companyStats.earnings.toFixed(2),
+              minPayout: minPayout.toFixed(2),
+            },
             userLanguage
           )
         );
