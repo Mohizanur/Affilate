@@ -3340,28 +3340,17 @@ Toggle notifications:
           // Update company billing balance with seller earnings
           if (product.companyId) {
             try {
-<<<<<<< HEAD
-              await adminService.updateCompanyBillingBalance(
-=======
               const newCompanyBalance = await adminService.updateCompanyBillingBalance(
->>>>>>> origin/cursor/fix-platform-sales-and-withdrawal-analytics-8707
                 product.companyId,
                 sellerEarnings
               );
               logger.info(
-<<<<<<< HEAD
-                `Company ${product.companyId} billing balance updated: +$${sellerEarnings.toFixed(2)}`
-              );
-            } catch (error) {
-              logger.error(`Error updating company billing balance: ${error.message}`);
-=======
                 `Company ${product.companyId} billing balance updated: +$${sellerEarnings.toFixed(
                   2
                 )} = $${newCompanyBalance.toFixed(2)}`
               );
             } catch (error) {
               logger.error(`Error updating company billing balance for ${product.companyId}:`, error);
->>>>>>> origin/cursor/fix-platform-sales-and-withdrawal-analytics-8707
             }
           }
 
