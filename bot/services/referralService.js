@@ -319,34 +319,10 @@ class ReferralService {
         const settings = await adminService.getPlatformSettings();
         feePercent = settings.platformFeePercent;
         platformFee = amount * (feePercent / 100);
-        // Add platform fee to admin balance (first admin user found)
-        const adminSnap = await databaseService
-          .users()
-          .where("role", "==", "admin")
-          .limit(1)
-          .get();
-        if (!adminSnap.empty) {
-          const adminDoc = adminSnap.docs[0];
-          const adminBalance = adminDoc.data().coinBalance || 0;
-          await adminDoc.ref.update({
-            coinBalance: adminBalance + platformFee,
-          });
-        } else {
-          // Optionally, store in a global admin balance document
-          const globalDoc = await databaseService
-            .getDb()
-            .collection("settings")
-            .doc("admin_balance")
-            .get();
-          const globalBalance = globalDoc.exists
-            ? globalDoc.data().balance || 0
-            : 0;
-          await databaseService
-            .getDb()
-            .collection("settings")
-            .doc("admin_balance")
-            .set({ balance: globalBalance + platformFee }, { merge: true });
-        }
+        
+        // Update platform balance instead of admin's coinBalance
+        await adminService.updatePlatformBalance(platformFee);
+        logger.info(`Platform fee added to platform balance: $${platformFee.toFixed(2)}`);
       }
       // Update referrer's coinBalance
       if (amount && typeof amount === "number") {

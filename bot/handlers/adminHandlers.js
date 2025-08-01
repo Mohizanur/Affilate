@@ -1544,7 +1544,20 @@ class AdminHandlers {
               "💳 Platform Withdrawals",
               "platform_withdrawals"
             ),
-          ],
+          ]
+        );
+
+        // Add platform withdrawal button if there's withdrawable amount
+        if (platformWithdrawable.withdrawable > 0) {
+          actionButtons.push([
+            Markup.button.callback(
+              `💰 Request Platform Withdrawal ($${platformWithdrawable.withdrawable.toFixed(2)})`,
+              "platform_withdrawal_request"
+            ),
+          ]);
+        }
+
+        actionButtons.push(
           [Markup.button.callback("📊 User Analytics", "user_analytics")],
           [Markup.button.callback("🔙 Back to Admin", "admin_panel")]
         );
