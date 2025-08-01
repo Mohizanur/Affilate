@@ -2185,7 +2185,11 @@ class AdminService {
         throw new Error("Company not found");
       }
 
-      const withdrawable = company.billingBalance || 0;
+      // Calculate actual withdrawable amount from platform fees
+      const platformFees = await this.calculateCompanyPlatformFees(companyId);
+      const totalWithdrawn = company.totalWithdrawn || 0;
+      const withdrawable = Math.max(0, platformFees - totalWithdrawn);
+      
       if (withdrawable < amount) {
         throw new Error(
           `Insufficient withdrawable amount. Available: $${withdrawable.toFixed(
