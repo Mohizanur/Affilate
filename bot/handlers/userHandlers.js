@@ -1881,7 +1881,11 @@ Toggle notifications:
       const user = await userService.userService.getUserByTelegramId(
         telegramId
       );
-      const userLanguage = ctx.session?.language || user.language || "en";
+      const userLanguage =
+        ctx.session?.language ||
+        user.language ||
+        ctx.from.language_code ||
+        "en";
 
       if (!user.canRegisterCompany) {
         return ctx.reply(

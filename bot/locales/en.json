@@ -529,7 +529,7 @@
   "msg__failed_to_update_notification_setting": "❌ Failed to update notification setting.",
   "msg__failed_to_load_detailed_stats_please_try_agai": "❌ Failed to load detailed stats. Please try again.",
   "msg_not_eligible_register_company": "❌ You are not eligible to register a company.",
-  "msg_company_registration_agreement": "📋 *Company Registration Agreement*\n\nBy registering a company, you agree to our terms and conditions.",
+
   "msg_failed_start_registration": "❌ Failed to start registration. Please try again.",
   "msg_enter_company_name": "🏢 Enter company name:",
   "msg_enter_company_description": "📝 Enter company description:",
