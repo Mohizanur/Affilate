@@ -206,9 +206,12 @@ class AdminService {
                 this.calculateCompanyLifetimeRevenue(companyId),
               ]);
 
-              console.log(`💰 [DEBUG] Company ${company.name} (${companyId}) - Calculated lifetimeRevenue: $${lifetimeRevenue}`);
+              // Calculate actual withdrawable amount based on sales and platform fees
+              // Withdrawable = Lifetime Revenue - Platform Fees - Already Withdrawn
+              const alreadyWithdrawn = company.totalWithdrawn || 0;
+              const withdrawable = Math.max(0, lifetimeRevenue - platformFees - alreadyWithdrawn);
 
-              const withdrawable = company.billingBalance || 0;
+              console.log(`💰 [DEBUG] Company ${company.name} (${companyId}) - Calculated lifetimeRevenue: $${lifetimeRevenue}`);
 
               const companyAnalytics = {
                 id: companyId,
@@ -1253,7 +1256,10 @@ class AdminService {
                 this.calculateCompanyLifetimeRevenue(companyId),
               ]);
 
-              const withdrawable = company.billingBalance || 0;
+              // Calculate actual withdrawable amount based on sales and platform fees
+              // Withdrawable = Lifetime Revenue - Platform Fees - Already Withdrawn
+              const alreadyWithdrawn = company.totalWithdrawn || 0;
+              const withdrawable = Math.max(0, lifetimeRevenue - platformFees - alreadyWithdrawn);
 
               return {
                 id: companyId,
@@ -1565,7 +1571,10 @@ class AdminService {
           this.calculateCompanyLifetimeRevenue(companyId),
         ]);
 
-        const withdrawable = company.billingBalance || 0;
+        // Calculate actual withdrawable amount based on sales and platform fees
+        // Withdrawable = Lifetime Revenue - Platform Fees - Already Withdrawn
+        const alreadyWithdrawn = company.totalWithdrawn || 0;
+        const withdrawable = Math.max(0, lifetimeRevenue - platformFees - alreadyWithdrawn);
 
         analytics.push({
           id: companyId,
@@ -2458,6 +2467,7 @@ class AdminService {
       const newBalance = currentBalance - withdrawal.amount;
       await companyRef.update({
         billingBalance: newBalance,
+        totalWithdrawn: (company.totalWithdrawn || 0) + withdrawal.amount,
         lastWithdrawal: {
           amount: withdrawal.amount,
           date: new Date(),
@@ -2527,26 +2537,54 @@ class AdminService {
 
   async updateCompanyBillingBalance(companyId, amount) {
     try {
-      const companyDoc = await databaseService.companies().doc(companyId).get();
+      const companyRef = databaseService.companies().doc(companyId);
+      const companyDoc = await companyRef.get();
+      
       if (!companyDoc.exists) {
-        throw new Error("Company not found");
+        throw new Error(`Company ${companyId} not found`);
       }
-
-      const company = companyDoc.data();
-      const currentBalance = company.billingBalance || 0;
+      
+      const currentBalance = companyDoc.data().billingBalance || 0;
       const newBalance = currentBalance + amount;
-
-      await databaseService.companies().doc(companyId).update({
+      
+      await companyRef.update({
         billingBalance: newBalance,
         updatedAt: new Date(),
       });
-
+      
       logger.info(
         `Company ${companyId} billing balance updated: ${currentBalance} + ${amount} = ${newBalance}`
       );
       return newBalance;
     } catch (error) {
       logger.error("Error updating company billing balance:", error);
+      throw error;
+    }
+  }
+
+  async updateCompanyTotalWithdrawn(companyId, amount) {
+    try {
+      const companyRef = databaseService.companies().doc(companyId);
+      const companyDoc = await companyRef.get();
+      
+      if (!companyDoc.exists) {
+        throw new Error(`Company ${companyId} not found`);
+      }
+      
+      const currentWithdrawn = companyDoc.data().totalWithdrawn || 0;
+      const newTotalWithdrawn = currentWithdrawn + amount;
+      
+      await companyRef.update({
+        totalWithdrawn: newTotalWithdrawn,
+        updatedAt: new Date(),
+      });
+      
+      logger.info(
+        `Company ${companyId} total withdrawn updated: ${currentWithdrawn} + ${amount} = ${newTotalWithdrawn}`
+      );
+      return newTotalWithdrawn;
+    } catch (error) {
+      logger.error("Error updating company total withdrawn:", error);
       throw error;
     }
   }
