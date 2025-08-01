@@ -3439,6 +3439,10 @@ class AdminHandlers {
         return ctx.reply("❌ Company not found.");
       }
 
+      // Invalidate cache to ensure fresh data is calculated
+      adminService.invalidateDashboardCache();
+      adminService.invalidateCompanyCache();
+
       // Calculate actual withdrawable amount from platform fees
       const platformFees = await adminService.calculateCompanyPlatformFees(companyId);
       const currentBalance = company.billingBalance || 0;
@@ -3562,6 +3566,10 @@ class AdminHandlers {
 
       // Update company's total withdrawn amount
       await adminService.updateCompanyTotalWithdrawn(companyId, amount);
+
+      // Invalidate cache to ensure fresh data is shown
+      adminService.invalidateDashboardCache();
+      adminService.invalidateCompanyCache();
 
       // Clear session
       delete ctx.session.companyWithdrawalStep;
