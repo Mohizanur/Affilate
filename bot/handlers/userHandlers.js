@@ -207,9 +207,10 @@ class UserHandlers {
           "my_referrals"
         ),
       ];
-      // Only show Balance & Withdraw if user has balance > 0
+      // Only show Balance & Withdraw if user has balance > 0 (check both coinBalance and referralBalance)
+      const totalBalance = (user.coinBalance || 0) + (user.referralBalance || 0);
       const mainRow2 =
-        user.coinBalance > 0
+        totalBalance > 0
           ? [
               Markup.button.callback(
                 t("btn_balance_withdraw", {}, userLanguage),
