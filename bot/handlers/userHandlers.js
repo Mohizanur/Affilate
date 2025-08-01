@@ -3341,24 +3341,44 @@ Toggle notifications:
 
           if (adminIds.length > 0) {
             logger.info(`Notifying ${adminIds.length} admins of sale`);
+            // Get seller username
+            let sellerUsername = ctx.from.username || ctx.from.first_name || ctx.from.id;
+            
+            // Build detailed admin alert message
+            let adminMessage = `💰 New sale completed!\n\n`;
+            adminMessage += `🏢 Company: ${
+              product.companyId
+                ? await companyService
+                    .getCompanyById(product.companyId)
+                    .then((c) => c?.name || "Unknown")
+                : "Unknown"
+            }\n`;
+            adminMessage += `🛒 Seller: @${sellerUsername}\n`;
+            adminMessage += `👤 Buyer: ${buyerUsername || buyerId}\n`;
+            adminMessage += `📦 Product: ${product.title}\n`;
+            adminMessage += `📊 Quantity: ${quantity}\n`;
+            adminMessage += `💰 Total Amount: $${total.toFixed(2)}\n\n`;
+            
+            // Add earnings breakdown
+            adminMessage += `💸 *Earnings Breakdown:*\n`;
+            adminMessage += `• Platform Fee (${PLATFORM_FEE_PERCENT}%): $${platformFee.toFixed(2)}\n`;
+            
+            if (referrerBonus > 0 && buyerBonus > 0) {
+              adminMessage += `• Referrer Bonus (${REFERRAL_BONUS_PERCENT}%): $${referrerBonus.toFixed(2)}\n`;
+              adminMessage += `• Buyer Bonus (${BUYER_BONUS_PERCENT}%): $${buyerBonus.toFixed(2)}\n`;
+              adminMessage += `• Seller Earnings: $${sellerEarnings.toFixed(2)}\n`;
+              adminMessage += `🔗 Referral Code: ${referral?.code} (by @${referrerUsername || referral.referrerTelegramId})\n`;
+            } else {
+              adminMessage += `• Seller Earnings: $${sellerEarnings.toFixed(2)}\n`;
+              adminMessage += `🔗 Referral Code: None\n`;
+            }
+            
+            adminMessage += `\n💳 New Platform Balance: $${newPlatformBalance.toFixed(2)}`;
+
             await notificationInstance.notifyAdminAlert(
               adminIds,
               "New Sale Completed",
-              `💰 New sale completed!\n\n🏢 Company: ${
-                product.companyId
-                  ? await companyService
-                      .getCompanyById(product.companyId)
-                      .then((c) => c?.name || "Unknown")
-                  : "Unknown"
-              }\n👤 Buyer: ${buyerUsername || buyerId}\n📦 Product: ${
-                product.title
-              }\n📊 Quantity: ${quantity}\n💰 Amount: $${total.toFixed(
-                2
-              )}\n📊 Platform Fee: $${platformFee.toFixed(
-                2
-              )}\n💳 Platform Balance: $${newPlatformBalance.toFixed(
-                2
-              )}\n🔗 Referral Code: ${referral?.code || "None"}`
+              adminMessage
             );
             logger.info(`Admin notifications sent successfully`);
           }
