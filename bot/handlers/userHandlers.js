@@ -3132,8 +3132,9 @@ Toggle notifications:
       } catch (e) {
         /* ignore for now */
       }
-      // Seller/owner gets detailed sale receipt (always send to ctx.from.id)
-      const sellerReceipt =
+      // Calculate seller earnings after all deductions
+      let sellerEarnings = total - platformFee;
+      let sellerReceipt =
         `🎉 *Sale Completed Successfully!*\n\n` +
         `📦 Product: ${product.title}\n` +
         `📊 Quantity: ${quantity}\n` +
@@ -3141,9 +3142,26 @@ Toggle notifications:
         `👤 Buyer: ${buyerUsername || buyerId}\n` +
         `📊 Platform Fee (${PLATFORM_FEE_PERCENT}%): $${platformFee.toFixed(
           2
-        )}\n` +
-        `💵 Your Earnings: $${(total - platformFee).toFixed(2)}\n` +
-        `🔗 Referral Code Used: ${referral?.code || "None"}`;
+        )}\n`;
+      
+      // Add referral deductions to receipt if applicable
+      if (
+        referral &&
+        referral.referrerTelegramId &&
+        referral.referrerTelegramId !== buyerId &&
+        referral.referrerTelegramId !== null &&
+        referral.referrerTelegramId !== undefined
+      ) {
+        const referrerBonus = total * (REFERRAL_BONUS_PERCENT / 100);
+        const buyerBonus = total * (BUYER_BONUS_PERCENT / 100);
+        sellerEarnings = total - platformFee - referrerBonus - buyerBonus;
+        
+        sellerReceipt += `💸 Referrer Bonus (${REFERRAL_BONUS_PERCENT}%): $${referrerBonus.toFixed(2)}\n`;
+        sellerReceipt += `🎁 Buyer Bonus (${BUYER_BONUS_PERCENT}%): $${buyerBonus.toFixed(2)}\n`;
+      }
+      
+      sellerReceipt += `💵 Your Earnings: $${sellerEarnings.toFixed(2)}\n`;
+      sellerReceipt += `🔗 Referral Code Used: ${referral?.code || "None"}`;
 
       await ctx.telegram.sendMessage(ctx.from.id, sellerReceipt, {
         parse_mode: "Markdown",
