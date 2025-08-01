@@ -1576,6 +1576,13 @@ class AdminService {
         const alreadyWithdrawn = company.totalWithdrawn || 0;
         const withdrawable = Math.max(0, lifetimeRevenue - platformFees - alreadyWithdrawn);
 
+        // Debug logging for company billing balance
+        console.log(`🔍 Company ${company.name} (${companyId}):`);
+        console.log(`   - Billing Balance: $${withdrawable}`);
+        console.log(`   - Platform Fees: $${platformFees}`);
+        console.log(`   - Lifetime Revenue: $${lifetimeRevenue}`);
+        console.log(`   - Has Withdrawable: ${withdrawable > 0}`);
+
         analytics.push({
           id: companyId,
           name: company.name,

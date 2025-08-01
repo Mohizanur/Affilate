@@ -1497,6 +1497,10 @@ class AdminHandlers {
                 `request_company_withdrawal_${company.id}`
               ),
             ]);
+          } else {
+            console.log(
+              `🔍 No withdrawal button for ${company.name}: hasWithdrawable=${company.hasWithdrawable}, withdrawable=$${company.withdrawable}`
+            );
           }
         });
 
@@ -1562,6 +1566,9 @@ class AdminHandlers {
           [Markup.button.callback("🔙 Back to Admin", "admin_panel")]
         );
 
+        // Ensure platform withdrawal button is always visible
+        console.log(`🔍 Platform withdrawal button added to actionButtons`);
+
         console.log(
           `🔍 Final actionButtons array has ${actionButtons.length} rows`
         );
@@ -1569,6 +1576,11 @@ class AdminHandlers {
           console.log(
             `  Row ${index}: ${row.map((btn) => btn.text).join(", ")}`
           );
+          // Check if platform withdrawal button is in this row
+          const platformWithdrawalBtn = row.find(btn => btn.callback_data === "platform_withdrawals");
+          if (platformWithdrawalBtn) {
+            console.log(`✅ Platform withdrawal button found in row ${index}: ${platformWithdrawalBtn.text}`);
+          }
         });
 
         // Add pagination rows if they have buttons

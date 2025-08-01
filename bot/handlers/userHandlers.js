@@ -3340,15 +3340,17 @@ Toggle notifications:
           // Update company billing balance with seller earnings
           if (product.companyId) {
             try {
-              await adminService.updateCompanyBillingBalance(
+              const newCompanyBalance = await adminService.updateCompanyBillingBalance(
                 product.companyId,
                 sellerEarnings
               );
               logger.info(
-                `Company ${product.companyId} billing balance updated: +$${sellerEarnings.toFixed(2)}`
+                `Company ${product.companyId} billing balance updated: +$${sellerEarnings.toFixed(
+                  2
+                )} = $${newCompanyBalance.toFixed(2)}`
               );
             } catch (error) {
-              logger.error(`Error updating company billing balance: ${error.message}`);
+              logger.error(`Error updating company billing balance for ${product.companyId}:`, error);
             }
           }
 
