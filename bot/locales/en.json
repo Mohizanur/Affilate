@@ -497,7 +497,7 @@
   "msg_company_not_found": "❌ Company not found.",
   "msg_failed_join_company": "❌ Failed to join company. Please try again.",
   "msg_profile_title": "👤 *User Profile*\n\n",
-  "msg_profile_info": "👤 **Name:** {{name}}\n📱 **Phone:** {{phone}}\n🏢 **Companies:** {{companies}}\n💰 **Balance:** ${{balance}}\n👥 **Referrals:** {{referrals}}",
+  "msg_profile_info": "👤 **Name:** {{name}}\n📱 **Phone:** {{phone}}\n🏢 **Companies:** {{companies}}\n💰 **Lifetime Earnings:** ${{balance}}\n👥 **Referrals:** {{referrals}}",
   "msg_phone_verified": "✅ Verified",
   "msg_phone_not_verified": "❌ Not verified",
   "msg_failed_load_profile": "❌ Failed to load profile. Please try again.",
