@@ -101,7 +101,7 @@
   "msg_photo_received": "📸 Photo received!",
   "msg_video_received": "🎥 Video received!",
   "msg_document_received": "📄 Document received!",
-  "msg_company_registration_agreement": "🏢 *Company Registration Agreement*\n\nBy registering a company, you agree to:\n\n• Provide accurate business information\n• Approve purchases within 48 hours\n• Pay platform fees monthly\n• Maintain active business operations\n• Follow all platform policies\n\nType 'I accept' to continue with registration.",
+  "msg_company_registration_agreement": "🏢 *Register New Company*\n\nBefore continuing, please review and accept the company agreement:\n\n\"By registering, I agree to monthly payment (500-1000 birr), 2% referral reward, and 5% bot fee. All payments are processed outside the system. View full terms anytime at /help.\"\n\nType \"I accept\" to continue or \"Cancel\" to abort.",
   "msg_failed_start_registration": "❌ Failed to start company registration. Please try again.",
   "msg_my_companies_title": "🏢 *My Companies* (Page {{page}}/{{totalPages}})\n\n",
   "msg_failed_load_companies": "❌ Failed to load companies. Please try again.",
