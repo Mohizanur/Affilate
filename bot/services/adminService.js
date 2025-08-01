@@ -250,10 +250,7 @@ class AdminService {
 
         // Calculate withdrawable amount
         const alreadyWithdrawn = company.totalWithdrawn || 0;
-        const withdrawable = Math.max(
-          0,
-          totalPlatformFees - alreadyWithdrawn
-        );
+        const withdrawable = Math.max(0, totalPlatformFees - alreadyWithdrawn);
 
         analytics.push({
           id: companyId,
@@ -2189,7 +2186,7 @@ class AdminService {
       const platformFees = await this.calculateCompanyPlatformFees(companyId);
       const totalWithdrawn = company.totalWithdrawn || 0;
       const withdrawable = Math.max(0, platformFees - totalWithdrawn);
-      
+
       if (withdrawable < amount) {
         throw new Error(
           `Insufficient withdrawable amount. Available: $${withdrawable.toFixed(
@@ -2520,16 +2517,20 @@ class AdminService {
       }
 
       const company = companyDoc.data();
-      const currentBalance = company.billingBalance || 0;
+      
+      // Calculate actual withdrawable amount from platform fees
+      const platformFees = await this.calculateCompanyPlatformFees(withdrawal.companyId);
+      const totalWithdrawn = company.totalWithdrawn || 0;
+      const withdrawable = Math.max(0, platformFees - totalWithdrawn);
 
-      if (currentBalance < withdrawal.amount) {
-        throw new Error("Insufficient company balance for withdrawal");
+      if (withdrawable < withdrawal.amount) {
+        throw new Error(`Insufficient company balance for withdrawal. Available: $${withdrawable.toFixed(2)}`);
       }
 
-      const newBalance = currentBalance - withdrawal.amount;
+      // Update total withdrawn instead of billing balance
+      const newTotalWithdrawn = totalWithdrawn + withdrawal.amount;
       await companyRef.update({
-        billingBalance: newBalance,
-        totalWithdrawn: (company.totalWithdrawn || 0) + withdrawal.amount,
+        totalWithdrawn: newTotalWithdrawn,
         lastWithdrawal: {
           amount: withdrawal.amount,
           date: new Date(),
@@ -2542,7 +2543,7 @@ class AdminService {
         status: "processed",
         processedBy: confirmedBy,
         processedAt: new Date(),
-        finalBalance: newBalance,
+        finalTotalWithdrawn: newTotalWithdrawn,
       });
 
       logger.info(
@@ -2558,8 +2559,8 @@ class AdminService {
           `Amount: *$${withdrawal.amount.toFixed(2)}*\n` +
           `Reason: ${withdrawal.reason}\n` +
           `Processed by: Admin ${confirmedBy}\n` +
-          `New balance: *$${newBalance.toFixed(2)}*\n\n` +
-          `The withdrawal has been completed and your balance has been updated.`,
+          `Total Withdrawn: *$${newTotalWithdrawn.toFixed(2)}*\n\n` +
+          `The withdrawal has been completed and your total withdrawn amount has been updated.`,
         {
           type: "company_withdrawal",
           action: "processed",
@@ -2569,7 +2570,7 @@ class AdminService {
 
       return {
         success: true,
-        newBalance,
+        newTotalWithdrawn,
         withdrawalAmount: withdrawal.amount,
       };
     } catch (error) {
