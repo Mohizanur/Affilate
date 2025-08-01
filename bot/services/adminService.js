@@ -252,7 +252,7 @@ class AdminService {
         const alreadyWithdrawn = company.totalWithdrawn || 0;
         const withdrawable = Math.max(
           0,
-          totalRevenue - totalPlatformFees - alreadyWithdrawn
+          totalPlatformFees - alreadyWithdrawn
         );
 
         analytics.push({

@@ -3439,7 +3439,14 @@ class AdminHandlers {
         return ctx.reply("❌ Company not found.");
       }
 
-      const withdrawable = company.billingBalance || 0;
+      // Calculate actual withdrawable amount from platform fees
+      const platformFees = await adminService.calculateCompanyPlatformFees(companyId);
+      const currentBalance = company.billingBalance || 0;
+      const totalWithdrawn = company.totalWithdrawn || 0;
+      
+      // Withdrawable amount = platform fees - total withdrawn
+      const withdrawable = Math.max(0, platformFees - totalWithdrawn);
+      
       if (withdrawable <= 0) {
         return ctx.reply("❌ No withdrawable amount for this company.");
       }
@@ -3449,11 +3456,15 @@ class AdminHandlers {
         companyId,
         companyName: company.name,
         maxAmount: withdrawable,
+        platformFees,
+        totalWithdrawn,
       };
 
       ctx.reply(
         `💰 *Request Company Withdrawal*\n\n` +
           `Company: *${company.name}*\n` +
+          `Platform Fees: *$${platformFees.toFixed(2)}*\n` +
+          `Total Withdrawn: *$${totalWithdrawn.toFixed(2)}*\n` +
           `Available amount: *$${withdrawable.toFixed(2)}*\n\n` +
           `Please enter the withdrawal amount:`,
         {
@@ -3548,6 +3559,9 @@ class AdminHandlers {
         reason,
         ctx.from.id
       );
+
+      // Update company's total withdrawn amount
+      await adminService.updateCompanyTotalWithdrawn(companyId, amount);
 
       // Clear session
       delete ctx.session.companyWithdrawalStep;
