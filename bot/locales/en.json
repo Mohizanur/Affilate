@@ -531,7 +531,7 @@
   "msg_not_eligible_register_company": "❌ You are not eligible to register a company.",
 
   "msg_failed_start_registration": "❌ Failed to start registration. Please try again.",
-  "msg_enter_company_name": "🏢 Enter company name:",
+
   "msg_enter_company_description": "📝 Enter company description:",
   "msg_enter_company_website": "🌐 Enter company website:",
   "msg_enter_company_phone": "📞 Enter company phone:",
