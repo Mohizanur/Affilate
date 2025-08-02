@@ -131,7 +131,6 @@ class UserHandlers {
       // Create or update user in Firestore
       user = await userService.userService.createOrUpdateUser(userData);
       console.log("[DEBUG] handleStart user:", user);
-      
 
       // After fetching user, map phone_verified to phoneVerified for compatibility
       if (user.phone_verified && typeof user.phoneVerified === "undefined") {
@@ -401,8 +400,6 @@ class UserHandlers {
           productId = productId.replace("view_product_", "");
         }
       }
-
-      
 
       // Get user language for localization
       const user = await userService.userService.getUserByTelegramId(
@@ -2189,6 +2186,7 @@ Toggle notifications:
 
   async handleEditCompanyField(ctx) {
     try {
+      const userLanguage = ctx.session?.language || "en";
       const companyId = ctx.callbackQuery.data.split("_")[3];
       const companyService = require("../services/companyService");
       const company = await companyService.getCompanyById(companyId);
@@ -2270,6 +2268,7 @@ Toggle notifications:
 
   async handleEditCompanyFieldInput(ctx) {
     try {
+      const userLanguage = ctx.session?.language || "en";
       const field = ctx.session.editCompanyStep;
       const companyId = ctx.session.editCompanyId;
       const companyService = require("../services/companyService");
@@ -2882,6 +2881,7 @@ Toggle notifications:
 
   async handleProductActionMenu(ctx, productIdArg) {
     try {
+      const userLanguage = ctx.session?.language || "en";
       const productId =
         productIdArg ||
         (ctx.callbackQuery && ctx.callbackQuery.data.split("_")[2]);
@@ -3138,25 +3138,28 @@ Toggle notifications:
       const productService = require("../services/productService");
       const referralService = require("../services/referralService");
       const companyService = require("../services/companyService");
-      
+
       // Add notification deduplication
       const saleId = `${product.id}_${Date.now()}_${ctx.from.id}`;
-      if (ctx.session.processedSales && ctx.session.processedSales.includes(saleId)) {
+      if (
+        ctx.session.processedSales &&
+        ctx.session.processedSales.includes(saleId)
+      ) {
         logger.warn(`Sale ${saleId} already processed, skipping duplicate`);
         return;
       }
-      
+
       // Initialize processed sales array if not exists
       if (!ctx.session.processedSales) {
         ctx.session.processedSales = [];
       }
       ctx.session.processedSales.push(saleId);
-      
+
       // Keep only last 10 processed sales to prevent memory bloat
       if (ctx.session.processedSales.length > 10) {
         ctx.session.processedSales = ctx.session.processedSales.slice(-10);
       }
-      
+
       // Reduce product quantity
       await productService.updateProductFirestore(product.id, {
         quantity: product.quantity - quantity,
@@ -3436,8 +3439,10 @@ Toggle notifications:
           if (adminIds.length > 0) {
             // Remove duplicate admin IDs
             const uniqueAdminIds = [...new Set(adminIds)];
-            logger.info(`Notifying ${uniqueAdminIds.length} unique admins of sale`);
-            
+            logger.info(
+              `Notifying ${uniqueAdminIds.length} unique admins of sale`
+            );
+
             // Get seller username
             let sellerUsername =
               ctx.from.username || ctx.from.first_name || ctx.from.id;
@@ -3492,7 +3497,9 @@ Toggle notifications:
               "New Sale Completed",
               adminMessage
             );
-            logger.info(`Admin notifications sent successfully to ${uniqueAdminIds.length} unique admins`);
+            logger.info(
+              `Admin notifications sent successfully to ${uniqueAdminIds.length} unique admins`
+            );
           }
         }
       } catch (notificationError) {
@@ -3508,6 +3515,7 @@ Toggle notifications:
 
   async handleEditProductFieldInput(ctx) {
     try {
+      const userLanguage = ctx.session?.language || "en";
       const field = ctx.session.editProductStep;
       const productId = ctx.session.editProductId;
       const productService = require("../services/productService");
@@ -3552,6 +3560,7 @@ Toggle notifications:
 
   async handleEditProduct(ctx) {
     try {
+      const userLanguage = ctx.session?.language || "en";
       const productId = ctx.callbackQuery.data.split("_")[2];
       const productService = require("../services/productService");
       const product = await productService.getProductById(productId);
@@ -3576,6 +3585,7 @@ Toggle notifications:
 
   async handleDeleteProduct(ctx) {
     try {
+      const userLanguage = ctx.session?.language || "en";
       const productId = ctx.callbackQuery.data.split("_")[2];
       const productService = require("../services/productService");
       const deletedProduct = await productService.getProductById(productId);
@@ -3602,6 +3612,7 @@ Toggle notifications:
 
   async handleEditCompany(ctx) {
     try {
+      const userLanguage = ctx.session?.language || "en";
       const companyId = ctx.callbackQuery.data.split("_")[2];
       const companyService = require("../services/companyService");
       const company = await companyService.getCompanyById(companyId);
@@ -3626,6 +3637,7 @@ Toggle notifications:
 
   async handleDeleteCompany(ctx) {
     try {
+      const userLanguage = ctx.session?.language || "en";
       const companyId = ctx.callbackQuery.data.split("_")[2];
       const companyService = require("../services/companyService");
       await companyService.deleteCompany(companyId);
@@ -3799,7 +3811,7 @@ Toggle notifications:
       });
     } catch (error) {
       logger.error("Error in handleEditProductField:", error);
-      ctx.reply(t("msg_failed_load_product", {}, userLanguage || "en"));
+      ctx.reply(t("msg_failed_load_product", {}, userLanguage));
     }
   }
 
@@ -4314,5 +4326,3 @@ Toggle notifications:
 }
 
 module.exports = new UserHandlers();
-
-

@@ -4,9 +4,9 @@
   "description": "Lightning-fast affiliate referral platform with Telegram bot",
   "main": "server.js",
   "scripts": {
-    "start": "LOG_LEVEL=error PERFORMANCE_MODE=true node --max-old-space-size=2048 server.js",
-    "dev": "LOG_LEVEL=error PERFORMANCE_MODE=true nodemon --max-old-space-size=2048 server.js",
-    "dev:bot": "LOG_LEVEL=error PERFORMANCE_MODE=true nodemon --exec node --max-old-space-size=1024 bot/index.js",
+    "start": "set LOG_LEVEL=error && set PERFORMANCE_MODE=true && node --max-old-space-size=2048 server.js",
+    "dev": "set LOG_LEVEL=error && set PERFORMANCE_MODE=true && nodemon --max-old-space-size=2048 server.js",
+    "dev:bot": "set LOG_LEVEL=error && set PERFORMANCE_MODE=true && nodemon --exec node --max-old-space-size=1024 bot/index.js",
     "test": "jest",
     "lint": "echo 'No linting configured'",
     "keep-alive": "node scripts/keep-alive.js",
