@@ -374,6 +374,10 @@ class ReferralService {
           };
         }
 
+        // Get platform settings
+        const adminService = require("./adminService");
+        const settings = await adminService.getPlatformSettings();
+
         // Notify referrer
         logger.info(`Notifying referrer ${refCode.userId}`);
         await notificationInstance.notifyNewReferral(

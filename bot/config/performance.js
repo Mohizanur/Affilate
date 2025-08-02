@@ -179,17 +179,18 @@ class PerformanceMonitor {
 
   // Log performance report
   logPerformanceReport() {
-    const stats = this.getStats();
-    logger.info("Performance Report:", {
-      uptime: `${stats.uptime}s`,
-      cacheHitRate: stats.cacheHitRate,
-      dbQueries: stats.dbQueries,
-      errors: stats.errors,
-      avgResponseTimes: Object.keys(stats.responseTimes).reduce((acc, key) => {
-        acc[key] = `${stats.responseTimes[key].avgTime.toFixed(2)}ms`;
-        return acc;
-      }, {}),
-    });
+    try {
+      const stats = this.getStats();
+      logger.info("Performance Report:", {
+        uptime: `${stats.uptime}s`,
+        cacheHitRate: stats.cacheHitRate,
+        dbQueries: stats.dbQueries,
+        errors: stats.errors,
+        avgResponseTimes: stats.avgResponseTimes,
+      });
+    } catch (error) {
+      logger.error("Error generating performance report:", error);
+    }
   }
 }
 
