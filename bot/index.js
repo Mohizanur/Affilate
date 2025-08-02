@@ -107,18 +107,6 @@ async function startBot(app) {
         timeout: 10000, // Reduced to 10 seconds for ultra-fast responses
         retryAfter: 0.3, // Faster retry for immediate failure detection
         maxRetries: 1, // Single retry for maximum speed
-        // Aggressive connection pooling for maximum throughput
-        agent: {
-          keepAlive: true,
-          keepAliveMsecs: 60000, // Longer keep-alive for better connection reuse
-          maxSockets: 100, // Increased for higher concurrency
-          maxFreeSockets: 20, // More free sockets for faster reuse
-          timeout: 10000, // Match timeout
-          freeSocketTimeout: 60000, // Longer free socket timeout
-          // Additional performance optimizations
-          scheduling: "fifo", // First-in-first-out for predictable performance
-          maxCachedSessions: 100, // Cache more sessions
-        },
       },
     });
 
