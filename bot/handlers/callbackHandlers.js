@@ -599,6 +599,10 @@ class CallbackHandlers {
             );
             return;
           }
+          if (callbackData.startsWith("delete_company_")) {
+            const companyId = callbackData.replace("delete_company_", "");
+            return userHandlers.handleDeleteCompany(ctx);
+          }
           // Unban user button (dynamic callback)
           if (callbackData.startsWith("unban_user_")) {
             return adminHandlers.handleUnbanUserCallback(ctx);
