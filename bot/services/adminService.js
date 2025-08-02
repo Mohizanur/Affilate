@@ -247,8 +247,9 @@ class AdminService {
 
         // Platform fees from direct sales
         companySales.forEach((sale) => {
-          const platformFee =
-            (sale.amount || 0) * (platformSettings.platformFeePercent / 100);
+          // Debug: Check all possible amount field names
+          const saleAmount = sale.amount || sale.total || sale.price || sale.value || 0;
+          const platformFee = saleAmount * (platformSettings.platformFeePercent / 100);
           totalPlatformFees += platformFee;
         });
 
@@ -262,7 +263,9 @@ class AdminService {
 
         // Add revenue from sales
         companySales.forEach((sale) => {
-          totalRevenue += sale.amount || 0;
+          // Debug: Check all possible amount field names
+          const saleAmount = sale.amount || sale.total || sale.price || sale.value || 0;
+          totalRevenue += saleAmount;
         });
 
         // Calculate withdrawable amount
@@ -282,11 +285,16 @@ class AdminService {
           if (companySales.length > 0) {
             console.log(`  - Sales details:`);
             companySales.forEach((sale, index) => {
+              const saleAmount = sale.amount || sale.total || sale.price || sale.value || 0;
               console.log(
-                `    Sale ${index + 1}: Amount: $${sale.amount}, Status: ${
+                `    Sale ${index + 1}: Amount: $${saleAmount}, Status: ${
                   sale.status
                 }, CompanyId: ${sale.companyId || sale.company_id}`
               );
+              // Debug: Show full sale object to understand structure
+              if (index === 0) {
+                console.log(`    Full sale object:`, JSON.stringify(sale, null, 2));
+              }
             });
           }
         }
