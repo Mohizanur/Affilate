@@ -158,33 +158,60 @@ console.log("Before startServer()");
       }
     }
 
-    app.listen(PORT, () => {
-      console.log(`🚀 Server listening on port ${PORT}`);
-      if (process.env.RENDER) {
-        console.log(`🌐 Render deployment detected`);
-        console.log(
-          `🔗 External URL: https://${process.env.RENDER_EXTERNAL_HOSTNAME}`
-        );
+    try {
+      app
+        .listen(PORT, () => {
+          console.log(`🚀 Server listening on port ${PORT}`);
+          if (process.env.RENDER) {
+            console.log(`🌐 Render deployment detected`);
+            console.log(
+              `🔗 External URL: https://${process.env.RENDER_EXTERNAL_HOSTNAME}`
+            );
 
-        // Set up external keep-alive for Render
-        const keepAliveUrl = `https://${process.env.RENDER_EXTERNAL_HOSTNAME}/keep-alive`;
-        console.log(`💓 Setting up external keep-alive to: ${keepAliveUrl}`);
+            // Set up external keep-alive for Render
+            const keepAliveUrl = `https://${process.env.RENDER_EXTERNAL_HOSTNAME}/keep-alive`;
+            console.log(
+              `💓 Setting up external keep-alive to: ${keepAliveUrl}`
+            );
 
-        // Ping the keep-alive endpoint every 14 minutes
-        setInterval(async () => {
-          try {
-            const response = await fetch(keepAliveUrl);
-            if (response.ok) {
-              console.log("💓 External keep-alive successful");
-            } else {
-              console.log("⚠️ External keep-alive failed:", response.status);
-            }
-          } catch (error) {
-            console.log("⚠️ External keep-alive error:", error.message);
+            // Ping the keep-alive endpoint every 14 minutes
+            setInterval(async () => {
+              try {
+                const response = await fetch(keepAliveUrl);
+                if (response.ok) {
+                  console.log("💓 External keep-alive successful");
+                } else {
+                  console.log(
+                    "⚠️ External keep-alive failed:",
+                    response.status
+                  );
+                }
+              } catch (error) {
+                console.log("⚠️ External keep-alive error:", error.message);
+              }
+            }, 14 * 60 * 1000);
           }
-        }, 14 * 60 * 1000);
+        })
+        .on("error", (error) => {
+          if (error.code === "EADDRINUSE") {
+            console.log(
+              `⚠️ Port ${PORT} is already in use. Bot will continue without web server.`
+            );
+            console.log("📝 Bot is running in polling mode only.");
+          } else {
+            console.error("❌ Server error:", error);
+          }
+        });
+    } catch (error) {
+      if (error.code === "EADDRINUSE") {
+        console.log(
+          `⚠️ Port ${PORT} is already in use. Bot will continue without web server.`
+        );
+        console.log("📝 Bot is running in polling mode only.");
+      } else {
+        console.error("❌ Server startup error:", error);
       }
-    });
+    }
   } catch (err) {
     console.error("FATAL ERROR DURING STARTUP:", err);
     process.exit(1);

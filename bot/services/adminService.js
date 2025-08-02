@@ -211,6 +211,13 @@ class AdminService {
             salesByCompany.set(companyId, []);
           }
           salesByCompany.get(companyId).push(sale);
+
+          // Debug: Log recent sales
+          if (sale.amount > 1000) {
+            console.log(
+              `🔍 [DEBUG] Large sale found: $${sale.amount} for company ${companyId}`
+            );
+          }
         }
       });
 
@@ -251,6 +258,28 @@ class AdminService {
         // Calculate withdrawable amount
         const alreadyWithdrawn = company.totalWithdrawn || 0;
         const withdrawable = Math.max(0, totalPlatformFees - alreadyWithdrawn);
+
+        // Debug logging for company "ni"
+        if (company.name === "ni") {
+          console.log(`🔍 [DEBUG] Company "ni" analysis:`);
+          console.log(`  - Platform Fees: $${totalPlatformFees}`);
+          console.log(`  - Total Withdrawn: $${alreadyWithdrawn}`);
+          console.log(`  - Withdrawable: $${withdrawable}`);
+          console.log(`  - Referrals count: ${companyReferrals.length}`);
+          console.log(`  - Sales count: ${companySales.length}`);
+
+          // Debug sales data for company "ni"
+          if (companySales.length > 0) {
+            console.log(`  - Sales details:`);
+            companySales.forEach((sale, index) => {
+              console.log(
+                `    Sale ${index + 1}: Amount: $${sale.amount}, Status: ${
+                  sale.status
+                }, CompanyId: ${sale.companyId || sale.company_id}`
+              );
+            });
+          }
+        }
 
         analytics.push({
           id: companyId,
@@ -667,6 +696,9 @@ class AdminService {
 
   async getDashboardData() {
     try {
+      // Force fresh data by invalidating cache first
+      this.invalidateDashboardCache();
+
       return await getCachedOrFetch(
         CACHE_KEYS.DASHBOARD_DATA,
         async () => {
@@ -2517,14 +2549,20 @@ class AdminService {
       }
 
       const company = companyDoc.data();
-      
+
       // Calculate actual withdrawable amount from platform fees
-      const platformFees = await this.calculateCompanyPlatformFees(withdrawal.companyId);
+      const platformFees = await this.calculateCompanyPlatformFees(
+        withdrawal.companyId
+      );
       const totalWithdrawn = company.totalWithdrawn || 0;
       const withdrawable = Math.max(0, platformFees - totalWithdrawn);
 
       if (withdrawable < withdrawal.amount) {
-        throw new Error(`Insufficient company balance for withdrawal. Available: $${withdrawable.toFixed(2)}`);
+        throw new Error(
+          `Insufficient company balance for withdrawal. Available: $${withdrawable.toFixed(
+            2
+          )}`
+        );
       }
 
       // Update total withdrawn instead of billing balance

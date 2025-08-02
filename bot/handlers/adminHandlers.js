@@ -1368,6 +1368,11 @@ class AdminHandlers {
       const ITEMS_PER_PAGE = 3;
       console.log(`🔍 Getting dashboard data in parallel...`);
 
+      // Force cache invalidation to get fresh data
+      adminService.invalidateDashboardCache();
+      adminService.invalidateCompanyCache();
+      adminService.invalidatePlatformCache();
+
       // Make all database calls in parallel for better performance
       const [dashboard, totalLifetimeWithdrawn, platformWithdrawable] =
         await Promise.all([
@@ -3444,13 +3449,15 @@ class AdminHandlers {
       adminService.invalidateCompanyCache();
 
       // Calculate actual withdrawable amount from platform fees
-      const platformFees = await adminService.calculateCompanyPlatformFees(companyId);
+      const platformFees = await adminService.calculateCompanyPlatformFees(
+        companyId
+      );
       const currentBalance = company.billingBalance || 0;
       const totalWithdrawn = company.totalWithdrawn || 0;
-      
+
       // Withdrawable amount = platform fees - total withdrawn
       const withdrawable = Math.max(0, platformFees - totalWithdrawn);
-      
+
       if (withdrawable <= 0) {
         return ctx.reply("❌ No withdrawable amount for this company.");
       }

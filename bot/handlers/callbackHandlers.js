@@ -365,7 +365,7 @@ class CallbackHandlers {
               logger.error("Error approving withdrawal:", error);
               ctx.reply(
                 t(
-                  "msg__failed_to_approve_withdrawal",
+                  "msg__failed_to_approve_withdrawal_please_try_again",
                   {},
                   ctx.session?.language || "en"
                 )
@@ -375,14 +375,37 @@ class CallbackHandlers {
             }
           }
 
-          if (callbackData.startsWith("reject_withdrawal_")) {
-            return this.handleRejectWithdrawal(ctx, callbackData);
-          } else if (callbackData.startsWith("deny_withdrawal_")) {
-            return this.handleRejectWithdrawal(
-              ctx,
-              callbackData.replace("deny_withdrawal_", "reject_withdrawal_")
-            );
-          } else if (callbackData.startsWith("company_")) {
+          if (callbackData.startsWith("deny_withdrawal_")) {
+            const withdrawalId = callbackData.replace("deny_withdrawal_", "");
+            try {
+              await userService.userService.companyDenyWithdrawal(
+                withdrawalId,
+                ctx.from.id
+              );
+              ctx.reply(
+                t(
+                  "msg__withdrawal_declined_successfully",
+                  {},
+                  ctx.session?.language || "en"
+                )
+              );
+              if (ctx.callbackQuery) ctx.answerCbQuery();
+              return;
+            } catch (error) {
+              logger.error("Error denying withdrawal:", error);
+              ctx.reply(
+                t(
+                  "msg__failed_to_deny_withdrawal_please_try_again",
+                  {},
+                  ctx.session?.language || "en"
+                )
+              );
+              if (ctx.callbackQuery) ctx.answerCbQuery();
+              return;
+            }
+          }
+
+          if (callbackData.startsWith("company_")) {
             if (callbackData.startsWith("company_action_")) {
               const companyId = callbackData.replace("company_action_", "");
               return userHandlers.handleCompanyActionMenu(ctx, companyId);
@@ -401,6 +424,15 @@ class CallbackHandlers {
               return await userHandlers.handleViewProduct(ctx, productId);
             } catch (error) {
               console.error("Error in view_product callback:", error);
+              // Answer callback query to prevent timeout
+              try {
+                if (ctx.callbackQuery) await ctx.answerCbQuery();
+              } catch (cbError) {
+                console.log(
+                  "Callback query already answered or too old:",
+                  cbError.message
+                );
+              }
               await ctx.reply(
                 t(
                   "msg__failed_to_load_product_please_try_again",
@@ -848,6 +880,15 @@ class CallbackHandlers {
       }
     } catch (error) {
       logger.error("Error in callback handler:", error);
+      // Answer callback query to prevent timeout
+      try {
+        if (ctx.callbackQuery) await ctx.answerCbQuery();
+      } catch (cbError) {
+        console.log(
+          "Callback query already answered or too old:",
+          cbError.message
+        );
+      }
       ctx.reply(
         t(
           "msg__something_went_wrong_please_try_again",
@@ -879,6 +920,15 @@ class CallbackHandlers {
 `;
     } catch (error) {
       logger.error("Error in profile handler:", error);
+      // Answer callback query to prevent timeout
+      try {
+        if (ctx.callbackQuery) await ctx.answerCbQuery();
+      } catch (cbError) {
+        console.log(
+          "Callback query already answered or too old:",
+          cbError.message
+        );
+      }
       ctx.reply(
         t(
           "msg__something_went_wrong_please_try_again",

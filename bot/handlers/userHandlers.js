@@ -208,7 +208,8 @@ class UserHandlers {
         ),
       ];
       // Only show Balance & Withdraw if user has balance > 0 (check both coinBalance and referralBalance)
-      const totalBalance = (user.coinBalance || 0) + (user.referralBalance || 0);
+      const totalBalance =
+        (user.coinBalance || 0) + (user.referralBalance || 0);
       const mainRow2 =
         totalBalance > 0
           ? [
@@ -772,135 +773,167 @@ class UserHandlers {
   }
 
   async handleMyReferrals(ctx, pageArg) {
-    if (ctx.callbackQuery) await ctx.answerCbQuery();
-    ctx.session = {}; // Reset session state
-    if (!ctx.from || !ctx.from.id) {
-      ctx.reply(t("msg_failed_load_stats", {}, userLanguage));
-      return;
-    }
+    try {
+      // Answer callback query immediately to prevent timeout
+      if (ctx.callbackQuery) {
+        try {
+          await ctx.answerCbQuery();
+        } catch (error) {
+          console.log(
+            "Callback query already answered or too old:",
+            error.message
+          );
+        }
+      }
 
-    const user = await userService.userService.getUserByTelegramId(ctx.from.id);
-    const userLanguage = ctx.session?.language || user?.language || "en";
+      ctx.session = {}; // Reset session state
+      if (!ctx.from || !ctx.from.id) {
+        const userLanguage = ctx.session?.language || "en";
+        await ctx.reply(t("msg_failed_load_stats", {}, userLanguage));
+        return;
+      }
 
-    const referralService = require("../services/referralService");
-    const stats = await referralService.getUserReferralStats(ctx.from.id);
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
+      );
+      const userLanguage = ctx.session?.language || user?.language || "en";
 
-    let msg = t(
-      "msg_referral_statistics",
-      {
-        totalReferrals: stats.totalReferrals,
-        totalRewards: stats.totalEarnings.toFixed(2),
-        recentActivity:
-          stats.recentActivity || t("msg_no_recent_activity", {}, userLanguage),
-      },
-      userLanguage
-    );
+      const referralService = require("../services/referralService");
+      const stats = await referralService.getUserReferralStats(ctx.from.id);
 
-    if (!stats.totalReferrals) {
-      await ctx.reply(t("msg_no_referrals_yet", {}, userLanguage));
-      return;
-    }
-
-    // Pagination for company list
-    const minPayout = parseFloat(process.env.MIN_PAYOUT_AMOUNT || "10");
-    const companyStats = stats.companyStats || {};
-    const companyEntries = Object.entries(companyStats);
-    const ITEMS_PER_PAGE = 5;
-    let page = 1;
-    if (typeof pageArg === "number") page = pageArg;
-    else if (
-      ctx.callbackQuery &&
-      ctx.callbackQuery.data.startsWith("my_referrals_page_")
-    ) {
-      page =
-        parseInt(ctx.callbackQuery.data.replace("my_referrals_page_", "")) || 1;
-    }
-    const totalPages = Math.ceil(companyEntries.length / ITEMS_PER_PAGE) || 1;
-    if (page < 1) page = 1;
-    if (page > totalPages) page = totalPages;
-    const startIdx = (page - 1) * ITEMS_PER_PAGE;
-    const endIdx = startIdx + ITEMS_PER_PAGE;
-    const pageCompanies = companyEntries.slice(startIdx, endIdx);
-
-    let companyMsg = t(
-      "msg_your_companies",
-      { page, totalPages },
-      userLanguage
-    );
-    const buttons = [];
-
-    for (const [companyId, data] of pageCompanies) {
-      companyMsg += t(
-        "msg_company_stats_entry",
+      let msg = t(
+        "msg_referral_statistics",
         {
-          companyName: data.companyName || companyId,
-          earnings: data.earnings.toFixed(2),
-          count: data.count,
+          totalReferrals: stats.totalReferrals,
+          totalRewards: stats.totalEarnings.toFixed(2),
+          recentActivity:
+            stats.recentActivity ||
+            t("msg_no_recent_activity", {}, userLanguage),
         },
         userLanguage
       );
 
-      buttons.push([
-        require("telegraf").Markup.button.callback(
-          t(
-            "btn_company_details",
-            { companyName: data.companyName || companyId },
-            userLanguage
-          ),
-          `ref_company_${companyId}`
-        ),
-      ]);
+      if (!stats.totalReferrals) {
+        await ctx.reply(t("msg_no_referrals_yet", {}, userLanguage));
+        return;
+      }
 
-      // Show withdrawal button for any positive amount
-      if (data.earnings > 0) {
+      // Pagination for company list
+      const minPayout = parseFloat(process.env.MIN_PAYOUT_AMOUNT || "10");
+      const companyStats = stats.companyStats || {};
+      const companyEntries = Object.entries(companyStats);
+      const ITEMS_PER_PAGE = 5;
+      let page = 1;
+      if (typeof pageArg === "number") page = pageArg;
+      else if (
+        ctx.callbackQuery &&
+        ctx.callbackQuery.data.startsWith("my_referrals_page_")
+      ) {
+        page =
+          parseInt(ctx.callbackQuery.data.replace("my_referrals_page_", "")) ||
+          1;
+      }
+      const totalPages = Math.ceil(companyEntries.length / ITEMS_PER_PAGE) || 1;
+      if (page < 1) page = 1;
+      if (page > totalPages) page = totalPages;
+      const startIdx = (page - 1) * ITEMS_PER_PAGE;
+      const endIdx = startIdx + ITEMS_PER_PAGE;
+      const pageCompanies = companyEntries.slice(startIdx, endIdx);
+
+      let companyMsg = t(
+        "msg_your_companies",
+        { page, totalPages },
+        userLanguage
+      );
+      const buttons = [];
+
+      for (const [companyId, data] of pageCompanies) {
+        companyMsg += t(
+          "msg_company_stats_entry",
+          {
+            companyName: data.companyName || companyId,
+            earnings: data.earnings.toFixed(2),
+            count: data.count,
+          },
+          userLanguage
+        );
+
         buttons.push([
           require("telegraf").Markup.button.callback(
             t(
-              "btn_withdraw_from_company",
-              {
-                companyName: data.companyName || companyId,
-                earnings: data.earnings.toFixed(2),
-              },
+              "btn_company_details",
+              { companyName: data.companyName || companyId },
               userLanguage
             ),
-            `withdraw_company_${companyId}`
+            `ref_company_${companyId}`
           ),
         ]);
-      }
-    }
 
-    // Pagination controls
-    const navButtons = [];
-    if (page > 1)
-      navButtons.push(
+        // Show withdrawal button for any positive amount
+        if (data.earnings > 0) {
+          buttons.push([
+            require("telegraf").Markup.button.callback(
+              t(
+                "btn_withdraw_from_company",
+                {
+                  companyName: data.companyName || companyId,
+                  earnings: data.earnings.toFixed(2),
+                },
+                userLanguage
+              ),
+              `withdraw_company_${companyId}`
+            ),
+          ]);
+        }
+      }
+
+      // Pagination controls
+      const navButtons = [];
+      if (page > 1)
+        navButtons.push(
+          require("telegraf").Markup.button.callback(
+            t("btn_previous_page", {}, userLanguage),
+            `my_referrals_page_${page - 1}`
+          )
+        );
+      if (page < totalPages)
+        navButtons.push(
+          require("telegraf").Markup.button.callback(
+            t("btn_next_page", {}, userLanguage),
+            `my_referrals_page_${page + 1}`
+          )
+        );
+      if (navButtons.length) buttons.push(navButtons);
+      buttons.push([
         require("telegraf").Markup.button.callback(
-          t("btn_previous_page", {}, userLanguage),
-          `my_referrals_page_${page - 1}`
-        )
-      );
-    if (page < totalPages)
-      navButtons.push(
-        require("telegraf").Markup.button.callback(
-          t("btn_next_page", {}, userLanguage),
-          `my_referrals_page_${page + 1}`
-        )
-      );
-    if (navButtons.length) buttons.push(navButtons);
-    buttons.push([
-      require("telegraf").Markup.button.callback(
-        t("btn_back_to_menu", {}, userLanguage),
-        "main_menu"
-      ),
-    ]);
-    ctx.reply(msg + companyMsg, {
-      parse_mode: "Markdown",
-      ...require("telegraf").Markup.inlineKeyboard(buttons),
-    });
+          t("btn_back_to_menu", {}, userLanguage),
+          "main_menu"
+        ),
+      ]);
+      await ctx.reply(msg + companyMsg, {
+        parse_mode: "Markdown",
+        ...require("telegraf").Markup.inlineKeyboard(buttons),
+      });
+    } catch (error) {
+      console.error("Error in handleMyReferrals:", error);
+      const userLanguage = ctx.session?.language || "en";
+      await ctx.reply(t("msg_failed_load_stats", {}, userLanguage));
+    }
   }
 
   async handleLeaderboard(ctx, pageArg) {
-    if (ctx.callbackQuery) await ctx.answerCbQuery();
     try {
+      // Answer callback query immediately to prevent timeout
+      if (ctx.callbackQuery) {
+        try {
+          await ctx.answerCbQuery();
+        } catch (error) {
+          console.log(
+            "Callback query already answered or too old:",
+            error.message
+          );
+        }
+      }
       const user = await userService.userService.getUserByTelegramId(
         ctx.from.id
       );
@@ -3145,7 +3178,7 @@ Toggle notifications:
         `📊 Platform Fee (${PLATFORM_FEE_PERCENT}%): $${platformFee.toFixed(
           2
         )}\n`;
-      
+
       // Add referral deductions to receipt if applicable
       if (
         referral &&
@@ -3157,11 +3190,15 @@ Toggle notifications:
         const referrerBonus = total * (REFERRAL_BONUS_PERCENT / 100);
         const buyerBonus = total * (BUYER_BONUS_PERCENT / 100);
         sellerEarnings = total - platformFee - referrerBonus - buyerBonus;
-        
-        sellerReceipt += `💸 Referrer Bonus (${REFERRAL_BONUS_PERCENT}%): $${referrerBonus.toFixed(2)}\n`;
-        sellerReceipt += `🎁 Buyer Bonus (${BUYER_BONUS_PERCENT}%): $${buyerBonus.toFixed(2)}\n`;
+
+        sellerReceipt += `💸 Referrer Bonus (${REFERRAL_BONUS_PERCENT}%): $${referrerBonus.toFixed(
+          2
+        )}\n`;
+        sellerReceipt += `🎁 Buyer Bonus (${BUYER_BONUS_PERCENT}%): $${buyerBonus.toFixed(
+          2
+        )}\n`;
       }
-      
+
       sellerReceipt += `💵 Your Earnings: $${sellerEarnings.toFixed(2)}\n`;
       sellerReceipt += `🔗 Referral Code Used: ${referral?.code || "None"}`;
 
@@ -3340,17 +3377,23 @@ Toggle notifications:
           // Update company billing balance with seller earnings
           if (product.companyId) {
             try {
-              const newCompanyBalance = await adminService.updateCompanyBillingBalance(
-                product.companyId,
-                sellerEarnings
-              );
+              const newCompanyBalance =
+                await adminService.updateCompanyBillingBalance(
+                  product.companyId,
+                  sellerEarnings
+                );
               logger.info(
-                `Company ${product.companyId} billing balance updated: +$${sellerEarnings.toFixed(
+                `Company ${
+                  product.companyId
+                } billing balance updated: +$${sellerEarnings.toFixed(
                   2
                 )} = $${newCompanyBalance.toFixed(2)}`
               );
             } catch (error) {
-              logger.error(`Error updating company billing balance for ${product.companyId}:`, error);
+              logger.error(
+                `Error updating company billing balance for ${product.companyId}:`,
+                error
+              );
             }
           }
 
@@ -3361,8 +3404,9 @@ Toggle notifications:
           if (adminIds.length > 0) {
             logger.info(`Notifying ${adminIds.length} admins of sale`);
             // Get seller username
-            let sellerUsername = ctx.from.username || ctx.from.first_name || ctx.from.id;
-            
+            let sellerUsername =
+              ctx.from.username || ctx.from.first_name || ctx.from.id;
+
             // Build detailed admin alert message
             let adminMessage = `💰 New sale completed!\n\n`;
             adminMessage += `🏢 Company: ${
@@ -3377,22 +3421,36 @@ Toggle notifications:
             adminMessage += `📦 Product: ${product.title}\n`;
             adminMessage += `📊 Quantity: ${quantity}\n`;
             adminMessage += `💰 Total Amount: $${total.toFixed(2)}\n\n`;
-            
+
             // Add earnings breakdown
             adminMessage += `💸 *Earnings Breakdown:*\n`;
-            adminMessage += `• Platform Fee (${PLATFORM_FEE_PERCENT}%): $${platformFee.toFixed(2)}\n`;
-            
+            adminMessage += `• Platform Fee (${PLATFORM_FEE_PERCENT}%): $${platformFee.toFixed(
+              2
+            )}\n`;
+
             if (referrerBonus > 0 && buyerBonus > 0) {
-              adminMessage += `• Referrer Bonus (${REFERRAL_BONUS_PERCENT}%): $${referrerBonus.toFixed(2)}\n`;
-              adminMessage += `• Buyer Bonus (${BUYER_BONUS_PERCENT}%): $${buyerBonus.toFixed(2)}\n`;
-              adminMessage += `• Seller Earnings: $${sellerEarnings.toFixed(2)}\n`;
-              adminMessage += `🔗 Referral Code: ${referral?.code} (by @${referrerUsername || referral.referrerTelegramId})\n`;
+              adminMessage += `• Referrer Bonus (${REFERRAL_BONUS_PERCENT}%): $${referrerBonus.toFixed(
+                2
+              )}\n`;
+              adminMessage += `• Buyer Bonus (${BUYER_BONUS_PERCENT}%): $${buyerBonus.toFixed(
+                2
+              )}\n`;
+              adminMessage += `• Seller Earnings: $${sellerEarnings.toFixed(
+                2
+              )}\n`;
+              adminMessage += `🔗 Referral Code: ${referral?.code} (by @${
+                referrerUsername || referral.referrerTelegramId
+              })\n`;
             } else {
-              adminMessage += `• Seller Earnings: $${sellerEarnings.toFixed(2)}\n`;
+              adminMessage += `• Seller Earnings: $${sellerEarnings.toFixed(
+                2
+              )}\n`;
               adminMessage += `🔗 Referral Code: None\n`;
             }
-            
-            adminMessage += `\n💳 New Platform Balance: $${newPlatformBalance.toFixed(2)}`;
+
+            adminMessage += `\n💳 New Platform Balance: $${newPlatformBalance.toFixed(
+              2
+            )}`;
 
             await notificationInstance.notifyAdminAlert(
               adminIds,

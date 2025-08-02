@@ -563,6 +563,52 @@ class UserService {
     }
   }
 
+  async companyDenyWithdrawal(withdrawalId, deniedBy) {
+    const databaseService = require("../config/database");
+    const withdrawalRef = databaseService.withdrawals().doc(withdrawalId);
+    const withdrawalDoc = await withdrawalRef.get();
+    if (!withdrawalDoc.exists) throw new Error("Withdrawal not found");
+    const withdrawal = withdrawalDoc.data();
+    if (withdrawal.status !== "company_pending") {
+      console.log(
+        `[companyDenyWithdrawal] Withdrawal ${withdrawalId} status is '${withdrawal.status}', not 'company_pending'.`
+      );
+      throw new Error(
+        withdrawal.status === "approved"
+          ? "Withdrawal has already been approved."
+          : withdrawal.status === "declined"
+          ? "Withdrawal has already been declined."
+          : `Withdrawal cannot be denied in its current state: ${withdrawal.status}`
+      );
+    }
+
+    await withdrawalRef.update({
+      status: "declined",
+      declinedBy: deniedBy,
+      declinedAt: new Date(),
+    });
+
+    // Notify the user
+    const { getNotificationServiceInstance } = require("./notificationService");
+    const notificationService = getNotificationServiceInstance();
+    if (
+      notificationService &&
+      typeof notificationService.sendNotification === "function"
+    ) {
+      await notificationService.sendNotification(
+        withdrawal.userId,
+        `❌ Your withdrawal request for $${withdrawal.amount.toFixed(
+          2
+        )} has been declined by the company.\n\nPlease contact the company for more information.`,
+        { type: "withdrawal", action: "declined", withdrawalId }
+      );
+    } else {
+      console.error(
+        "[companyDenyWithdrawal] NotificationService instance is not set or sendNotification is not a function."
+      );
+    }
+  }
+
   async declineWithdrawal(withdrawalId, approverTelegramId) {
     const databaseService = require("../config/database");
     const withdrawalRef = databaseService.withdrawals().doc(withdrawalId);
@@ -694,12 +740,14 @@ class UserService {
       const referralService = require("./referralService");
       const stats = await referralService.getUserReferralStats(telegramId);
       const companyStats = stats.companyStats && stats.companyStats[companyId];
-      
+
       if (!companyStats) {
-        logger.warn(`No company stats found for user ${telegramId} and company ${companyId}`);
+        logger.warn(
+          `No company stats found for user ${telegramId} and company ${companyId}`
+        );
         return false;
       }
-      
+
       // Create a deduction record
       const deduction = {
         userId: telegramId,
@@ -707,15 +755,17 @@ class UserService {
         amount: amount,
         type: "withdrawal_deduction",
         createdAt: new Date(),
-        withdrawalId: null // Will be linked if needed
+        withdrawalId: null, // Will be linked if needed
       };
-      
+
       await databaseService
         .getDb()
         .collection("earnings_deductions")
         .add(deduction);
-      
-      logger.info(`Deducted $${amount} from user ${telegramId} for company ${companyId}`);
+
+      logger.info(
+        `Deducted $${amount} from user ${telegramId} for company ${companyId}`
+      );
       return true;
     } catch (error) {
       logger.error("Error deducting company earnings:", error);

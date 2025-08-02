@@ -340,7 +340,28 @@ process.on("uncaughtException", (error) => {
 
 process.on("unhandledRejection", (reason, promise) => {
   console.error("❌ Unhandled Rejection at:", promise, "reason:", reason);
-  process.exit(1);
+
+  // Don't exit for Telegram API errors, as they might be recoverable
+  if (reason && reason.message) {
+    const errorMessage = reason.message.toLowerCase();
+    if (
+      errorMessage.includes("query is too old") ||
+      errorMessage.includes("callback query") ||
+      errorMessage.includes("bad request") ||
+      errorMessage.includes("timeout")
+    ) {
+      console.log(
+        "⚠️ Telegram API error - continuing operation:",
+        reason.message
+      );
+      return;
+    }
+  }
+
+  // For other unhandled rejections, log but don't exit immediately
+  console.error("❌ Unhandled rejection logged, continuing...");
+  console.error("error: unhandledRejection:", reason.message);
+  console.error("Error:", reason);
 });
 
 // Graceful shutdown
