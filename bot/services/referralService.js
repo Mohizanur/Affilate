@@ -1,4 +1,3 @@
-
 const databaseService = require("../config/database");
 const { v4: uuidv4 } = require("uuid");
 const logger = require("../../utils/logger");
@@ -319,10 +318,12 @@ class ReferralService {
         const settings = await adminService.getPlatformSettings();
         feePercent = settings.platformFeePercent;
         platformFee = amount * (feePercent / 100);
-        
+
         // Update platform balance instead of admin's coinBalance
         await adminService.updatePlatformBalance(platformFee);
-        logger.info(`Platform fee added to platform balance: $${platformFee.toFixed(2)}`);
+        logger.info(
+          `Platform fee added to platform balance: $${platformFee.toFixed(2)}`
+        );
       }
       // Update referrer's coinBalance
       if (amount && typeof amount === "number") {
@@ -378,15 +379,22 @@ class ReferralService {
         const adminService = require("./adminService");
         const settings = await adminService.getPlatformSettings();
 
-        // Notify referrer
-        logger.info(`Notifying referrer ${refCode.userId}`);
-        await notificationInstance.notifyNewReferral(
-          refCode.userId,
-          `User ${buyerTelegramId}`,
-          `Purchase from ${company?.name || "Company"}`,
-          amount * ((settings?.referralCommissionPercent || 2) / 100)
-        );
-        logger.info(`Referrer notification sent successfully`);
+        // Get buyer's username for better notification
+        const buyerUserDoc = await databaseService
+          .users()
+          .doc(buyerTelegramId.toString())
+          .get();
+        const buyerUsername = buyerUserDoc.exists
+          ? buyerUserDoc.data().username ||
+            buyerUserDoc.data().first_name ||
+            `User ${buyerTelegramId}`
+          : `User ${buyerTelegramId}`;
+        const buyerDisplayName = buyerUsername.startsWith("@")
+          ? buyerUsername
+          : `@${buyerUsername}`;
+
+        // Referrer notification is handled in userHandlers.js processSale function
+        // to avoid duplicate notifications and ensure correct commission calculation
 
         // Notify company/seller
         if (company?.telegramId) {
@@ -592,6 +600,5 @@ class ReferralService {
     return null;
   }
 }
-
 
 module.exports = new ReferralService();
