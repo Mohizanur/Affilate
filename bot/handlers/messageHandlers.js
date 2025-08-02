@@ -1,4 +1,4 @@
-console.log("Entering handlers/messageHandlers.js");
+
 const userService = require("../services/userService");
 const companyService = require("../services/companyService");
 const adminService = require("../services/adminService");

@@ -4,13 +4,14 @@
   "description": "Lightning-fast affiliate referral platform with Telegram bot",
   "main": "server.js",
   "scripts": {
-    "start": "node --max-old-space-size=2048 server.js",
-    "dev": "nodemon --max-old-space-size=2048 server.js",
-    "dev:bot": "nodemon --exec node --max-old-space-size=1024 bot/index.js",
+    "start": "LOG_LEVEL=warn PERFORMANCE_MODE=true node --max-old-space-size=2048 server.js",
+    "dev": "LOG_LEVEL=warn PERFORMANCE_MODE=true nodemon --max-old-space-size=2048 server.js",
+    "dev:bot": "LOG_LEVEL=warn PERFORMANCE_MODE=true nodemon --exec node --max-old-space-size=1024 bot/index.js",
     "test": "jest",
     "lint": "echo 'No linting configured'",
     "keep-alive": "node scripts/keep-alive.js",
-    "setup": "node scripts/setup.js"
+    "setup": "node scripts/setup.js",
+    "optimize": "node scripts/optimize-logging.js"
   },
   "keywords": [
     "affiliate",

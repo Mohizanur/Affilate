@@ -91,7 +91,7 @@ class UserService {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      logger.info(`User created: ${telegramId}`);
+      
       return { id: userRef.id, ...userData };
     } catch (error) {
       logger.error("Error creating user:", error);
@@ -726,7 +726,7 @@ class UserService {
       const userDoc = await userRef.get();
       if (!userDoc.exists) throw new Error("User not found");
       await userRef.update({ banned: true, bannedAt: new Date() });
-      logger.info(`User banned: ${telegramId}`);
+      
       return true;
     } catch (error) {
       logger.error("Error banning user:", error);
@@ -740,7 +740,7 @@ class UserService {
       const userDoc = await userRef.get();
       if (!userDoc.exists) throw new Error("User not found");
       await userRef.update({ banned: false, bannedAt: null });
-      logger.info(`User unbanned: ${telegramId}`);
+      
       return true;
     } catch (error) {
       logger.error("Error unbanning user:", error);
@@ -875,4 +875,4 @@ module.exports = {
     userService.getPendingWithdrawals(...args),
   getRecentUsers: (...args) => userService.getRecentUsers(...args),
 };
-console.log("End of userService.js (from companyHandlers)");
+

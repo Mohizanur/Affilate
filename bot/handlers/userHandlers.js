@@ -1,16 +1,16 @@
-console.log("Entering handlers/userHandlers.js");
+
 const { Markup } = require("telegraf");
-console.log("Loaded telegraf in userHandlers");
+
 const userService = require("../services/userService");
-console.log("Loaded services/userService in userHandlers");
+
 const productService = require("../services/productService");
-console.log("Loaded services/productService in userHandlers");
+
 const referralService = require("../services/referralService");
-console.log("Loaded services/referralService in userHandlers");
+
 const logger = require("../../utils/logger");
-console.log("Loaded utils/logger in userHandlers");
+
 const databaseService = require("../config/database");
-console.log("Loaded services/databaseService in userHandlers");
+
 const {
   getNotificationServiceInstance,
 } = require("../services/notificationService");
@@ -132,7 +132,7 @@ class UserHandlers {
       // Create or update user in Firestore
       user = await userService.userService.createOrUpdateUser(userData);
       console.log("[DEBUG] handleStart user:", user);
-      logger.info(`[DEBUG] handleStart user: ${JSON.stringify(user)}`);
+      
 
       // After fetching user, map phone_verified to phoneVerified for compatibility
       if (user.phone_verified && typeof user.phoneVerified === "undefined") {
@@ -403,7 +403,7 @@ class UserHandlers {
         }
       }
 
-      logger.info(`[DEBUG] handleViewProduct: productId=${productId}`);
+      
 
       // Get user language for localization
       const user = await userService.userService.getUserByTelegramId(
@@ -4294,4 +4294,4 @@ Toggle notifications:
 
 module.exports = new UserHandlers();
 
-console.log("Exiting handlers/userHandlers.js");
+

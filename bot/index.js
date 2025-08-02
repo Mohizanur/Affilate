@@ -1,5 +1,7 @@
+
+const performanceLogger = require('../config/performanceLogger');
 require("dotenv").config();
-console.log("Loaded bot/index.js");
+
 console.log(
   "Loaded BOT_TOKEN:",
   (process.env.BOT_TOKEN || "").slice(0, 8) + "..."
@@ -88,11 +90,11 @@ function registerHandlers(bot) {
 }
 
 async function startBot(app) {
-  console.log("🚀 startBot() triggered");
+  performanceLogger.system("🚀 $1");
   try {
     console.log("🟡 Initializing Firebase...");
     await databaseService.initialize();
-    console.log("✅ Firebase initialized");
+    performanceLogger.system("✅ $1");
 
     const token = process.env.BOT_TOKEN;
     if (!token) {
@@ -162,18 +164,18 @@ async function startBot(app) {
       }
     });
 
-    console.log("📦 Registering bot handlers...");
+    
     try {
-      console.log("Before registerHandlers");
+      
       registerHandlers(bot);
-      console.log("After registerHandlers");
+      
     } catch (e) {
       console.error("Error in registerHandlers:", e);
       throw e;
     }
 
     // Test bot connection first with better error handling
-    console.log("Before bot.telegram.getMe()");
+    
     let botInfo = null;
     try {
       botInfo = await bot.telegram.getMe();
@@ -189,8 +191,8 @@ async function startBot(app) {
       console.error("   - Telegram API accessibility");
 
       // For development, we can continue without the connection test
-      console.log("⚠️ Continuing in development mode without API test...");
-      console.log("📝 You can still test the bot functionality locally");
+      performanceLogger.warn("⚠️ $1");
+      
     }
 
     // Set bot commands
@@ -212,13 +214,13 @@ async function startBot(app) {
 
       try {
         await bot.telegram.setMyCommands(commands);
-        console.log("✅ Bot commands set successfully");
+        performanceLogger.system("✅ $1");
       } catch (error) {
         console.log(
           "⚠️ Could not set bot commands (network issue):",
           error.message
         );
-        console.log("📝 Bot will work without custom commands");
+        
       }
     }
 
@@ -264,7 +266,7 @@ async function startBot(app) {
       setTimeout(async () => {
         try {
           await bot.telegram.setWebhook(webhookUrl);
-          console.log("✅ Webhook set successfully");
+          performanceLogger.system("✅ $1");
         } catch (error) {
           console.error("❌ Failed to set webhook:", error);
         }
@@ -283,7 +285,7 @@ async function startBot(app) {
           "⚠️ Could not start long polling (network issue):",
           error.message
         );
-        console.log("📝 Setting up webhook mode for local testing...");
+        
       }
     } else {
       console.log("🌐 Using webhook mode (local development with webhook)...");
@@ -318,10 +320,10 @@ async function startBot(app) {
 
       // For local development, we'll just set up the webhook endpoint
       // but won't set the webhook URL since we're running locally
-      console.log("✅ Webhook endpoint configured for local development");
+      performanceLogger.system("✅ $1");
     }
 
-    console.log("🚀 Bot initialization complete");
+    performanceLogger.system("🚀 $1");
     return bot;
   } catch (error) {
     console.error("❌ Error inside startBot():", error);
@@ -371,11 +373,11 @@ process.once("SIGINT", async () => {
     try {
       if (isBotLaunched) {
         await bot.stop("SIGINT");
-        console.log("✅ Bot stopped successfully (long polling mode)");
+        performanceLogger.system("✅ $1");
       } else {
         // In webhook mode, just delete the webhook
         await bot.telegram.deleteWebhook();
-        console.log("✅ Webhook deleted successfully");
+        performanceLogger.system("✅ $1");
       }
     } catch (error) {
       console.log("⚠️ Error during bot shutdown:", error.message);
@@ -394,11 +396,11 @@ process.once("SIGTERM", async () => {
     try {
       if (isBotLaunched) {
         await bot.stop("SIGTERM");
-        console.log("✅ Bot stopped successfully (long polling mode)");
+        performanceLogger.system("✅ $1");
       } else {
         // In webhook mode, just delete the webhook
         await bot.telegram.deleteWebhook();
-        console.log("✅ Webhook deleted successfully");
+        performanceLogger.system("✅ $1");
       }
     } catch (error) {
       console.log("⚠️ Error during bot shutdown:", error.message);

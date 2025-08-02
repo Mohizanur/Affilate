@@ -1,4 +1,4 @@
-console.log("Entering services/productService.js");
+
 const databaseService = require("../config/database");
 const { v4: uuidv4 } = require("uuid");
 const logger = require("../../utils/logger");
@@ -466,4 +466,4 @@ class ProductService {
 }
 
 module.exports = new ProductService();
-console.log("Exiting services/productService.js");
+

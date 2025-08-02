@@ -1,15 +1,15 @@
-console.log("Top of companyHandlers.js");
-console.log("Entering handlers/companyHandlers.js");
+
+
 const { Markup } = require("telegraf");
-console.log("After require telegraf");
+
 const companyService = require("../services/companyService");
-console.log("Loaded services/companyService in companyHandlers");
+
 const productService = require("../services/productService");
-console.log("Loaded services/productService in companyHandlers");
+
 const referralService = require("../services/referralService");
-console.log("After require referralService");
+
 const logger = require("../../utils/logger");
-console.log("After require logger");
+
 const userService = require("../services/userService");
 const notificationService = require("../services/notificationService");
 const {
@@ -1455,5 +1455,5 @@ ${referralData.topReferrers
   }
 }
 
-console.log("End of companyHandlers.js");
+
 module.exports = new CompanyHandlers();

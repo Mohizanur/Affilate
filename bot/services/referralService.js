@@ -1,4 +1,4 @@
-console.log("Entering services/referralService.js");
+
 const databaseService = require("../config/database");
 const { v4: uuidv4 } = require("uuid");
 const logger = require("../../utils/logger");
@@ -589,5 +589,5 @@ class ReferralService {
   }
 }
 
-console.log("Exiting services/referralService.js");
+
 module.exports = new ReferralService();

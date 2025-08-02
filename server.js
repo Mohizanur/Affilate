@@ -2,12 +2,12 @@ process.on("uncaughtException", (err) => {
   console.error("UNCAUGHT EXCEPTION:", err);
   // Don't exit for network-related errors
   if (err.code === "ETIMEDOUT" || err.code === "ENOTFOUND") {
-    console.log("⚠️ Network error detected, continuing...");
+    performanceLogger.warn("⚠️ $1");
     return;
   }
   // For other exceptions, log but don't exit in development
   if (process.env.NODE_ENV !== "production") {
-    console.log("⚠️ Uncaught exception logged, continuing in development...");
+    performanceLogger.warn("⚠️ $1");
     return;
   }
   // Only exit in production for non-network errors
@@ -18,15 +18,17 @@ process.on("unhandledRejection", (reason, promise) => {
   console.error("UNHANDLED REJECTION:", reason);
   // Don't exit the process for network-related errors
   if (reason && reason.code === "ETIMEDOUT") {
-    console.log("⚠️ Network timeout detected, continuing...");
+    performanceLogger.warn("⚠️ $1");
     return; // Don't let the process exit
   }
   // For other unhandled rejections, log but don't exit
-  console.log("⚠️ Unhandled rejection logged, continuing...");
+  performanceLogger.warn("⚠️ $1");
 });
 // Top-level error handlers and startup log
 // Note: More specific error handlers are defined in bot/index.js
 console.log("=== server.js starting ===");
+const performanceLogger = require('../config/performanceLogger');
+
 
 // Load environment variables
 require("dotenv").config();
@@ -150,14 +152,14 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Internal Server Error" });
 });
 
-console.log("Top of server.js");
-console.log("Before startServer()");
+
+
 
 (async () => {
   try {
     console.log("Inside startServer, before startBot");
     const bot = await startBot(app); // Pass the Express app
-    console.log("✅ Bot started successfully");
+    performanceLogger.system("✅ $1");
 
     // After bot is initialized but before bot.launch()
     if (bot && bot.telegram && bot.telegram.setMyCommands) {
@@ -177,13 +179,13 @@ console.log("Before startServer()");
           { command: "orders", description: "Your order history" },
           // Add more as needed for your elite UX
         ]);
-        console.log("✅ Bot commands set successfully");
+        performanceLogger.system("✅ $1");
       } catch (error) {
         console.log(
           "⚠️ Could not set bot commands (network issue):",
           error.message
         );
-        console.log("📝 Bot will work without custom commands");
+        
       }
     }
 
@@ -226,7 +228,7 @@ console.log("Before startServer()");
             console.log(
               `⚠️ Port ${PORT} is already in use. Bot will continue without web server.`
             );
-            console.log("📝 Bot is running in polling mode only.");
+            
           } else {
             console.error("❌ Server error:", error);
           }
@@ -236,7 +238,7 @@ console.log("Before startServer()");
         console.log(
           `⚠️ Port ${PORT} is already in use. Bot will continue without web server.`
         );
-        console.log("📝 Bot is running in polling mode only.");
+        
       } else {
         console.error("❌ Server startup error:", error);
       }
@@ -247,14 +249,14 @@ console.log("Before startServer()");
   }
 })();
 
-console.log("After startServer() call");
+
 
 // Cleanup function for graceful shutdown
 function cleanup() {
   console.log("🧹 Cleaning up resources...");
   if (keepAliveInterval) {
     clearInterval(keepAliveInterval);
-    console.log("✅ Keep-alive interval cleared");
+    performanceLogger.system("✅ $1");
   }
 }
 

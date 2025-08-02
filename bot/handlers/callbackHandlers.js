@@ -1,22 +1,22 @@
 console.log("callbackHandlers.js loaded");
-console.log("Entering handlers/callbackHandlers.js");
+
 const { Markup } = require("telegraf");
 const { t } = require("../../utils/localize");
-console.log("Loaded telegraf in callbackHandlers");
+
 const userService = require("../services/userService");
-console.log("Loaded userService in callbackHandlers");
+
 const companyService = require("../services/companyService");
-console.log("Loaded companyService in callbackHandlers");
+
 const adminService = require("../services/adminService");
-console.log("Loaded adminService in callbackHandlers");
+
 const adminHandlers = require("./adminHandlers");
-console.log("Loaded adminHandlers in callbackHandlers");
+
 const logger = require("../../utils/logger");
-console.log("Loaded utils/logger in callbackHandlers");
+
 const userHandlers = require("./userHandlers");
-console.log("Loaded userHandlers in callbackHandlers");
+
 const companyHandlers = require("./companyHandlers");
-console.log("Loaded companyHandlers in callbackHandlers");
+
 
 function blockIfBanned(ctx, user) {
   console.log("Checking if user is banned:", {
@@ -133,7 +133,7 @@ class CallbackHandlers {
       // Handle Add Billing Balance dynamic callback
       if (callbackData.startsWith("add_billing_balance_")) {
         const companyId = callbackData.replace("add_billing_balance_", "");
-        console.log("🔍 add_billing_balance_ callback received");
+        
         console.log(`🔍 Company ID extracted: ${companyId}`);
         return adminHandlers.handleAddCompanyBillingBalance(ctx, companyId);
       }

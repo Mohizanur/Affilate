@@ -1,14 +1,16 @@
-console.log("Entering services/adminService.js");
+
+const performanceLogger = require('../config/performanceLogger');
+
 const databaseService = require("../config/database");
-console.log("Loaded config/database in adminService");
+
 const logger = require("../../utils/logger");
-console.log("Loaded utils/logger in adminService");
+
 const userService = require("./userService").userService;
-console.log("Loaded userService in adminService");
+
 const companyService = require("./companyService");
-console.log("Loaded companyService in adminService");
+
 const referralService = require("./referralService");
-console.log("Loaded referralService in adminService");
+
 const notificationService = require("./notificationService");
 const Validators = require("../../utils/validators");
 
@@ -702,7 +704,7 @@ class AdminService {
       return await getCachedOrFetch(
         CACHE_KEYS.DASHBOARD_DATA,
         async () => {
-          console.log("🚀 Fetching dashboard data with parallel processing...");
+          performanceLogger.system("🚀 $1");
 
           const [
             platformStats,
@@ -2741,5 +2743,5 @@ class AdminService {
   }
 }
 
-console.log("Exiting services/adminService.js");
+
 module.exports = new AdminService();

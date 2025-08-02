@@ -1,3 +1,5 @@
+
+const performanceLogger = require('../config/performanceLogger');
 const databaseService = require("../config/database");
 const cacheService = require("../config/cache");
 const { v4: uuidv4 } = require("uuid");
@@ -70,7 +72,7 @@ async function registerCompany({
       phone,
     };
     await databaseService.companies().doc(companyId).set(companyData);
-    logger.info(`Company registered: ${companyId}`);
+    performanceLogger.adminAction("company registered", adminId);
     return companyData;
   } catch (error) {
     logger.error("Error registering company:", error);
@@ -400,9 +402,9 @@ class CompanyService {
               { parse_mode: "HTML", ...Markup.inlineKeyboard(buttons) }
             );
           }
-          console.log("[ADMIN NOTIFY] Product add: sent");
+          
         } else {
-          console.log("[ADMIN NOTIFY] Product add: no admin IDs found");
+          
         }
       } catch (e) {
         logger.error("Error notifying admins of new product:", e);
@@ -507,5 +509,5 @@ class CompanyService {
   }
 }
 
-console.log("End of companyService.js (restored Firestore version)");
+
 module.exports = new CompanyService();

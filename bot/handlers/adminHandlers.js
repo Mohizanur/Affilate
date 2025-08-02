@@ -1,20 +1,20 @@
 const { Markup } = require("telegraf");
-console.log("Loaded telegraf in adminHandlers");
+
 const adminService = require("../services/adminService");
 console.log("adminService keys:", Object.keys(adminService));
-console.log("Loaded services/adminService in adminHandlers");
+
 const userService = require("../services/userService");
-console.log("Loaded services/userService in adminHandlers");
+
 const companyService = require("../services/companyService");
-console.log("Loaded services/companyService in adminHandlers");
+
 const databaseService = require("../config/database");
-console.log("Loaded config/database in adminHandlers");
+
 const logger = require("../../utils/logger");
-console.log("Loaded utils/logger in adminHandlers");
+
 const referralService = require("../services/referralService");
-console.log("Loaded services/referralService in adminHandlers");
+
 const productService = require("../services/productService");
-console.log("Loaded services/productService in adminHandlers");
+
 const { t } = require("../../utils/localize");
 
 // Add at the top:
@@ -3609,7 +3609,7 @@ class AdminHandlers {
 
   async handlePendingCompanyWithdrawals(ctx) {
     try {
-      console.log("🔍 handlePendingCompanyWithdrawals called");
+      
 
       if (!(await this.isAdminAsync(ctx.from.id)))
         return ctx.reply(
