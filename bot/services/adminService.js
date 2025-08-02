@@ -254,7 +254,6 @@ class AdminService {
         });
 
         // Calculate lifetime revenue from pre-processed data
-        const companySales = salesByCompany.get(companyId) || [];
         let totalRevenue = 0;
 
         // Add revenue from referrals
@@ -2292,4 +2291,20 @@ class AdminService {
           `💰 *Withdrawal Request*\n\n` +
             `Amount: *$${amount.toFixed(2)}*\n` +
             `Reason: ${reason}\n` +
-            `Requested by: ${adminUsername}\n\n`
+            `Requested by: ${adminUsername}\n\n` +
+            `Your withdrawal request has been submitted and is pending approval.`
+        );
+      }
+
+      return {
+        id: withdrawalRef.id,
+        ...withdrawalRequest,
+      };
+    } catch (error) {
+      logger.error("Error requesting company withdrawal:", error);
+      throw error;
+    }
+  }
+}
+
+module.exports = new AdminService();
