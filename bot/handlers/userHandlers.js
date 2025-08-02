@@ -3640,12 +3640,13 @@ Toggle notifications:
       const userLanguage = ctx.session?.language || "en";
       const companyId = ctx.callbackQuery.data.split("_")[2];
       const companyService = require("../services/companyService");
-      await companyService.deleteCompany(companyId);
+      await companyService.deleteCompany(companyId, ctx.from.id);
       ctx.reply(t("msg__company_deleted_successfully", {}, userLanguage));
       // Refresh company list
       await this.handleMyCompanies(ctx);
     } catch (error) {
       logger.error("Error in handleDeleteCompany:", error);
+      const userLanguage = ctx.session?.language || "en";
       ctx.reply(t("msg__failed_to_delete_company", {}, userLanguage));
     }
   }
