@@ -396,18 +396,8 @@ class ReferralService {
         // Referrer notification is handled in userHandlers.js processSale function
         // to avoid duplicate notifications and ensure correct commission calculation
 
-        // Notify company/seller
-        if (company?.telegramId) {
-          logger.info(`Notifying company ${company.telegramId}`);
-          await notificationInstance.sendDirectNotification(
-            company.telegramId,
-            `🎉 New referral sale!\n\n💰 Amount: $${amount}\n👤 Buyer: ${buyerTelegramId}\n🔗 Referral Code: ${code}\n\nYour product was purchased using a referral code!`,
-            { type: "company_sale" }
-          );
-          logger.info(`Company notification sent successfully`);
-        } else {
-          logger.warn(`Company has no telegramId: ${company?.id}`);
-        }
+        // Seller notification is also handled in userHandlers.js processSale function
+        // to avoid duplicate notifications and ensure correct buyer username display
 
         // Note: Admin notifications are handled in userHandlers.js processSale function
         // to avoid double notifications and ensure all sale details are included
