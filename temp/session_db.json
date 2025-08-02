@@ -3,8 +3,8 @@
     {
       "id": "1311279699:1311279699",
       "data": {
-        "sellProductId": null,
-        "sellStep": null,
+        "sellProductId": "35ce582e-036b-483a-926a-1655ddb35b86",
+        "sellStep": "buyer_username",
         "sellBuyerId": null,
         "buyerUsername": "omafesrun2",
         "sellQuantity": null

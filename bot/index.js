@@ -1,5 +1,5 @@
 
-const performanceLogger = require('../config/performanceLogger');
+const performanceLogger = require('./config/performanceLogger');
 require("dotenv").config();
 
 console.log(

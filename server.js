@@ -27,7 +27,19 @@ const userService = require("./bot/services/userService");
 const companyService = require("./bot/services/companyService");
 
 // Import performance logger after other modules
-const performanceLogger = require('./bot/config/performanceLogger');
+// Performance logger - only import if needed
+let performanceLogger;
+try {
+  performanceLogger = require("./bot/config/performanceLogger");
+} catch (error) {
+  // Fallback if performanceLogger not available
+  performanceLogger = {
+    system: (msg) => console.log(msg),
+    warn: (msg) => console.log(msg),
+    error: (msg) => console.log(msg),
+    info: (msg) => console.log(msg),
+  };
+}
 
 process.on("uncaughtException", (err) => {
   console.error("UNCAUGHT EXCEPTION:", err);
@@ -55,31 +67,6 @@ process.on("unhandledRejection", (reason, promise) => {
   // For other unhandled rejections, log but don't exit
   console.log("⚠️ Unhandled rejection logged, continuing...");
 });
-
-
-// Load environment variables
-require("dotenv").config();
-console.log("Loaded dotenv");
-
-const express = require("express");
-console.log("Loaded express");
-
-const cors = require("cors");
-console.log("Loaded cors");
-
-const helmet = require("helmet");
-console.log("Loaded helmet");
-
-const rateLimit = require("express-rate-limit");
-console.log("Loaded express-rate-limit");
-
-const { startBot } = require("./bot");
-console.log("Loaded ./bot (startBot)");
-const apiRoutes = require("./api/routes");
-const cron = require("node-cron");
-const notificationService = require("./bot/services/notificationService");
-const userService = require("./bot/services/userService");
-const companyService = require("./bot/services/companyService");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -179,9 +166,6 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: "Internal Server Error" });
 });
 
-
-
-
 (async () => {
   try {
     console.log("Inside startServer, before startBot");
@@ -212,7 +196,6 @@ app.use((err, req, res, next) => {
           "⚠️ Could not set bot commands (network issue):",
           error.message
         );
-        
       }
     }
 
@@ -255,7 +238,6 @@ app.use((err, req, res, next) => {
             console.log(
               `⚠️ Port ${PORT} is already in use. Bot will continue without web server.`
             );
-            
           } else {
             console.error("❌ Server error:", error);
           }
@@ -265,7 +247,6 @@ app.use((err, req, res, next) => {
         console.log(
           `⚠️ Port ${PORT} is already in use. Bot will continue without web server.`
         );
-        
       } else {
         console.error("❌ Server startup error:", error);
       }
@@ -275,8 +256,6 @@ app.use((err, req, res, next) => {
     process.exit(1);
   }
 })();
-
-
 
 // Cleanup function for graceful shutdown
 function cleanup() {
