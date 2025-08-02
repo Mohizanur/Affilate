@@ -1,7 +1,7 @@
 const { Markup } = require("telegraf");
 
 const adminService = require("../services/adminService");
-console.log("adminService keys:", Object.keys(adminService));
+
 
 const userService = require("../services/userService");
 

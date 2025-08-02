@@ -1,4 +1,4 @@
-console.log("Entering utils/logger.js");
+
 const winston = require("winston");
 const path = require("path");
 
@@ -26,8 +26,8 @@ winston.addColors(colors);
 // Define which logs to print based on environment
 const level = () => {
   const env = process.env.NODE_ENV || "development";
-  const isDevelopment = env === "development";
-  return isDevelopment ? "info" : "warn"; // Changed from "debug" to "info" to reduce noise
+  const logLevel = process.env.LOG_LEVEL || "warn";
+  return logLevel; // Use LOG_LEVEL environment variable directly
 };
 
 // Define format for logs
@@ -166,5 +166,5 @@ logger.logServiceError = (service, method, error, userId = "") => {
   logger.error(message);
 };
 
-console.log("Exiting utils/logger.js");
+
 module.exports = logger;

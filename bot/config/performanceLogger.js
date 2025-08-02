@@ -42,7 +42,9 @@ class PerformanceLogger {
 
   // Critical system events only
   system(message, ...args) {
-    logger.info(message, ...args);
+    if (this.logLevel !== "error") {
+      logger.info(message, ...args);
+    }
   }
 
   // User actions - minimal in production

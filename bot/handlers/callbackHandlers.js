@@ -1,4 +1,4 @@
-console.log("callbackHandlers.js loaded");
+
 
 const { Markup } = require("telegraf");
 const { t } = require("../../utils/localize");

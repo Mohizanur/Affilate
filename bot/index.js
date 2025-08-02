@@ -2,10 +2,7 @@
 const performanceLogger = require('./config/performanceLogger');
 require("dotenv").config();
 
-console.log(
-  "Loaded BOT_TOKEN:",
-  (process.env.BOT_TOKEN || "").slice(0, 8) + "..."
-);
+
 const { Telegraf } = require("telegraf");
 const LocalSession = require("telegraf-session-local");
 const databaseService = require("./config/database");
@@ -92,7 +89,7 @@ function registerHandlers(bot) {
 async function startBot(app) {
   performanceLogger.system("🚀 $1");
   try {
-    console.log("🟡 Initializing Firebase...");
+
     await databaseService.initialize();
     performanceLogger.system("✅ $1");
 
@@ -100,9 +97,7 @@ async function startBot(app) {
     if (!token) {
       throw new Error("Missing BOT_TOKEN in environment variables.");
     }
-    console.log("BOT_TOKEN loaded, length:", token.length);
 
-    console.log("🤖 Initializing Telegraf bot...");
     bot = new Telegraf(token, {
       telegram: {
         // BEAST MODE: Optimized for maximum performance while staying under Telegram limits

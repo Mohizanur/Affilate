@@ -1,25 +1,14 @@
 // Top-level error handlers and startup log
 // Note: More specific error handlers are defined in bot/index.js
-console.log("=== server.js starting ===");
 
 // Load environment variables
 require("dotenv").config();
-console.log("Loaded dotenv");
 
 const express = require("express");
-console.log("Loaded express");
-
 const cors = require("cors");
-console.log("Loaded cors");
-
 const helmet = require("helmet");
-console.log("Loaded helmet");
-
 const rateLimit = require("express-rate-limit");
-console.log("Loaded express-rate-limit");
-
 const { startBot } = require("./bot");
-console.log("Loaded ./bot (startBot)");
 const apiRoutes = require("./api/routes");
 const cron = require("node-cron");
 const notificationService = require("./bot/services/notificationService");
@@ -75,7 +64,7 @@ process.on("exit", (code) => {
   console.log("Process exit event with code:", code);
 });
 
-console.log("Top of server.js (diagnostic)");
+
 
 // Keep-alive mechanism for Render free tier
 let keepAliveInterval;
@@ -168,7 +157,7 @@ app.use((err, req, res, next) => {
 
 (async () => {
   try {
-    console.log("Inside startServer, before startBot");
+
     const bot = await startBot(app); // Pass the Express app
     performanceLogger.system("✅ $1");
 
