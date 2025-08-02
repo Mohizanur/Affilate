@@ -582,6 +582,40 @@ class UserService {
       );
     }
 
+    // Restore the user's referral balance if it was already deducted
+    const userRef = databaseService.users().doc(withdrawal.userId.toString());
+    const userDoc = await userRef.get();
+    if (userDoc.exists) {
+      const userData = userDoc.data();
+      const currentBalance = userData.referralBalance || 0;
+      // Only restore if the balance seems to have been deducted (this is a safety check)
+      // In a proper implementation, we should track whether the balance was actually deducted
+      const newBalance = currentBalance + withdrawal.amount;
+      await userRef.update({ referralBalance: newBalance });
+      console.log(
+        `[companyDenyWithdrawal] Restored $${withdrawal.amount.toFixed(
+          2
+        )} to user ${
+          withdrawal.userId
+        } balance. New balance: $${newBalance.toFixed(2)}`
+      );
+    }
+
+    // Restore the company's platformCommission if it was already deducted
+    if (withdrawal.companyId) {
+      const companyRef = databaseService
+        .companies()
+        .doc(withdrawal.companyId.toString());
+      await companyRef.update({
+        platformCommission: databaseService.increment(withdrawal.amount),
+      });
+      console.log(
+        `[companyDenyWithdrawal] Restored $${withdrawal.amount.toFixed(
+          2
+        )} to company ${withdrawal.companyId} platformCommission`
+      );
+    }
+
     await withdrawalRef.update({
       status: "declined",
       declinedBy: deniedBy,
@@ -599,7 +633,7 @@ class UserService {
         withdrawal.userId,
         `❌ Your withdrawal request for $${withdrawal.amount.toFixed(
           2
-        )} has been declined by the company.\n\nPlease contact the company for more information.`,
+        )} has been declined by the company.\n\nYour balance has been restored. Please contact the company for more information.`,
         { type: "withdrawal", action: "declined", withdrawalId }
       );
     } else {

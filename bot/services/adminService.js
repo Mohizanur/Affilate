@@ -2478,6 +2478,34 @@ class AdminService {
         ? `@${denierUser.username}`
         : deniedBy;
 
+      // Restore the company's totalWithdrawn if it was already deducted
+      if (withdrawal.companyId) {
+        const companyRef = databaseService
+          .companies()
+          .doc(withdrawal.companyId);
+        const companyDoc = await companyRef.get();
+        if (companyDoc.exists) {
+          const company = companyDoc.data();
+          const currentTotalWithdrawn = company.totalWithdrawn || 0;
+          // Restore the withdrawn amount
+          const newTotalWithdrawn = Math.max(
+            0,
+            currentTotalWithdrawn - withdrawal.amount
+          );
+          await companyRef.update({
+            totalWithdrawn: newTotalWithdrawn,
+            updatedAt: new Date(),
+          });
+          logger.info(
+            `[companyDenyWithdrawal] Restored $${withdrawal.amount.toFixed(
+              2
+            )} to company ${
+              withdrawal.companyId
+            } totalWithdrawn. New total: $${newTotalWithdrawn.toFixed(2)}`
+          );
+        }
+      }
+
       // Update withdrawal status to denied
       await withdrawalRef.update({
         status: "company_denied",
@@ -2506,7 +2534,8 @@ class AdminService {
             `Amount: *$${withdrawal.amount.toFixed(2)}*\n` +
             `Reason: ${withdrawal.reason}\n` +
             `Denied by: ${denierUsername}\n` +
-            `Denial reason: ${reason}`,
+            `Denial reason: ${reason}\n\n` +
+            `Company balance has been restored.`,
           {
             type: "company_withdrawal",
             action: "denied",
