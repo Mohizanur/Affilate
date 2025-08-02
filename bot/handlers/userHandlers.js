@@ -1,4 +1,3 @@
-
 const { Markup } = require("telegraf");
 
 const userService = require("../services/userService");
@@ -3139,6 +3138,25 @@ Toggle notifications:
       const productService = require("../services/productService");
       const referralService = require("../services/referralService");
       const companyService = require("../services/companyService");
+      
+      // Add notification deduplication
+      const saleId = `${product.id}_${Date.now()}_${ctx.from.id}`;
+      if (ctx.session.processedSales && ctx.session.processedSales.includes(saleId)) {
+        logger.warn(`Sale ${saleId} already processed, skipping duplicate`);
+        return;
+      }
+      
+      // Initialize processed sales array if not exists
+      if (!ctx.session.processedSales) {
+        ctx.session.processedSales = [];
+      }
+      ctx.session.processedSales.push(saleId);
+      
+      // Keep only last 10 processed sales to prevent memory bloat
+      if (ctx.session.processedSales.length > 10) {
+        ctx.session.processedSales = ctx.session.processedSales.slice(-10);
+      }
+      
       // Reduce product quantity
       await productService.updateProductFirestore(product.id, {
         quantity: product.quantity - quantity,
@@ -3411,12 +3429,15 @@ Toggle notifications:
             }
           }
 
-          // Notify admins
+          // Notify admins (with deduplication)
           const admins = await adminService.getAdminUsers();
           const adminIds = admins.map((admin) => admin.telegramId);
 
           if (adminIds.length > 0) {
-            logger.info(`Notifying ${adminIds.length} admins of sale`);
+            // Remove duplicate admin IDs
+            const uniqueAdminIds = [...new Set(adminIds)];
+            logger.info(`Notifying ${uniqueAdminIds.length} unique admins of sale`);
+            
             // Get seller username
             let sellerUsername =
               ctx.from.username || ctx.from.first_name || ctx.from.id;
@@ -3467,11 +3488,11 @@ Toggle notifications:
             )}`;
 
             await notificationInstance.notifyAdminAlert(
-              adminIds,
+              uniqueAdminIds,
               "New Sale Completed",
               adminMessage
             );
-            logger.info(`Admin notifications sent successfully`);
+            logger.info(`Admin notifications sent successfully to ${uniqueAdminIds.length} unique admins`);
           }
         }
       } catch (notificationError) {
