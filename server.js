@@ -1,13 +1,44 @@
+// Top-level error handlers and startup log
+// Note: More specific error handlers are defined in bot/index.js
+console.log("=== server.js starting ===");
+
+// Load environment variables
+require("dotenv").config();
+console.log("Loaded dotenv");
+
+const express = require("express");
+console.log("Loaded express");
+
+const cors = require("cors");
+console.log("Loaded cors");
+
+const helmet = require("helmet");
+console.log("Loaded helmet");
+
+const rateLimit = require("express-rate-limit");
+console.log("Loaded express-rate-limit");
+
+const { startBot } = require("./bot");
+console.log("Loaded ./bot (startBot)");
+const apiRoutes = require("./api/routes");
+const cron = require("node-cron");
+const notificationService = require("./bot/services/notificationService");
+const userService = require("./bot/services/userService");
+const companyService = require("./bot/services/companyService");
+
+// Import performance logger after other modules
+const performanceLogger = require('./bot/config/performanceLogger');
+
 process.on("uncaughtException", (err) => {
   console.error("UNCAUGHT EXCEPTION:", err);
   // Don't exit for network-related errors
   if (err.code === "ETIMEDOUT" || err.code === "ENOTFOUND") {
-    performanceLogger.warn("⚠️ $1");
+    console.log("⚠️ Network error detected, continuing...");
     return;
   }
   // For other exceptions, log but don't exit in development
   if (process.env.NODE_ENV !== "production") {
-    performanceLogger.warn("⚠️ $1");
+    console.log("⚠️ Uncaught exception logged, continuing in development...");
     return;
   }
   // Only exit in production for non-network errors
@@ -18,16 +49,12 @@ process.on("unhandledRejection", (reason, promise) => {
   console.error("UNHANDLED REJECTION:", reason);
   // Don't exit the process for network-related errors
   if (reason && reason.code === "ETIMEDOUT") {
-    performanceLogger.warn("⚠️ $1");
+    console.log("⚠️ Network timeout detected, continuing...");
     return; // Don't let the process exit
   }
   // For other unhandled rejections, log but don't exit
-  performanceLogger.warn("⚠️ $1");
+  console.log("⚠️ Unhandled rejection logged, continuing...");
 });
-// Top-level error handlers and startup log
-// Note: More specific error handlers are defined in bot/index.js
-console.log("=== server.js starting ===");
-const performanceLogger = require('../config/performanceLogger');
 
 
 // Load environment variables
