@@ -418,7 +418,7 @@
   "msg_proof_uploaded": "msg_proof_uploaded",
   "msg_referral_statistics": "📊 *Referral Statistics*\n\n📈 *Total Referrals:* {{totalReferrals}}\n💰 *Total Rewards:* ${{totalRewards}}\n📊 *Recent Activity:*\n{{recentActivity}}",
   "msg_reward_applied": "msg_reward_applied",
-  "msg_select_field_to_edit": "msg_select_field_to_edit",
+  "msg_select_field_to_edit": "Select the field you want to edit:",
   "msg_share_code_instructions": "msg_share_code_instructions",
   "msg_share_code_message": "msg_share_code_message",
   "msg_terms_of_service": "msg_terms_of_service",
