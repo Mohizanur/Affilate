@@ -232,12 +232,23 @@ class AdminService {
         // Get product count from pre-processed map
         const productCount = productsByCompany.get(companyId) || 0;
 
-        // Calculate platform fees from pre-processed referrals
+        // Calculate platform fees from pre-processed referrals AND sales
         const companyReferrals = referralsByCompany.get(companyId) || [];
+        const companySales = salesByCompany.get(companyId) || [];
         let totalPlatformFees = 0;
+        
+        // Platform fees from referrals
         companyReferrals.forEach((referral) => {
           const platformFee =
             (referral.amount || 0) *
+            (platformSettings.platformFeePercent / 100);
+          totalPlatformFees += platformFee;
+        });
+        
+        // Platform fees from direct sales
+        companySales.forEach((sale) => {
+          const platformFee =
+            (sale.amount || 0) *
             (platformSettings.platformFeePercent / 100);
           totalPlatformFees += platformFee;
         });
@@ -258,9 +269,7 @@ class AdminService {
 
         // Calculate withdrawable amount
         const alreadyWithdrawn = company.totalWithdrawn || 0;
-        // Withdrawable should be the platform fees (what company can withdraw)
-        // Not platform fees minus already withdrawn
-        const withdrawable = totalPlatformFees;
+        const withdrawable = Math.max(0, totalPlatformFees - alreadyWithdrawn);
 
         // Debug logging for company "ni"
         if (company.name === "ni") {
