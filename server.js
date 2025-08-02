@@ -82,11 +82,27 @@ app.use(
 // Trust proxy for rate limiting behind proxies (like Render)
 app.set("trust proxy", 1);
 
+// BEAST MODE: Optimized rate limiting for maximum performance
 app.use(
   rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 100,
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 500, // Increased to 500 requests per 15 minutes for higher throughput
     message: "Too many requests, try again later.",
+    standardHeaders: true,
+    legacyHeaders: false,
+    skipSuccessfulRequests: true, // Don't count successful requests
+    skipFailedRequests: false,
+    // Additional performance optimizations
+    keyGenerator: (req) => {
+      // Use IP + User-Agent for better rate limiting
+      return req.ip + "|" + (req.headers["user-agent"] || "unknown");
+    },
+    handler: (req, res) => {
+      res.status(429).json({
+        error: "Rate limit exceeded",
+        retryAfter: Math.ceil((15 * 60) / 1000), // 15 minutes in seconds
+      });
+    },
   })
 );
 app.use(express.json({ limit: "10mb" }));
@@ -98,10 +114,23 @@ app.get("/", (req, res) => {
 });
 
 app.get("/health", (req, res) => {
+  const performanceMonitor = require("./bot/config/performance");
+  const cacheService = require("./bot/config/cache");
+
   res.json({
     status: "healthy",
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || "development",
+    performance: performanceMonitor.getStats(),
+    cache: {
+      userCacheKeys: cacheService.userCache.keys().length,
+      companyCacheKeys: cacheService.companyCache.keys().length,
+      statsCacheKeys: cacheService.statsCache.keys().length,
+    },
+    memory: {
+      used: Math.round(process.memoryUsage().heapUsed / 1024 / 1024) + "MB",
+      total: Math.round(process.memoryUsage().heapTotal / 1024 / 1024) + "MB",
+    },
   });
 });
 

@@ -17,17 +17,31 @@ const {
 const { t } = require("../../utils/localize");
 const { getPlatformSettings } = require("../utils/helpers");
 
-const rateLimitMap = {};
+const cacheService = require("../config/cache");
+
 function isRateLimited(userId, action) {
+  const key = `rate:${userId}:${action}`;
   const now = Date.now();
-  if (!rateLimitMap[userId]) rateLimitMap[userId] = {};
-  if (!rateLimitMap[userId][action]) rateLimitMap[userId][action] = [];
-  // Remove timestamps older than 1 minute
-  rateLimitMap[userId][action] = rateLimitMap[userId][action].filter(
-    (ts) => now - ts < 60000
-  );
-  if (rateLimitMap[userId][action].length >= 3) return true;
-  rateLimitMap[userId][action].push(now);
+
+  // Get existing rate limit data from cache
+  const rateData = cacheService.getRateLimit(key) || {
+    count: 0,
+    timestamps: [],
+  };
+
+  // BEAST MODE: Optimized rate limiting for maximum performance
+  // Remove timestamps older than 30 seconds (faster than 1 minute)
+  rateData.timestamps = rateData.timestamps.filter((ts) => now - ts < 30000);
+
+  // Allow 5 actions per 30 seconds (increased from 3 per minute)
+  if (rateData.timestamps.length >= 5) return true;
+
+  // Add current timestamp
+  rateData.timestamps.push(now);
+  rateData.count = rateData.timestamps.length;
+
+  // Store updated data in cache
+  cacheService.setRateLimit(key, rateData);
   return false;
 }
 

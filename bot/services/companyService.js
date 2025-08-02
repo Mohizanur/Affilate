@@ -1,5 +1,5 @@
-console.log("Top of companyService.js (restored Firestore version)");
 const databaseService = require("../config/database");
+const cacheService = require("../config/cache");
 const { v4: uuidv4 } = require("uuid");
 const logger = require("../../utils/logger");
 const { getNotificationServiceInstance } = require("./notificationService");
@@ -141,9 +141,19 @@ class CompanyService {
 
   async getCompanyById(companyId) {
     try {
+      // Check cache first
+      const cached = cacheService.getCompany(companyId);
+      if (cached) {
+        return cached;
+      }
+
       const doc = await databaseService.companies().doc(companyId).get();
       if (!doc.exists) return null;
-      return { id: doc.id, ...doc.data() };
+
+      const companyData = { id: doc.id, ...doc.data() };
+      // Cache the result
+      cacheService.setCompany(companyId, companyData);
+      return companyData;
     } catch (error) {
       logger.error("Error getting company by ID:", error);
       throw error;

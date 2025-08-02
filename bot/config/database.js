@@ -13,34 +13,7 @@ class DatabaseService {
         return this.db;
       }
 
-      // Debug: Print all relevant Firebase env variables
-      console.log(
-        "[DEBUG] FIREBASE_PROJECT_ID:",
-        process.env.FIREBASE_PROJECT_ID
-      );
-      console.log(
-        "[DEBUG] FIREBASE_PRIVATE_KEY_ID:",
-        process.env.FIREBASE_PRIVATE_KEY_ID
-      );
-      console.log(
-        "[DEBUG] FIREBASE_PRIVATE_KEY (first 40 chars):",
-        (process.env.FIREBASE_PRIVATE_KEY || "").slice(0, 40)
-      );
-      console.log(
-        "[DEBUG] FIREBASE_CLIENT_EMAIL:",
-        process.env.FIREBASE_CLIENT_EMAIL
-      );
-      console.log(
-        "[DEBUG] FIREBASE_CLIENT_ID:",
-        process.env.FIREBASE_CLIENT_ID
-      );
-      console.log("[DEBUG] FIREBASE_AUTH_URI:", process.env.FIREBASE_AUTH_URI);
-      console.log(
-        "[DEBUG] FIREBASE_TOKEN_URI:",
-        process.env.FIREBASE_TOKEN_URI
-      );
-
-      // Initialize Firebase Admin
+      // Initialize Firebase Admin with optimized settings
       const serviceAccount = {
         type: "service_account",
         project_id: process.env.FIREBASE_PROJECT_ID,
@@ -60,13 +33,31 @@ class DatabaseService {
         admin.initializeApp({
           credential: admin.credential.cert(serviceAccount),
           projectId: process.env.FIREBASE_PROJECT_ID,
+          // Optimize for high concurrency
+          httpAgent: {
+            keepAlive: true,
+            keepAliveMsecs: 30000,
+            maxSockets: 100,
+            maxFreeSockets: 10,
+            timeout: 30000,
+            freeSocketTimeout: 30000,
+          },
         });
       }
 
       this.db = admin.firestore();
+
+      // Configure Firestore for performance
+      this.db.settings({
+        ignoreUndefinedProperties: true,
+        cacheSizeBytes: admin.firestore.CACHE_SIZE_UNLIMITED,
+      });
+
       this.initialized = true;
 
-      logger.info("Firebase initialized successfully");
+      logger.info(
+        "Firebase initialized successfully with performance optimizations"
+      );
       return this.db;
     } catch (error) {
       logger.error("Firebase initialization failed:", error);
@@ -128,11 +119,20 @@ class DatabaseService {
 
   async getUser(telegramId) {
     try {
-      const userDoc = await this.users().doc(telegramId.toString()).get();
-      if (userDoc.exists) {
-        return { id: userDoc.id, ...userDoc.data() };
-      }
-      return null;
+      const performanceMonitor = require("./performance");
+      const result = await performanceMonitor.trackExecution(
+        "getUser",
+        async () => {
+          const userDoc = await this.users().doc(telegramId.toString()).get();
+          if (userDoc.exists) {
+            return { id: userDoc.id, ...userDoc.data() };
+          }
+          return null;
+        }
+      );
+
+      performanceMonitor.recordDbQuery();
+      return result;
     } catch (error) {
       logger.error("Error getting user:", error);
       throw error;

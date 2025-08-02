@@ -1,12 +1,7 @@
-console.log("Top of userService.js (from companyHandlers)");
 const databaseService = require("../config/database");
-console.log(
-  "After require databaseService in userService.js (from companyHandlers)"
-);
+const cacheService = require("../config/cache");
 const { v4: uuidv4 } = require("uuid");
-console.log("After require uuid in userService.js (from companyHandlers)");
 const logger = require("../../utils/logger");
-console.log("After require logger in userService.js (from companyHandlers)");
 const notificationService = require("./notificationService");
 const validator = require("validator"); // For email/phone validation
 
@@ -106,13 +101,23 @@ class UserService {
 
   async getUserByTelegramId(telegramId) {
     try {
+      // Check cache first
+      const cached = cacheService.getUser(telegramId);
+      if (cached) {
+        return cached;
+      }
+
       // Use _getUserOrThrow for existence check
       const { userDoc, userData } = await this._getUserOrThrow(telegramId);
-      return {
+      const userResult = {
         id: userDoc.id,
         ...userData,
         canRegisterCompany: userData.canRegisterCompany === true,
       };
+
+      // Cache the result
+      cacheService.setUser(telegramId, userResult);
+      return userResult;
     } catch (error) {
       logger.error("Error getting user by telegram ID:", error);
       throw error;
