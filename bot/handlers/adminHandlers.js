@@ -4985,37 +4985,37 @@ class AdminHandlers {
           t("msg__access_denied", {}, ctx.session?.language || "en")
         );
 
+      // Force invalidate all caches to ensure fresh data
+      adminService.invalidateDashboardCache();
+      adminService.invalidateCompanyCache();
+      adminService.invalidatePlatformCache();
+
       const company = await companyService.getCompanyById(companyId);
       if (!company) {
         return ctx.reply("❌ Company not found.");
       }
 
-      // Invalidate cache to ensure fresh data is calculated
-      adminService.invalidateDashboardCache();
-      adminService.invalidateCompanyCache();
-
-      // Calculate actual withdrawable amount from platform fees
+      // Recalculate platform fees with fresh data
       const platformFees = await adminService.calculateCompanyPlatformFees(
         companyId
       );
-      const currentBalance = company.billingBalance || 0;
       const totalWithdrawn = company.totalWithdrawn || 0;
-
-      // Withdrawable amount = platform fees - total withdrawn
       const withdrawable = Math.max(0, platformFees - totalWithdrawn);
 
-      // Debug logging
-      console.log(`🔍 [DEBUG] handleRequestCompanyWithdrawal for company ${companyId}:`);
-      console.log(`  - Company name: ${company.name}`);
-      console.log(`  - Platform fees: $${platformFees}`);
-      console.log(`  - Total withdrawn: $${totalWithdrawn}`);
-      console.log(`  - Calculated withdrawable: $${withdrawable}`);
-      console.log(`  - Old billing balance: $${currentBalance}`);
+      console.log(`🔍 [DEBUG] handleRequestCompanyWithdrawal for company ${companyId}:
+  - Company name: ${company.name}
+  - Platform fees: $${platformFees}
+  - Total withdrawn: $${totalWithdrawn}
+  - Calculated withdrawable: $${withdrawable}
+  - Old billing balance: $${company.billingBalance || 0}`);
 
       if (withdrawable <= 0) {
-        return ctx.reply("❌ No withdrawable amount for this company.");
+        return ctx.reply(
+          "❌ No withdrawable amount available for this company."
+        );
       }
 
+      // Store withdrawal data in session
       ctx.session.companyWithdrawalStep = "amount";
       ctx.session.companyWithdrawalData = {
         companyId,
@@ -5025,31 +5025,31 @@ class AdminHandlers {
         totalWithdrawn,
       };
 
-      ctx.reply(
-        `💰 *Request Company Withdrawal*\n\n` +
-          `Company: *${company.name}*\n` +
-          `Platform Fees: *$${platformFees.toFixed(2)}*\n` +
-          `Total Withdrawn: *$${totalWithdrawn.toFixed(2)}*\n` +
-          `Available amount: *$${withdrawable.toFixed(2)}*\n\n` +
-          `Please enter the withdrawal amount:`,
-        {
-          parse_mode: "Markdown",
-          reply_markup: Markup.inlineKeyboard([
-            [
-              Markup.button.callback(
-                "🔙 Back to Analytics",
-                "platform_analytics_dashboard"
-              ),
-            ],
-          ]),
-        }
-      );
+      const message = `💰 **Request Company Withdrawal**
 
-      if (ctx.callbackQuery) ctx.answerCbQuery();
+Company: ${company.name}
+Platform Fees: $${platformFees.toFixed(2)}
+Total Withdrawn: $${totalWithdrawn.toFixed(2)}
+Available amount: $${withdrawable.toFixed(2)}
+
+Please enter the withdrawal amount:`;
+
+      return ctx.reply(message, {
+        parse_mode: "Markdown",
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: "❌ Cancel",
+                callback_data: "cancel_withdrawal",
+              },
+            ],
+          ],
+        },
+      });
     } catch (error) {
-      logger.error("Error in company withdrawal request:", error);
-      ctx.reply("❌ Failed to process withdrawal request.");
-      if (ctx.callbackQuery) ctx.answerCbQuery();
+      console.error("Error in handleRequestCompanyWithdrawal:", error);
+      return ctx.reply("❌ Error processing withdrawal request.");
     }
   }
 
