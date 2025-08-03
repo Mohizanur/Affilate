@@ -61,12 +61,17 @@ function blockIfBanned(ctx, user) {
 }
 
 function requirePhoneVerification(ctx, user, userLanguage) {
-  // Map phone_verified to phoneVerified for compatibility
-  if (user.phone_verified && typeof user.phoneVerified === "undefined") {
-    user.phoneVerified = user.phone_verified;
-  }
-
-  if (!user.phoneVerified) {
+  // Debug: Log user object to see what fields are available
+  console.log("🔍 requirePhoneVerification - User object:", JSON.stringify(user, null, 2));
+  
+  // Check both phone_verified and phoneVerified fields
+  const isPhoneVerified = user.phone_verified === true || user.phoneVerified === true;
+  
+  console.log("🔍 requirePhoneVerification - phone_verified:", user.phone_verified);
+  console.log("🔍 requirePhoneVerification - phoneVerified:", user.phoneVerified);
+  console.log("🔍 requirePhoneVerification - isPhoneVerified:", isPhoneVerified);
+  
+  if (!isPhoneVerified) {
     ctx.reply(t("must_verify_phone", {}, userLanguage), {
       reply_markup: {
         inline_keyboard: [

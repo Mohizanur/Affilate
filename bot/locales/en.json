@@ -133,7 +133,7 @@
   "msg_agreement_accepted": "Agreement accepted!",
   "msg_must_accept_agreement": "You must accept the agreement to continue.",
   "msg_upload_proof": "Please upload proof of purchase:",
-  "msg_share_phone_number": "Please share your phone number(click the 4 dots below to share!!!):",
+  "msg_share_phone_number": "Please share your phone number(click the 4 dots below to share!):",
   "msg_company_not_found": "Company not found.",
   "msg_failed_join_company": "Failed to join company. Please try again.",
   "msg_failed_generate_share": "Failed to generate share message.",
