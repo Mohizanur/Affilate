@@ -60,6 +60,30 @@ function blockIfBanned(ctx, user) {
   return false;
 }
 
+function requirePhoneVerification(ctx, user, userLanguage) {
+  // Map phone_verified to phoneVerified for compatibility
+  if (user.phone_verified && typeof user.phoneVerified === "undefined") {
+    user.phoneVerified = user.phone_verified;
+  }
+
+  if (!user.phoneVerified) {
+    ctx.reply(t("must_verify_phone", {}, userLanguage), {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: t("btn_verify_phone", {}, userLanguage),
+              callback_data: "verify_phone",
+            },
+          ],
+        ],
+      },
+    });
+    return true;
+  }
+  return false;
+}
+
 class UserHandlers {
   async handleStart(ctx) {
     try {
@@ -298,9 +322,14 @@ class UserHandlers {
   async handleBrowseProducts(ctx, pageArg) {
     if (ctx.callbackQuery) await ctx.answerCbQuery();
     ctx.session = {}; // Reset session state
-    // Fix: fetch user and define userLanguage
+
+    // Get user and check verification
     const user = await userService.userService.getUserByTelegramId(ctx.from.id);
     const userLanguage = ctx.session?.language || user?.language || "en";
+
+    if (blockIfBanned(ctx, user)) return;
+    if (requirePhoneVerification(ctx, user, userLanguage)) return;
+
     const products = await productService.getAllActiveProductsWithCompany();
     logger.info(`[BrowseProducts] Found ${products.length} active products.`);
 
@@ -401,11 +430,14 @@ class UserHandlers {
         }
       }
 
-      // Get user language for localization
+      // Get user and check verification
       const user = await userService.userService.getUserByTelegramId(
         ctx.from.id
       );
       const userLanguage = ctx.session?.language || user?.language || "en";
+
+      if (blockIfBanned(ctx, user)) return;
+      if (requirePhoneVerification(ctx, user, userLanguage)) return;
 
       const product = await productService.getProductById(productId);
 
@@ -808,6 +840,9 @@ class UserHandlers {
       );
       const userLanguage = ctx.session?.language || user?.language || "en";
 
+      if (blockIfBanned(ctx, user)) return;
+      if (requirePhoneVerification(ctx, user, userLanguage)) return;
+
       const referralService = require("../services/referralService");
       const stats = await referralService.getUserReferralStats(ctx.from.id);
 
@@ -948,6 +983,9 @@ class UserHandlers {
         ctx.from.id
       );
       const userLanguage = ctx.session?.language || user?.language || "en";
+
+      if (blockIfBanned(ctx, user)) return;
+      if (requirePhoneVerification(ctx, user, userLanguage)) return;
 
       const topReferrers = await referralService.getTopReferrers(100); // Fetch enough for pagination
       const ITEMS_PER_PAGE = 5;
@@ -1268,6 +1306,12 @@ class UserHandlers {
 
   async handleVerifyPhone(ctx) {
     try {
+      const telegramId = ctx.from.id;
+      const user = await userService.userService.getUserByTelegramId(
+        telegramId
+      );
+      const userLanguage = ctx.session?.language || user?.language || "en";
+
       // Prompt for phone number with reply keyboard
       await ctx.reply(t("msg_share_phone_number", {}, userLanguage), {
         reply_markup: {
@@ -1285,6 +1329,7 @@ class UserHandlers {
       });
     } catch (error) {
       logger.error("Error starting phone verification:", error);
+      const userLanguage = ctx.session?.language || "en";
       ctx.reply(t("msg__failed_to_start_phone_verification", {}, userLanguage));
     }
   }
@@ -1292,9 +1337,14 @@ class UserHandlers {
   async handlePhoneContact(ctx) {
     try {
       const telegramId = ctx.from.id;
+      const user = await userService.userService.getUserByTelegramId(
+        telegramId
+      );
+      const userLanguage = ctx.session?.language || user?.language || "en";
+
       const contact = ctx.message.contact;
       if (!contact || !contact.phone_number) {
-        return ctx.reply(t("error_share_phone"));
+        return ctx.reply(t("error_share_phone", {}, userLanguage));
       }
       // Enforce phone uniqueness and verify
       try {
@@ -1313,6 +1363,7 @@ class UserHandlers {
       await this.handleStart(ctx);
     } catch (error) {
       logger.error("Error in handlePhoneContact:", error);
+      const userLanguage = ctx.session?.language || "en";
       ctx.reply(t("msg__failed_to_verify_phone", {}, userLanguage));
     }
   }
@@ -1359,6 +1410,9 @@ class UserHandlers {
         telegramId
       );
       const userLanguage = ctx.session?.language || user.language || "en";
+
+      if (blockIfBanned(ctx, user)) return;
+      if (requirePhoneVerification(ctx, user, userLanguage)) return;
 
       if (user.phone_verified && !user.phoneVerified)
         user.phoneVerified = user.phone_verified;
@@ -1415,6 +1469,9 @@ class UserHandlers {
       const user = await userService.getUserByTelegramId(telegramId);
       const userLanguage = ctx.session?.language || user.language || "en";
 
+      if (blockIfBanned(ctx, user)) return;
+      if (requirePhoneVerification(ctx, user, userLanguage)) return;
+
       // This function is not needed for referral platform
       // Users buy in-person, no order history
       const message = t(
@@ -1462,6 +1519,9 @@ class UserHandlers {
       );
       const userLanguage = ctx.session?.language || user?.language || "en";
 
+      if (blockIfBanned(ctx, user)) return;
+      if (requirePhoneVerification(ctx, user, userLanguage)) return;
+
       const shareMessage = t(
         "msg_share_code_message",
         {
@@ -1489,6 +1549,9 @@ class UserHandlers {
         ctx.from.id
       );
       const userLanguage = ctx.session?.language || user?.language || "en";
+
+      if (blockIfBanned(ctx, user)) return;
+      if (requirePhoneVerification(ctx, user, userLanguage)) return;
 
       // Get dynamic settings from admin
       const adminService = require("../services/adminService");
@@ -1549,6 +1612,9 @@ class UserHandlers {
       );
       const userLanguage = ctx.session?.language || user?.language || "en";
 
+      if (blockIfBanned(ctx, user)) return;
+      if (requirePhoneVerification(ctx, user, userLanguage)) return;
+
       ctx.session.state = "awaiting_fee_calculator_amount";
       await ctx.reply(
         "💰 *Fee Calculator*\n\n" +
@@ -1597,28 +1663,64 @@ What would you like to do?
   }
 
   async handleBalance(ctx) {
-    // Call handleMyReferrals with the same context
-    return this.handleMyReferrals(ctx);
+    try {
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
+      );
+      const userLanguage = ctx.session?.language || user?.language || "en";
+
+      if (blockIfBanned(ctx, user)) return;
+      if (requirePhoneVerification(ctx, user, userLanguage)) return;
+
+      // Call handleMyReferrals with the same context
+      return this.handleMyReferrals(ctx);
+    } catch (error) {
+      logger.error("Error in handleBalance:", error);
+      const userLanguage = ctx.session?.language || "en";
+      ctx.reply(t("error_generic", {}, userLanguage));
+    }
   }
 
   async handlePrivacy(ctx) {
-    ctx.session = {}; // Reset session state
-    const user = await userService.userService.getUserByTelegramId(ctx.from.id);
-    const userLanguage = ctx.session?.language || user?.language || "en";
+    try {
+      ctx.session = {}; // Reset session state
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
+      );
+      const userLanguage = ctx.session?.language || user?.language || "en";
 
-    ctx.reply(t("msg_privacy_policy", {}, userLanguage), {
-      parse_mode: "Markdown",
-    });
+      if (blockIfBanned(ctx, user)) return;
+      if (requirePhoneVerification(ctx, user, userLanguage)) return;
+
+      ctx.reply(t("msg_privacy_policy", {}, userLanguage), {
+        parse_mode: "Markdown",
+      });
+    } catch (error) {
+      logger.error("Error in handlePrivacy:", error);
+      const userLanguage = ctx.session?.language || "en";
+      ctx.reply(t("error_generic", {}, userLanguage));
+    }
   }
 
   async handleTerms(ctx) {
-    ctx.session = {}; // Reset session state
-    const user = await userService.userService.getUserByTelegramId(ctx.from.id);
-    const userLanguage = ctx.session?.language || user?.language || "en";
+    try {
+      ctx.session = {}; // Reset session state
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
+      );
+      const userLanguage = ctx.session?.language || user?.language || "en";
 
-    ctx.reply(t("msg_terms_of_service", {}, userLanguage), {
-      parse_mode: "Markdown",
-    });
+      if (blockIfBanned(ctx, user)) return;
+      if (requirePhoneVerification(ctx, user, userLanguage)) return;
+
+      ctx.reply(t("msg_terms_of_service", {}, userLanguage), {
+        parse_mode: "Markdown",
+      });
+    } catch (error) {
+      logger.error("Error in handleTerms:", error);
+      const userLanguage = ctx.session?.language || "en";
+      ctx.reply(t("error_generic", {}, userLanguage));
+    }
   }
 
   async handleCancel(ctx) {
@@ -2395,279 +2497,413 @@ Toggle notifications:
   }
 
   async handleAddToCart(ctx) {
-    const telegramId = ctx.from.id;
-    const productId = ctx.callbackQuery.data.split("_")[2];
-    await userService.userService.addToCart(telegramId, productId);
-    if (ctx.callbackQuery) {
-      await ctx.answerCbQuery(t("msg_added_to_cart", {}, userLanguage));
+    try {
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
+      );
+      const userLanguage = ctx.session?.language || user?.language || "en";
+
+      if (blockIfBanned(ctx, user)) return;
+      if (requirePhoneVerification(ctx, user, userLanguage)) return;
+
+      const telegramId = ctx.from.id;
+      const productId = ctx.callbackQuery.data.split("_")[2];
+      await userService.userService.addToCart(telegramId, productId);
+      if (ctx.callbackQuery) {
+        await ctx.answerCbQuery(t("msg_added_to_cart", {}, userLanguage));
+        ctx.reply(t("msg_product_added_cart", {}, userLanguage));
+      } else {
+        ctx.reply(t("msg_added_to_cart", {}, userLanguage));
+      }
       ctx.reply(t("msg_product_added_cart", {}, userLanguage));
-    } else {
-      ctx.reply(t("msg_added_to_cart", {}, userLanguage));
+    } catch (error) {
+      logger.error("Error in handleAddToCart:", error);
+      const userLanguage = ctx.session?.language || "en";
+      ctx.reply(t("error_generic", {}, userLanguage));
     }
-    ctx.reply(t("msg_product_added_cart", {}, userLanguage));
   }
 
   async handleRemoveFromCart(ctx) {
-    const telegramId = ctx.from.id;
-    const productId = ctx.callbackQuery.data.split("_")[2];
-    await userService.userService.removeFromCart(telegramId, productId);
-    ctx.reply(t("msg_removed_from_cart", {}, userLanguage));
-    ctx.reply(t("msg_product_removed_cart", {}, userLanguage));
+    try {
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
+      );
+      const userLanguage = ctx.session?.language || user?.language || "en";
+
+      if (blockIfBanned(ctx, user)) return;
+      if (requirePhoneVerification(ctx, user, userLanguage)) return;
+
+      const telegramId = ctx.from.id;
+      const productId = ctx.callbackQuery.data.split("_")[2];
+      await userService.userService.removeFromCart(telegramId, productId);
+      ctx.reply(t("msg_removed_from_cart", {}, userLanguage));
+      ctx.reply(t("msg_product_removed_cart", {}, userLanguage));
+    } catch (error) {
+      logger.error("Error in handleRemoveFromCart:", error);
+      const userLanguage = ctx.session?.language || "en";
+      ctx.reply(t("error_generic", {}, userLanguage));
+    }
   }
 
   async handleViewFavorites(ctx) {
-    const telegramId = ctx.from.id;
-    const favorites = await userService.userService.getFavorites(telegramId);
-    logger.info(
-      `[ViewFavorites] Found ${favorites.length} favorites: ${favorites
-        .map((f) => f.title + " (" + f.id + ")")
-        .join(", ")}`
-    );
-    if (!favorites.length)
-      return ctx.reply(t("msg_no_favorites_yet", {}, userLanguage));
-    let msg = "⭐ *Your Favorite Products*\n\n";
-    favorites.forEach((p, i) => {
-      msg += `${i + 1}. ${p.title} ($${p.price})\n`;
-    });
-    ctx.reply(msg, { parse_mode: "Markdown" });
+    try {
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
+      );
+      const userLanguage = ctx.session?.language || user?.language || "en";
+
+      if (blockIfBanned(ctx, user)) return;
+      if (requirePhoneVerification(ctx, user, userLanguage)) return;
+
+      const telegramId = ctx.from.id;
+      const favorites = await userService.userService.getFavorites(telegramId);
+      logger.info(
+        `[ViewFavorites] Found ${favorites.length} favorites: ${favorites
+          .map((f) => f.title + " (" + f.id + ")")
+          .join(", ")}`
+      );
+      if (!favorites.length)
+        return ctx.reply(t("msg_no_favorites_yet", {}, userLanguage));
+      let msg = "⭐ *Your Favorite Products*\n\n";
+      favorites.forEach((p, i) => {
+        msg += `${i + 1}. ${p.title} ($${p.price})\n`;
+      });
+      ctx.reply(msg, { parse_mode: "Markdown" });
+    } catch (error) {
+      logger.error("Error in handleViewFavorites:", error);
+      const userLanguage = ctx.session?.language || "en";
+      ctx.reply(t("error_generic", {}, userLanguage));
+    }
   }
 
   async handleViewCart(ctx) {
-    const telegramId = ctx.from.id;
-    const cart = await userService.userService.getCart(telegramId);
-    logger.info(
-      `[ViewCart] Found ${cart.length} items in cart: ${cart
-        .map((c) => c.title + " (" + c.id + ")")
-        .join(", ")}`
-    );
-    if (!cart.length) return ctx.reply(t("msg_cart_empty", {}, userLanguage));
-    let msg = "🛒 *Your Cart*\n\n";
-    cart.forEach((p, i) => {
-      msg += `${i + 1}. ${p.title} ($${p.price})\n`;
-    });
-    ctx.reply(msg, { parse_mode: "Markdown" });
+    try {
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
+      );
+      const userLanguage = ctx.session?.language || user?.language || "en";
+
+      if (blockIfBanned(ctx, user)) return;
+      if (requirePhoneVerification(ctx, user, userLanguage)) return;
+
+      const telegramId = ctx.from.id;
+      const cart = await userService.userService.getCart(telegramId);
+      logger.info(
+        `[ViewCart] Found ${cart.length} items in cart: ${cart
+          .map((c) => c.title + " (" + c.id + ")")
+          .join(", ")}`
+      );
+      if (!cart.length) return ctx.reply(t("msg_cart_empty", {}, userLanguage));
+      let msg = "🛒 *Your Cart*\n\n";
+      cart.forEach((p, i) => {
+        msg += `${i + 1}. ${p.title} ($${p.price})\n`;
+      });
+      ctx.reply(msg, { parse_mode: "Markdown" });
+    } catch (error) {
+      logger.error("Error in handleViewCart:", error);
+      const userLanguage = ctx.session?.language || "en";
+      ctx.reply(t("error_generic", {}, userLanguage));
+    }
   }
 
   async handleFavorites(ctx, pageArg) {
-    const userLanguage = ctx.session?.language || "en";
-    const userService = require("../services/userService");
-    const productService = require("../services/productService");
-    const { Markup } = require("telegraf");
-    const ITEMS_PER_PAGE = 5;
-    let page = 1;
-    if (typeof pageArg === "number") page = pageArg;
-    else if (
-      ctx.callbackQuery &&
-      ctx.callbackQuery.data.startsWith("favorites_page_")
-    ) {
-      page =
-        parseInt(ctx.callbackQuery.data.replace("favorites_page_", ""), 10) ||
-        1;
-    }
-    const favorites = await userService.userService.getFavorites(ctx.from.id);
-    if (!favorites.length)
-      return ctx.reply(
-        t("msg__you_have_no_favorite_products", {}, userLanguage)
+    try {
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
       );
+      const userLanguage = ctx.session?.language || user?.language || "en";
 
-    // Filter valid product IDs
-    const validFavorites = [];
-    for (const pid of favorites) {
-      if (typeof pid !== "string" || pid.length < 10) continue;
-      const product = await productService.getProductById(pid);
-      if (product && product.title && product.price !== undefined) {
-        validFavorites.push({ pid, product });
+      if (blockIfBanned(ctx, user)) return;
+      if (requirePhoneVerification(ctx, user, userLanguage)) return;
+
+      const userService = require("../services/userService");
+      const productService = require("../services/productService");
+      const { Markup } = require("telegraf");
+      const ITEMS_PER_PAGE = 5;
+      let page = 1;
+      if (typeof pageArg === "number") page = pageArg;
+      else if (
+        ctx.callbackQuery &&
+        ctx.callbackQuery.data.startsWith("favorites_page_")
+      ) {
+        page =
+          parseInt(ctx.callbackQuery.data.replace("favorites_page_", ""), 10) ||
+          1;
       }
-    }
-    if (!validFavorites.length) {
-      return ctx.reply(
-        t("msg__you_have_no_valid_favorite_products", {}, userLanguage)
-      );
-    }
-    const totalPages = Math.ceil(validFavorites.length / ITEMS_PER_PAGE);
-    if (page < 1) page = 1;
-    if (page > totalPages) page = totalPages;
-    const startIdx = (page - 1) * ITEMS_PER_PAGE;
-    const endIdx = startIdx + ITEMS_PER_PAGE;
-    const pageFavorites = validFavorites.slice(startIdx, endIdx);
+      const favorites = await userService.userService.getFavorites(ctx.from.id);
+      if (!favorites.length)
+        return ctx.reply(
+          t("msg__you_have_no_favorite_products", {}, userLanguage)
+        );
 
-    let msg = `⭐ *Your Favorite Products* (Page ${page}/${totalPages})\n\n`;
-    const buttons = [];
-    pageFavorites.forEach(({ pid, product }, idx) => {
-      msg += `${startIdx + idx + 1}. ${product.title} ($${product.price})\n`;
+      // Filter valid product IDs
+      const validFavorites = [];
+      for (const pid of favorites) {
+        if (typeof pid !== "string" || pid.length < 10) continue;
+        const product = await productService.getProductById(pid);
+        if (product && product.title && product.price !== undefined) {
+          validFavorites.push({ pid, product });
+        }
+      }
+      if (!validFavorites.length) {
+        return ctx.reply(
+          t("msg__you_have_no_valid_favorite_products", {}, userLanguage)
+        );
+      }
+      const totalPages = Math.ceil(validFavorites.length / ITEMS_PER_PAGE);
+      if (page < 1) page = 1;
+      if (page > totalPages) page = totalPages;
+      const startIdx = (page - 1) * ITEMS_PER_PAGE;
+      const endIdx = startIdx + ITEMS_PER_PAGE;
+      const pageFavorites = validFavorites.slice(startIdx, endIdx);
+
+      let msg = `⭐ *Your Favorite Products* (Page ${page}/${totalPages})\n\n`;
+      const buttons = [];
+      pageFavorites.forEach(({ pid, product }, idx) => {
+        msg += `${startIdx + idx + 1}. ${product.title} ($${product.price})\n`;
+        buttons.push([
+          Markup.button.callback(
+            `❌ Remove ${product.title}`,
+            `remove_favorite_${pid}`
+          ),
+        ]);
+      });
+      // Pagination buttons
+      const navButtons = [];
+      if (page > 1)
+        navButtons.push(
+          Markup.button.callback("⬅️ Prev", `favorites_page_${page - 1}`)
+        );
+      if (page < totalPages)
+        navButtons.push(
+          Markup.button.callback("Next ➡️", `favorites_page_${page + 1}`)
+        );
+      if (navButtons.length) buttons.push(navButtons);
       buttons.push([
         Markup.button.callback(
-          `❌ Remove ${product.title}`,
-          `remove_favorite_${pid}`
+          t("btn_back_to_menu", {}, userLanguage),
+          "main_menu"
         ),
       ]);
-    });
-    // Pagination buttons
-    const navButtons = [];
-    if (page > 1)
-      navButtons.push(
-        Markup.button.callback("⬅️ Prev", `favorites_page_${page - 1}`)
-      );
-    if (page < totalPages)
-      navButtons.push(
-        Markup.button.callback("Next ➡️", `favorites_page_${page + 1}`)
-      );
-    if (navButtons.length) buttons.push(navButtons);
-    buttons.push([
-      Markup.button.callback(
-        t("btn_back_to_menu", {}, userLanguage),
-        "main_menu"
-      ),
-    ]);
-    ctx.reply(msg, {
-      parse_mode: "Markdown",
-      ...Markup.inlineKeyboard(buttons),
-    });
+      ctx.reply(msg, {
+        parse_mode: "Markdown",
+        ...Markup.inlineKeyboard(buttons),
+      });
+    } catch (error) {
+      logger.error("Error in handleFavorites:", error);
+      const userLanguage = ctx.session?.language || "en";
+      ctx.reply(t("error_generic", {}, userLanguage));
+    }
   }
 
   async handleAddFavorite(ctx, productId) {
-    const userLanguage = ctx.session?.language || "en";
-    if (!productId)
-      return ctx.reply(t("msg_no_product_specified", {}, userLanguage));
-    await userService.userService.addFavorite(ctx.from.id, productId);
-    if (ctx.callbackQuery) {
-      await ctx.answerCbQuery("⭐ Added to favorites!");
-      await ctx.reply(t("msg_product_added_favorites", {}, userLanguage));
-    } else {
-      ctx.reply(t("msg_product_added_favorites", {}, userLanguage));
+    try {
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
+      );
+      const userLanguage = ctx.session?.language || user?.language || "en";
+
+      if (blockIfBanned(ctx, user)) return;
+      if (requirePhoneVerification(ctx, user, userLanguage)) return;
+
+      if (!productId)
+        return ctx.reply(t("msg_no_product_specified", {}, userLanguage));
+      await userService.userService.addFavorite(ctx.from.id, productId);
+      if (ctx.callbackQuery) {
+        await ctx.answerCbQuery("⭐ Added to favorites!");
+        await ctx.reply(t("msg_product_added_favorites", {}, userLanguage));
+      } else {
+        ctx.reply(t("msg_product_added_favorites", {}, userLanguage));
+      }
+    } catch (error) {
+      logger.error("Error in handleAddFavorite:", error);
+      const userLanguage = ctx.session?.language || "en";
+      ctx.reply(t("error_generic", {}, userLanguage));
     }
   }
 
   async handleRemoveFavorite(ctx, productId) {
-    const userLanguage = ctx.session?.language || "en";
-    if (!productId) {
-      if (ctx.callbackQuery) {
-        productId = ctx.callbackQuery.data.replace("remove_favorite_", "");
-      } else {
-        productId = ctx.message.text.split(" ")[1];
+    try {
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
+      );
+      const userLanguage = ctx.session?.language || user?.language || "en";
+
+      if (blockIfBanned(ctx, user)) return;
+      if (requirePhoneVerification(ctx, user, userLanguage)) return;
+
+      if (!productId) {
+        if (ctx.callbackQuery) {
+          productId = ctx.callbackQuery.data.replace("remove_favorite_", "");
+        } else {
+          productId = ctx.message.text.split(" ")[1];
+        }
       }
-    }
-    if (!productId)
-      return ctx.reply(t("msg_usage_removefavorite", {}, userLanguage));
-    await userService.userService.removeFavorite(ctx.from.id, productId);
-    if (ctx.callbackQuery) {
-      await ctx.answerCbQuery("❌ Removed from favorites!");
-      await ctx.reply(
-        t("msg__product_removed_from_your_favorites", {}, userLanguage)
-      );
-    } else {
-      ctx.reply(
-        t("msg__product_removed_from_your_favorites", {}, userLanguage)
-      );
+      if (!productId)
+        return ctx.reply(t("msg_usage_removefavorite", {}, userLanguage));
+      await userService.userService.removeFavorite(ctx.from.id, productId);
+      if (ctx.callbackQuery) {
+        await ctx.answerCbQuery("❌ Removed from favorites!");
+        await ctx.reply(
+          t("msg__product_removed_from_your_favorites", {}, userLanguage)
+        );
+      } else {
+        ctx.reply(
+          t("msg__product_removed_from_your_favorites", {}, userLanguage)
+        );
+      }
+    } catch (error) {
+      logger.error("Error in handleRemoveFavorite:", error);
+      const userLanguage = ctx.session?.language || "en";
+      ctx.reply(t("error_generic", {}, userLanguage));
     }
   }
 
   async handleCart(ctx, pageArg) {
-    const userLanguage = ctx.session?.language || "en";
-    const userService = require("../services/userService");
-    const productService = require("../services/productService");
-    const { Markup } = require("telegraf");
-    const ITEMS_PER_PAGE = 5;
-    let page = 1;
-    if (typeof pageArg === "number") page = pageArg;
-    else if (
-      ctx.callbackQuery &&
-      ctx.callbackQuery.data.startsWith("cart_page_")
-    ) {
-      page =
-        parseInt(ctx.callbackQuery.data.replace("cart_page_", ""), 10) || 1;
-    }
-    const cart = await userService.userService.getCart(ctx.from.id);
-    if (!cart.length)
-      return ctx.reply(t("msg__your_cart_is_empty", {}, userLanguage));
-    // Filter valid product IDs
-    const validCart = [];
-    for (const pid of cart) {
-      if (typeof pid !== "string" || pid === "cart" || pid.length < 10)
-        continue;
-      const product = await productService.getProductById(pid);
-      if (product && product.title && product.price !== undefined) {
-        validCart.push({ pid, product });
-      }
-    }
-    if (!validCart.length) {
-      return ctx.reply(
-        t("msg__you_have_no_valid_products_in_your_cart", {}, userLanguage)
+    try {
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
       );
-    }
-    const totalPages = Math.ceil(validCart.length / ITEMS_PER_PAGE);
-    if (page < 1) page = 1;
-    if (page > totalPages) page = totalPages;
-    const startIdx = (page - 1) * ITEMS_PER_PAGE;
-    const endIdx = startIdx + ITEMS_PER_PAGE;
-    const pageCart = validCart.slice(startIdx, endIdx);
+      const userLanguage = ctx.session?.language || user?.language || "en";
 
-    let msg = `🛒 *Your Cart* (Page ${page}/${totalPages})\n\n`;
-    const buttons = [];
-    pageCart.forEach(({ pid, product }, idx) => {
-      msg += `${startIdx + idx + 1}. ${product.title} ($${product.price})\n`;
+      if (blockIfBanned(ctx, user)) return;
+      if (requirePhoneVerification(ctx, user, userLanguage)) return;
+
+      const userService = require("../services/userService");
+      const productService = require("../services/productService");
+      const { Markup } = require("telegraf");
+      const ITEMS_PER_PAGE = 5;
+      let page = 1;
+      if (typeof pageArg === "number") page = pageArg;
+      else if (
+        ctx.callbackQuery &&
+        ctx.callbackQuery.data.startsWith("cart_page_")
+      ) {
+        page =
+          parseInt(ctx.callbackQuery.data.replace("cart_page_", ""), 10) || 1;
+      }
+      const cart = await userService.userService.getCart(ctx.from.id);
+      if (!cart.length)
+        return ctx.reply(t("msg__your_cart_is_empty", {}, userLanguage));
+      // Filter valid product IDs
+      const validCart = [];
+      for (const pid of cart) {
+        if (typeof pid !== "string" || pid === "cart" || pid.length < 10)
+          continue;
+        const product = await productService.getProductById(pid);
+        if (product && product.title && product.price !== undefined) {
+          validCart.push({ pid, product });
+        }
+      }
+      if (!validCart.length) {
+        return ctx.reply(
+          t("msg__you_have_no_valid_products_in_your_cart", {}, userLanguage)
+        );
+      }
+      const totalPages = Math.ceil(validCart.length / ITEMS_PER_PAGE);
+      if (page < 1) page = 1;
+      if (page > totalPages) page = totalPages;
+      const startIdx = (page - 1) * ITEMS_PER_PAGE;
+      const endIdx = startIdx + ITEMS_PER_PAGE;
+      const pageCart = validCart.slice(startIdx, endIdx);
+
+      let msg = `🛒 *Your Cart* (Page ${page}/${totalPages})\n\n`;
+      const buttons = [];
+      pageCart.forEach(({ pid, product }, idx) => {
+        msg += `${startIdx + idx + 1}. ${product.title} ($${product.price})\n`;
+        buttons.push([
+          Markup.button.callback(
+            `❌ Remove ${product.title}`,
+            `remove_cart_${pid}`
+          ),
+        ]);
+      });
+      // Pagination buttons
+      const navButtons = [];
+      if (page > 1)
+        navButtons.push(
+          Markup.button.callback("⬅️ Prev", `cart_page_${page - 1}`)
+        );
+      if (page < totalPages)
+        navButtons.push(
+          Markup.button.callback("Next ➡️", `cart_page_${page + 1}`)
+        );
+      if (navButtons.length) buttons.push(navButtons);
       buttons.push([
         Markup.button.callback(
-          `❌ Remove ${product.title}`,
-          `remove_cart_${pid}`
+          t("btn_back_to_menu", {}, userLanguage),
+          "main_menu"
         ),
       ]);
-    });
-    // Pagination buttons
-    const navButtons = [];
-    if (page > 1)
-      navButtons.push(
-        Markup.button.callback("⬅️ Prev", `cart_page_${page - 1}`)
-      );
-    if (page < totalPages)
-      navButtons.push(
-        Markup.button.callback("Next ➡️", `cart_page_${page + 1}`)
-      );
-    if (navButtons.length) buttons.push(navButtons);
-    buttons.push([
-      Markup.button.callback(
-        t("btn_back_to_menu", {}, userLanguage),
-        "main_menu"
-      ),
-    ]);
-    ctx.reply(msg, {
-      parse_mode: "Markdown",
-      ...Markup.inlineKeyboard(buttons),
-    });
+      ctx.reply(msg, {
+        parse_mode: "Markdown",
+        ...Markup.inlineKeyboard(buttons),
+      });
+    } catch (error) {
+      logger.error("Error in handleCart:", error);
+      const userLanguage = ctx.session?.language || "en";
+      ctx.reply(t("error_generic", {}, userLanguage));
+    }
   }
 
   async handleAddCart(ctx, productId) {
-    const userLanguage = ctx.session?.language || "en";
-    if (!productId)
-      return ctx.reply(t("msg_no_product_specified", {}, userLanguage));
-    await userService.userService.addToCart(ctx.from.id, productId);
-    if (ctx.callbackQuery) {
-      await ctx.answerCbQuery("🛒 Added to cart!");
-      await ctx.reply(t("msg_product_added_cart", {}, userLanguage));
-    } else {
-      ctx.reply(t("msg_product_added_cart", {}, userLanguage));
+    try {
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
+      );
+      const userLanguage = ctx.session?.language || user?.language || "en";
+
+      if (blockIfBanned(ctx, user)) return;
+      if (requirePhoneVerification(ctx, user, userLanguage)) return;
+
+      if (!productId)
+        return ctx.reply(t("msg_no_product_specified", {}, userLanguage));
+      await userService.userService.addToCart(ctx.from.id, productId);
+      if (ctx.callbackQuery) {
+        await ctx.answerCbQuery("🛒 Added to cart!");
+        await ctx.reply(t("msg_product_added_cart", {}, userLanguage));
+      } else {
+        ctx.reply(t("msg_product_added_cart", {}, userLanguage));
+      }
+    } catch (error) {
+      logger.error("Error in handleAddCart:", error);
+      const userLanguage = ctx.session?.language || "en";
+      ctx.reply(t("error_generic", {}, userLanguage));
     }
   }
 
   async handleRemoveCart(ctx, productId) {
-    const userLanguage = ctx.session?.language || "en";
-    if (!productId) {
-      if (ctx.callbackQuery) {
-        productId = ctx.callbackQuery.data.replace("remove_cart_", "");
-      } else {
-        productId = ctx.message.text.split(" ")[1];
-      }
-    }
-    if (!productId)
-      return ctx.reply(t("msg_usage_removecart", {}, userLanguage));
-    await userService.userService.removeFromCart(ctx.from.id, productId);
-    if (ctx.callbackQuery) {
-      await ctx.answerCbQuery("❌ Removed from cart!");
-      await ctx.reply(
-        t("msg__product_removed_from_your_cart", {}, userLanguage)
+    try {
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
       );
-    } else {
-      ctx.reply(t("msg__product_removed_from_your_cart", {}, userLanguage));
+      const userLanguage = ctx.session?.language || user?.language || "en";
+
+      if (blockIfBanned(ctx, user)) return;
+      if (requirePhoneVerification(ctx, user, userLanguage)) return;
+
+      if (!productId) {
+        if (ctx.callbackQuery) {
+          productId = ctx.callbackQuery.data.replace("remove_cart_", "");
+        } else {
+          productId = ctx.message.text.split(" ")[1];
+        }
+      }
+      if (!productId)
+        return ctx.reply(t("msg_usage_removecart", {}, userLanguage));
+      await userService.userService.removeFromCart(ctx.from.id, productId);
+      if (ctx.callbackQuery) {
+        await ctx.answerCbQuery("❌ Removed from cart!");
+        await ctx.reply(
+          t("msg__product_removed_from_your_cart", {}, userLanguage)
+        );
+      } else {
+        ctx.reply(t("msg__product_removed_from_your_cart", {}, userLanguage));
+      }
+    } catch (error) {
+      logger.error("Error in handleRemoveCart:", error);
+      const userLanguage = ctx.session?.language || "en";
+      ctx.reply(t("error_generic", {}, userLanguage));
     }
   }
 

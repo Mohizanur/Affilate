@@ -17,6 +17,7 @@
   "btn_community_tutorial": "🌐 Community & Tutorial",
   "btn_admin_panel": "🔧 Admin Panel",
   "btn_verify_phone": "📱 Verify Phone",
+  "must_verify_phone": "❌ Please verify your phone number before using this feature.",
   "btn_register_company": "🏢 Register Company",
   "btn_my_companies": "🏢 My Companies",
   "btn_my_products": "📦 My Products",
