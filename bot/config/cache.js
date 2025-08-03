@@ -84,6 +84,9 @@ class CacheService {
       isAdmin: userData.isAdmin,
       canRegisterCompany: userData.canRegisterCompany,
       language: userData.language,
+      phone_verified: userData.phone_verified,
+      phoneVerified: userData.phoneVerified,
+      phone_number: userData.phone_number,
       // Skip heavy data like orders, referrals for cache performance
     };
     return this.userCache.set(`user:${telegramId}`, cacheData);
@@ -129,6 +132,14 @@ class CacheService {
 
   setRateLimit(key, data) {
     return this.rateLimitCache.set(`rate:${key}`, data);
+  }
+
+  clearUserCache(telegramId) {
+    if (telegramId) {
+      this.userCache.del(`user:${telegramId}`);
+    } else {
+      this.userCache.flushAll();
+    }
   }
 }
 

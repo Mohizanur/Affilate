@@ -165,6 +165,10 @@ class UserService {
         phone_verified: true,
         phone_verified_at: new Date(),
       });
+      
+      // Clear user cache to ensure fresh data is retrieved
+      cacheService.clearUserCache(telegramId);
+      
       logger.info(`Phone verified for user: ${telegramId}`);
       return {
         id: userDoc.id,
