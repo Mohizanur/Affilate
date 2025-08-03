@@ -5004,6 +5004,14 @@ class AdminHandlers {
       // Withdrawable amount = platform fees - total withdrawn
       const withdrawable = Math.max(0, platformFees - totalWithdrawn);
 
+      // Debug logging
+      console.log(`🔍 [DEBUG] handleRequestCompanyWithdrawal for company ${companyId}:`);
+      console.log(`  - Company name: ${company.name}`);
+      console.log(`  - Platform fees: $${platformFees}`);
+      console.log(`  - Total withdrawn: $${totalWithdrawn}`);
+      console.log(`  - Calculated withdrawable: $${withdrawable}`);
+      console.log(`  - Old billing balance: $${currentBalance}`);
+
       if (withdrawable <= 0) {
         return ctx.reply("❌ No withdrawable amount for this company.");
       }
