@@ -5125,9 +5125,6 @@ class AdminHandlers {
         ctx.from.id
       );
 
-      // Update company's total withdrawn amount
-      await adminService.updateCompanyTotalWithdrawn(companyId, amount);
-
       // Invalidate cache to ensure fresh data is shown
       adminService.invalidateDashboardCache();
       adminService.invalidateCompanyCache();
