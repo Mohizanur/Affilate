@@ -353,10 +353,20 @@ class AdminHandlers {
         );
 
       await userService.userService.updateUser(userId, { isBanned: true });
+      
+      // Clear user cache to ensure fresh data
+      const cacheService = require("../config/cache");
+      cacheService.clearUserCache(userId);
+      
       ctx.reply(
         t("msg__user_banned_successfully", {}, ctx.session?.language || "en")
       );
       if (ctx.callbackQuery) ctx.answerCbQuery();
+      
+      // Redirect back to user detail page to show updated buttons
+      setTimeout(() => {
+        this.handleAdminUserDetail(ctx, userId);
+      }, 1000);
     } catch (error) {
       logger.error("Error banning user:", error);
       ctx.reply(
@@ -374,10 +384,20 @@ class AdminHandlers {
         );
 
       await userService.userService.updateUser(userId, { isBanned: false });
+      
+      // Clear user cache to ensure fresh data
+      const cacheService = require("../config/cache");
+      cacheService.clearUserCache(userId);
+      
       ctx.reply(
         t("msg__user_unbanned_successfully", {}, ctx.session?.language || "en")
       );
       if (ctx.callbackQuery) ctx.answerCbQuery();
+      
+      // Redirect back to user detail page to show updated buttons
+      setTimeout(() => {
+        this.handleAdminUserDetail(ctx, userId);
+      }, 1000);
     } catch (error) {
       logger.error("Error unbanning user:", error);
       ctx.reply(
@@ -400,12 +420,21 @@ class AdminHandlers {
         promotedAt: new Date(),
       });
 
+      // Clear user cache to ensure fresh data
+      const cacheService = require("../config/cache");
+      cacheService.clearUserCache(userId);
+
       ctx.reply(
         `✅ User ${
           user.firstName || user.first_name || userId
         } promoted to Admin`
       );
       if (ctx.callbackQuery) ctx.answerCbQuery();
+      
+      // Redirect back to user detail page to show updated buttons
+      setTimeout(() => {
+        this.handleAdminUserDetail(ctx, userId);
+      }, 1000);
     } catch (error) {
       logger.error("Error promoting user:", error);
       ctx.reply("❌ Failed to promote user");
@@ -425,12 +454,21 @@ class AdminHandlers {
         demotedAt: new Date(),
       });
 
+      // Clear user cache to ensure fresh data
+      const cacheService = require("../config/cache");
+      cacheService.clearUserCache(userId);
+
       ctx.reply(
         `✅ User ${
           user.firstName || user.first_name || userId
         } demoted from Admin`
       );
       if (ctx.callbackQuery) ctx.answerCbQuery();
+      
+      // Redirect back to user detail page to show updated buttons
+      setTimeout(() => {
+        this.handleAdminUserDetail(ctx, userId);
+      }, 1000);
     } catch (error) {
       logger.error("Error demoting user:", error);
       ctx.reply("❌ Failed to demote user");
@@ -451,12 +489,21 @@ class AdminHandlers {
         promotedAt: new Date(),
       });
 
+      // Clear user cache to ensure fresh data
+      const cacheService = require("../config/cache");
+      cacheService.clearUserCache(userId);
+
       ctx.reply(
         `✅ User ${
           user.firstName || user.first_name || userId
         } promoted to Company Manager`
       );
       if (ctx.callbackQuery) ctx.answerCbQuery();
+      
+      // Redirect back to user detail page to show updated buttons
+      setTimeout(() => {
+        this.handleAdminUserDetail(ctx, userId);
+      }, 1000);
     } catch (error) {
       logger.error("Error promoting user to company manager:", error);
       ctx.reply("❌ Failed to promote user");
@@ -477,12 +524,21 @@ class AdminHandlers {
         demotedAt: new Date(),
       });
 
+      // Clear user cache to ensure fresh data
+      const cacheService = require("../config/cache");
+      cacheService.clearUserCache(userId);
+
       ctx.reply(
         `✅ User ${
           user.firstName || user.first_name || userId
         } demoted from Company Manager`
       );
       if (ctx.callbackQuery) ctx.answerCbQuery();
+      
+      // Redirect back to user detail page to show updated buttons
+      setTimeout(() => {
+        this.handleAdminUserDetail(ctx, userId);
+      }, 1000);
     } catch (error) {
       logger.error("Error demoting company manager:", error);
       ctx.reply("❌ Failed to demote user");
