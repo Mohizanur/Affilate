@@ -5035,17 +5035,7 @@ Available amount: $${withdrawable.toFixed(2)}
 Please enter the withdrawal amount:`;
 
       return ctx.reply(message, {
-        parse_mode: "Markdown",
-        reply_markup: {
-          inline_keyboard: [
-            [
-              {
-                text: "❌ Cancel",
-                callback_data: "cancel_withdrawal",
-              },
-            ],
-          ],
-        },
+        parse_mode: "Markdown"
       });
     } catch (error) {
       console.error("Error in handleRequestCompanyWithdrawal:", error);
