@@ -2616,7 +2616,6 @@ Toggle notifications:
       if (blockIfBanned(ctx, user)) return;
       if (requirePhoneVerification(ctx, user, userLanguage)) return;
 
-      const userService = require("../services/userService");
       const productService = require("../services/productService");
       const { Markup } = require("telegraf");
       const ITEMS_PER_PAGE = 5;
@@ -2769,7 +2768,6 @@ Toggle notifications:
       if (blockIfBanned(ctx, user)) return;
       if (requirePhoneVerification(ctx, user, userLanguage)) return;
 
-      const userService = require("../services/userService");
       const productService = require("../services/productService");
       const { Markup } = require("telegraf");
       const ITEMS_PER_PAGE = 5;
@@ -2935,6 +2933,12 @@ Toggle notifications:
 
   async handleMyReferralCodes(ctx, pageArg) {
     try {
+      const user = await userService.userService.getUserByTelegramId(ctx.from.id);
+      const userLanguage = ctx.session?.language || user?.language || "en";
+
+      if (blockIfBanned(ctx, user)) return;
+      if (requirePhoneVerification(ctx, user, userLanguage)) return;
+
       const referralService = require("../services/referralService");
       const codes = await referralService.getUserReferralCodes(ctx.from.id);
       if (!codes.length)
