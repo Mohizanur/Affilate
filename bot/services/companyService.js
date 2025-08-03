@@ -1,5 +1,4 @@
-
-const performanceLogger = require('../config/performanceLogger');
+const performanceLogger = require("../config/performanceLogger");
 const databaseService = require("../config/database");
 const cacheService = require("../config/cache");
 const { v4: uuidv4 } = require("uuid");
@@ -402,9 +401,7 @@ class CompanyService {
               { parse_mode: "HTML", ...Markup.inlineKeyboard(buttons) }
             );
           }
-          
         } else {
-          
         }
       } catch (e) {
         logger.error("Error notifying admins of new product:", e);
@@ -465,16 +462,27 @@ class CompanyService {
       }
 
       const company = companyDoc.data();
-      const currentBalance = company.billingBalance || 0;
 
-      if (currentBalance < amount) {
-        throw new Error("Insufficient balance for withdrawal");
+      // Use the new withdrawal system: calculate available amount
+      const adminService = require("./adminService");
+      const platformFees = await adminService.calculateCompanyPlatformFees(
+        companyId
+      );
+      const totalWithdrawn = company.totalWithdrawn || 0;
+      const withdrawable = Math.max(0, platformFees - totalWithdrawn);
+
+      if (withdrawable < amount) {
+        throw new Error(
+          `Insufficient company balance for withdrawal. Available: $${withdrawable.toFixed(
+            2
+          )}`
+        );
       }
 
-      // Update company balance
-      const newBalance = currentBalance - amount;
+      // Update total withdrawn instead of billing balance
+      const newTotalWithdrawn = totalWithdrawn + amount;
       await companyRef.update({
-        billingBalance: newBalance,
+        totalWithdrawn: newTotalWithdrawn,
         lastWithdrawal: {
           amount,
           date: new Date(),
@@ -488,6 +496,7 @@ class CompanyService {
         status: "processed",
         processedAt: new Date(),
         processedBy: "admin",
+        finalTotalWithdrawn: newTotalWithdrawn,
       };
 
       await databaseService
@@ -499,7 +508,7 @@ class CompanyService {
 
       return {
         success: true,
-        newBalance,
+        newTotalWithdrawn,
         withdrawalAmount: amount,
       };
     } catch (error) {
@@ -508,6 +517,5 @@ class CompanyService {
     }
   }
 }
-
 
 module.exports = new CompanyService();

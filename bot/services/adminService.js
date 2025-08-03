@@ -248,8 +248,10 @@ class AdminService {
         // Platform fees from direct sales
         companySales.forEach((sale) => {
           // Debug: Check all possible amount field names
-          const saleAmount = sale.amount || sale.total || sale.price || sale.value || 0;
-          const platformFee = saleAmount * (platformSettings.platformFeePercent / 100);
+          const saleAmount =
+            sale.amount || sale.total || sale.price || sale.value || 0;
+          const platformFee =
+            saleAmount * (platformSettings.platformFeePercent / 100);
           totalPlatformFees += platformFee;
         });
 
@@ -264,7 +266,8 @@ class AdminService {
         // Add revenue from sales
         companySales.forEach((sale) => {
           // Debug: Check all possible amount field names
-          const saleAmount = sale.amount || sale.total || sale.price || sale.value || 0;
+          const saleAmount =
+            sale.amount || sale.total || sale.price || sale.value || 0;
           totalRevenue += saleAmount;
         });
 
@@ -285,7 +288,8 @@ class AdminService {
           if (companySales.length > 0) {
             console.log(`  - Sales details:`);
             companySales.forEach((sale, index) => {
-              const saleAmount = sale.amount || sale.total || sale.price || sale.value || 0;
+              const saleAmount =
+                sale.amount || sale.total || sale.price || sale.value || 0;
               console.log(
                 `    Sale ${index + 1}: Amount: $${saleAmount}, Status: ${
                   sale.status
@@ -293,7 +297,10 @@ class AdminService {
               );
               // Debug: Show full sale object to understand structure
               if (index === 0) {
-                console.log(`    Full sale object:`, JSON.stringify(sale, null, 2));
+                console.log(
+                  `    Full sale object:`,
+                  JSON.stringify(sale, null, 2)
+                );
               }
             });
           }
@@ -1481,8 +1488,29 @@ class AdminService {
         }
       }
 
+      // Calculate platform fees from sales for this company
+      let salesSnap;
+      try {
+        salesSnap = await databaseService
+          .getDb()
+          .collection("sales")
+          .where("companyId", "==", companyId)
+          .get();
+      } catch (error) {
+        try {
+          salesSnap = await databaseService
+            .getDb()
+            .collection("sales")
+            .where("company_id", "==", companyId)
+            .get();
+        } catch (error2) {
+          salesSnap = await databaseService.getDb().collection("sales").get();
+        }
+      }
+
       let totalPlatformFees = 0;
 
+      // Platform fees from referrals
       for (const doc of referralsSnap.docs) {
         const referral = doc.data();
 
@@ -1497,6 +1525,26 @@ class AdminService {
         const platformFee =
           (referral.amount || 0) * (settings.platformFeePercent / 100);
         totalPlatformFees += platformFee;
+      }
+
+      // Platform fees from sales
+      for (const doc of salesSnap.docs) {
+        const sale = doc.data();
+
+        // Check if this sale belongs to the company
+        const saleCompanyId = sale.companyId || sale.company_id;
+        if (saleCompanyId !== companyId) {
+          continue;
+        }
+
+        // Only include completed sales or sales without status
+        if (sale.status === "completed" || !sale.status) {
+          const settings = await this.getPlatformSettings();
+          const saleAmount =
+            sale.amount || sale.total || sale.price || sale.value || 0;
+          const platformFee = saleAmount * (settings.platformFeePercent / 100);
+          totalPlatformFees += platformFee;
+        }
       }
 
       return totalPlatformFees;
