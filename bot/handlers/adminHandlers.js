@@ -197,11 +197,11 @@ class AdminHandlers {
           : "⏳ Unverified";
         const balance = user.balance ? `$${user.balance.toFixed(2)}` : "$0.00";
 
-        msg += `${start + index + 1}. ${status} *${user.firstName} ${
-          user.lastName
-        }*\n`;
-        msg += `   👤 @${user.username || "N/A"}\n`;
-        msg += `   📱 ${user.phone || "N/A"}\n`;
+        msg += `${start + index + 1}. ${status} *${escapeMarkdown(
+          user.firstName
+        )} ${escapeMarkdown(user.lastName)}*\n`;
+        msg += `   👤 @${escapeMarkdown(user.username || "N/A")}\n`;
+        msg += `   📱 ${escapeMarkdown(user.phone || "N/A")}\n`;
         msg += `   💰 Balance: ${balance}\n`;
         msg += `   🆔 ID: ${user.telegramId}\n\n`;
 
@@ -839,8 +839,10 @@ class AdminHandlers {
         const status = company.status || "active";
         const statusEmoji =
           status === "active" ? "✅" : status === "pending" ? "⏳" : "❌";
-        msg += `${start + index + 1}. ${statusEmoji} *${company.name}*\n`;
-        msg += `   Owner: ${ownerUsername}\n`;
+        msg += `${start + index + 1}. ${statusEmoji} *${escapeMarkdown(
+          company.name
+        )}*\n`;
+        msg += `   Owner: ${escapeMarkdown(ownerUsername)}\n`;
         msg += `   Status: ${status}\n`;
         msg += `   Products: ${productCount}\n\n`;
 
@@ -5035,7 +5037,7 @@ Available amount: $${withdrawable.toFixed(2)}
 Please enter the withdrawal amount:`;
 
       return ctx.reply(message, {
-        parse_mode: "Markdown"
+        parse_mode: "Markdown",
       });
     } catch (error) {
       console.error("Error in handleRequestCompanyWithdrawal:", error);
