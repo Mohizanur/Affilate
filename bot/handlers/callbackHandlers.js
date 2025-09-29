@@ -904,7 +904,7 @@ class CallbackHandlers {
   }
 
   async handleMainMenu(ctx) {
-    return require("./userHandlers").handleStart(ctx);
+    return require("./userHandlers").handleMainMenu(ctx);
   }
 
   async handleProfile(ctx) {
