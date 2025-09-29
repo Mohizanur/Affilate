@@ -91,7 +91,7 @@ class UserService {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-      
+
       return { id: userRef.id, ...userData };
     } catch (error) {
       logger.error("Error creating user:", error);
@@ -165,10 +165,10 @@ class UserService {
         phone_verified: true,
         phone_verified_at: new Date(),
       });
-      
+
       // Clear user cache to ensure fresh data is retrieved
       cacheService.clearUserCache(telegramId);
-      
+
       logger.info(`Phone verified for user: ${telegramId}`);
       return {
         id: userDoc.id,
@@ -730,7 +730,7 @@ class UserService {
       const userDoc = await userRef.get();
       if (!userDoc.exists) throw new Error("User not found");
       await userRef.update({ banned: true, bannedAt: new Date() });
-      
+
       return true;
     } catch (error) {
       logger.error("Error banning user:", error);
@@ -744,7 +744,7 @@ class UserService {
       const userDoc = await userRef.get();
       if (!userDoc.exists) throw new Error("User not found");
       await userRef.update({ banned: false, bannedAt: null });
-      
+
       return true;
     } catch (error) {
       logger.error("Error unbanning user:", error);
@@ -767,10 +767,26 @@ class UserService {
 
   async getPromotedUsers() {
     try {
-      const usersSnap = await databaseService.users().get();
-      return usersSnap.docs
-        .map((doc) => ({ id: doc.id, ...doc.data() }))
-        .filter((u) => u.canRegisterCompany === true || u.role === "promoted");
+      // BEAST MODE: Use efficient query instead of full collection scan
+      const cacheKey = "promoted_users";
+      const cached = cacheService.getStats(cacheKey);
+      if (cached) return cached;
+
+      // Query only promoted users directly
+      const usersSnap = await databaseService
+        .users()
+        .where("canRegisterCompany", "==", true)
+        .limit(100) // Reasonable limit
+        .get();
+
+      const promotedUsers = usersSnap.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      // Cache for 10 minutes
+      cacheService.setStats(cacheKey, promotedUsers, 600);
+      return promotedUsers;
     } catch (error) {
       logger.error("Error getting promoted users:", error);
       throw error;
@@ -879,4 +895,3 @@ module.exports = {
     userService.getPendingWithdrawals(...args),
   getRecentUsers: (...args) => userService.getRecentUsers(...args),
 };
-

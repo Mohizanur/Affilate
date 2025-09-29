@@ -1,7 +1,8 @@
-
-const performanceLogger = require('./config/performanceLogger');
+const performanceLogger = require("./config/performanceLogger");
 require("dotenv").config();
 
+// 🚀 SMART REALISTIC OPTIMIZER INTEGRATION
+const smartOptimizer = require("./config/smart-optimizer-integration");
 
 const { Telegraf } = require("telegraf");
 const LocalSession = require("telegraf-session-local");
@@ -54,6 +55,150 @@ function registerHandlers(bot) {
   bot.command("referrals", require("./commands/referral"));
   bot.command("browse", require("./commands/products"));
 
+  // 🚀 Smart Optimizer Performance Commands
+  bot.command("stats", async (ctx) => {
+    try {
+      const stats = smartOptimizer.getPerformanceStats();
+      const quota = smartOptimizer.getQuotaStatus();
+
+      let message = "📊 **BOT PERFORMANCE STATS**\n\n";
+      message += `🚀 **Cache Hit Rate:** ${stats.cacheHitRate}%\n`;
+      message += `⚡ **Avg Response Time:** ${stats.avgResponseTime}ms\n`;
+      message += `📈 **Quota Usage (Reads):** ${quota.reads}\n`;
+      message += `📈 **Quota Usage (Writes):** ${quota.writes}\n`;
+      message += `💾 **Cache Keys:** ${stats.cacheStats.keys}\n`;
+      message += `⏱️ **Uptime:** ${Math.round(
+        stats.uptime / 1000 / 60
+      )} minutes\n`;
+
+      ctx.reply(message, { parse_mode: "Markdown" });
+    } catch (error) {
+      ctx.reply("❌ Could not fetch stats: " + error.message);
+    }
+  });
+
+  bot.command("quota", async (ctx) => {
+    try {
+      const quota = smartOptimizer.getQuotaStatus();
+      const stats = smartOptimizer.getPerformanceStats();
+
+      let message = "📈 **FIRESTORE QUOTA STATUS**\n\n";
+      message += `📊 **Reads:** ${quota.reads}\n`;
+      message += `📊 **Writes:** ${quota.writes}\n`;
+      message += `🚀 **Cache Hit Rate:** ${quota.cacheHitRate}%\n`;
+      message += `⚡ **Avg Response Time:** ${quota.avgResponseTime}ms\n`;
+      message += `⏱️ **Uptime:** ${Math.round(
+        stats.uptime / 1000 / 60
+      )} minutes\n`;
+
+      ctx.reply(message, { parse_mode: "Markdown" });
+    } catch (error) {
+      ctx.reply("❌ Could not fetch quota status: " + error.message);
+    }
+  });
+
+  bot.command("cache", async (ctx) => {
+    try {
+      const cache = smartOptimizer.getCacheStats();
+
+      let message = "💾 **CACHE STATUS**\n\n";
+      message += `🔑 **Total Keys:** ${cache.totalKeys}\n`;
+      message += `📏 **Max Keys:** ${cache.maxKeys}\n`;
+      message += `⏰ **TTL:** ${cache.ttl} seconds\n`;
+      message += `💻 **Memory Usage:** ${Math.round(
+        cache.memoryUsage.heapUsed / 1024 / 1024
+      )}MB\n`;
+
+      ctx.reply(message, { parse_mode: "Markdown" });
+    } catch (error) {
+      ctx.reply("❌ Could not fetch cache status: " + error.message);
+    }
+  });
+
+  // 🚀 Admin Maintenance Commands
+  bot.command("clearcache", async (ctx) => {
+    try {
+      // Check if user is admin
+      const userService = require("./services/userService");
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
+      );
+
+      if (!user || (user.role !== "admin" && !user.isAdmin)) {
+        return ctx.reply("❌ Admin access required for this command.");
+      }
+
+      smartOptimizer.clearCache();
+      ctx.reply("🧹 Cache cleared successfully!");
+    } catch (error) {
+      ctx.reply("❌ Could not clear cache: " + error.message);
+    }
+  });
+
+  bot.command("maintenance", async (ctx) => {
+    try {
+      // Check if user is admin
+      const userService = require("./services/userService");
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
+      );
+
+      if (!user || (user.role !== "admin" && !user.isAdmin)) {
+        return ctx.reply("❌ Admin access required for this command.");
+      }
+
+      await smartOptimizer.performMaintenance();
+      ctx.reply("🔧 Manual maintenance completed!");
+    } catch (error) {
+      ctx.reply("❌ Could not perform maintenance: " + error.message);
+    }
+  });
+
+  // BEAST MODE: Enhanced performance monitoring commands
+  bot.command("memory", async (ctx) => {
+    try {
+      const memoryManager = require("./config/memoryManager");
+      const stats = memoryManager.getMemoryStats();
+      const health = memoryManager.getMemoryHealth();
+      const trends = memoryManager.getMemoryTrends();
+
+      let message = "🧠 **MEMORY STATUS**\n\n";
+      message += `📊 **Current Usage:** ${stats.current.heapUsed}MB / ${stats.current.heapTotal}MB (${stats.current.heapPercentage}%)\n`;
+      message += `📈 **Average Usage:** ${stats.average.heapUsed}MB\n`;
+      message += `🔝 **Peak Usage:** ${stats.peak.heapUsed}MB\n`;
+      message += `🔄 **Cleanups:** ${stats.cleanup.count}\n`;
+      message += `⚡ **Status:** ${health.status.toUpperCase()}\n`;
+      message += `📊 **Trend:** ${trends.trend} (${trends.change}%)\n`;
+      message += `⏱️ **Uptime:** ${stats.uptime.hours}h ${
+        stats.uptime.minutes % 60
+      }m\n`;
+
+      ctx.reply(message, { parse_mode: "Markdown" });
+    } catch (error) {
+      ctx.reply("❌ Could not fetch memory status: " + error.message);
+    }
+  });
+
+  bot.command("quota", async (ctx) => {
+    try {
+      const quotaProtector = require("./config/quotaProtector");
+      const status = quotaProtector.getQuotaStatus();
+
+      let message = "📈 **QUOTA STATUS**\n\n";
+      message += `📖 **Reads:** ${status.reads.used}/${status.reads.limit} (${status.reads.percentage}%)\n`;
+      message += `✍️ **Writes:** ${status.writes.used}/${status.writes.limit} (${status.writes.percentage}%)\n`;
+      message += `🗑️ **Deletes:** ${status.deletes.used}/${status.deletes.limit} (${status.deletes.percentage}%)\n`;
+      message += `🌐 **Network:** ${status.network.used}MB/${status.network.limit}MB (${status.network.percentage}%)\n\n`;
+      message += `🎯 **Strategy:** ${status.strategy.current}\n`;
+      message += `📝 **Mode:** ${status.strategy.description}\n`;
+      message += `🔄 **Reset in:** ${status.timeToReset}\n`;
+
+      ctx.reply(message, { parse_mode: "Markdown" });
+    } catch (error) {
+      ctx.reply("❌ Could not fetch quota status: " + error.message);
+    }
+  });
+
   const handlers = [
     { name: "User", handler: userHandlers },
     { name: "Company", handler: companyHandlers },
@@ -89,9 +234,18 @@ function registerHandlers(bot) {
 async function startBot(app) {
   performanceLogger.system("🚀 $1");
   try {
-
     await databaseService.initialize();
     performanceLogger.system("✅ $1");
+
+    // BEAST MODE: Initialize memory manager for optimal performance
+    const memoryManager = require("./config/memoryManager");
+    console.log("🧠 Memory Manager initialized for optimal performance");
+
+    // 🚀 Initialize Smart Realistic Optimizer
+    console.log("🚀 Initializing Smart Realistic Optimizer...");
+    await smartOptimizer.initializeSmartOptimizer();
+    console.log("✅ Smart Realistic Optimizer initialized successfully!");
+    performanceLogger.system("✅ Smart Realistic Optimizer initialized");
 
     const token = process.env.BOT_TOKEN;
     if (!token) {
@@ -116,8 +270,13 @@ async function startBot(app) {
       console.error("❌ Bot error:", err);
     });
 
+    // BEAST MODE: Firestore session storage for scalability
+    const FirestoreSession = require("telegraf-session-firestore");
     bot.use(
-      new LocalSession({ database: "./temp/session_db.json" }).middleware()
+      new FirestoreSession({
+        database: databaseService.getDb(),
+        collection: "bot_sessions",
+      })
     );
 
     // Add maintenance mode middleware
@@ -159,18 +318,15 @@ async function startBot(app) {
       }
     });
 
-    
     try {
-      
       registerHandlers(bot);
-      
     } catch (e) {
       console.error("Error in registerHandlers:", e);
       throw e;
     }
 
     // Test bot connection first with better error handling
-    
+
     let botInfo = null;
     try {
       botInfo = await bot.telegram.getMe();
@@ -187,7 +343,6 @@ async function startBot(app) {
 
       // For development, we can continue without the connection test
       performanceLogger.warn("⚠️ $1");
-      
     }
 
     // Set bot commands
@@ -205,6 +360,11 @@ async function startBot(app) {
           command: "feecalculator",
           description: "Calculate fee for a transaction",
         },
+        // 🚀 BEAST MODE Performance Commands
+        { command: "stats", description: "Bot performance statistics" },
+        { command: "quota", description: "Firestore quota status" },
+        { command: "cache", description: "Cache status and info" },
+        { command: "memory", description: "Memory usage and health" },
       ];
 
       try {
@@ -215,7 +375,6 @@ async function startBot(app) {
           "⚠️ Could not set bot commands (network issue):",
           error.message
         );
-        
       }
     }
 
@@ -280,7 +439,6 @@ async function startBot(app) {
           "⚠️ Could not start long polling (network issue):",
           error.message
         );
-        
       }
     } else {
       console.log("🌐 Using webhook mode (local development with webhook)...");

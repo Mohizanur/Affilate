@@ -2,6 +2,9 @@
 
 const { Markup } = require("telegraf");
 
+// 🚀 SMART REALISTIC OPTIMIZER INTEGRATION
+const smartOptimizer = require("../config/smart-optimizer-integration");
+
 const companyService = require("../services/companyService");
 
 const productService = require("../services/productService");
@@ -28,10 +31,8 @@ class CompanyHandlers {
   async handleCompanyRegistration(ctx) {
     try {
       const telegramId = ctx.from.id;
-      const user =
-        await require("../services/userService").userService.getUserByTelegramId(
-          telegramId
-        );
+      // 🚀 Use Smart Optimizer for optimized user retrieval with caching
+      const user = await smartOptimizer.getUser(telegramId);
       if (!user.canRegisterCompany && user.role !== "company_manager") {
         return ctx.reply(
           t(

@@ -1,5 +1,8 @@
 const { Markup } = require("telegraf");
 
+// 🚀 SMART REALISTIC OPTIMIZER INTEGRATION
+const smartOptimizer = require("../config/smart-optimizer-integration");
+
 const userService = require("../services/userService");
 
 const productService = require("../services/productService");
@@ -94,11 +97,12 @@ class UserHandlers {
     try {
       let user;
       try {
-        user = await userService.userService.getUserByTelegramId(ctx.from.id);
+        // 🚀 Use Smart Optimizer for optimized user retrieval with caching
+        user = await smartOptimizer.getUser(ctx.from.id);
       } catch (err) {
         if (err.message === "User not found") {
-          // Create the user if not found
-          user = await userService.userService.createUser({
+          // Create the user if not found using Smart Optimizer
+          user = await smartOptimizer.createOrUpdateUser({
             telegramId: ctx.from.id,
             username: ctx.from.username || null,
             firstName: ctx.from.first_name || null,
@@ -157,8 +161,8 @@ class UserHandlers {
         }
       }
 
-      // Create or update user in Firestore
-      user = await userService.userService.createOrUpdateUser(userData);
+      // Create or update user in Firestore using Smart Optimizer
+      user = await smartOptimizer.createOrUpdateUser(userData);
       console.log("[DEBUG] handleStart user:", user);
 
       // After fetching user, map phone_verified to phoneVerified for compatibility

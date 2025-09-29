@@ -3,39 +3,48 @@ const logger = require("../../utils/logger");
 
 class CacheService {
   constructor() {
-    // BEAST MODE: Optimized cache settings for maximum performance
+    // BEAST MODE: Multi-layer cache for instant response
     this.userCache = new NodeCache({
-      stdTTL: 1800, // 30 minutes - longer cache for users
-      maxKeys: 50000, // Increased for more users
-      checkperiod: 600, // Check every 10 minutes
-      useClones: false, // Disable cloning for better performance
+      stdTTL: 300, // 5 minutes - optimized for real-time
+      maxKeys: 10000, // Optimized size
+      checkperiod: 60, // Check every minute
+      useClones: false,
       deleteOnExpire: true,
     });
     this.companyCache = new NodeCache({
-      stdTTL: 3600, // 1 hour - longer cache for companies
-      maxKeys: 10000, // Increased for more companies
-      checkperiod: 900, // Check every 15 minutes
+      stdTTL: 600, // 10 minutes - companies change less frequently
+      maxKeys: 5000,
+      checkperiod: 120, // Check every 2 minutes
       useClones: false,
       deleteOnExpire: true,
     });
     this.statsCache = new NodeCache({
-      stdTTL: 600, // 10 minutes - longer for stats
-      maxKeys: 5000, // Increased for more stats
-      checkperiod: 300, // Check every 5 minutes
+      stdTTL: 300, // 5 minutes - stats need to be fresh
+      maxKeys: 10000, // More stats entries
+      checkperiod: 60, // Check every minute
       useClones: false,
       deleteOnExpire: true,
     });
     this.sessionCache = new NodeCache({
-      stdTTL: 3600, // 1 hour - longer sessions
-      maxKeys: 100000, // Massive increase for sessions
-      checkperiod: 1200, // Check every 20 minutes
+      stdTTL: 1800, // 30 minutes - sessions
+      maxKeys: 50000, // Many sessions
+      checkperiod: 300, // Check every 5 minutes
       useClones: false,
       deleteOnExpire: true,
     });
     this.rateLimitCache = new NodeCache({
-      stdTTL: 120, // 2 minutes - longer rate limit tracking
-      maxKeys: 100000, // Massive increase for rate limits
-      checkperiod: 60, // Check every minute
+      stdTTL: 900, // 15 minutes - rate limiting
+      maxKeys: 50000,
+      checkperiod: 120, // Check every 2 minutes
+      useClones: false,
+      deleteOnExpire: true,
+    });
+
+    // BEAST MODE: Instant response cache for critical data
+    this.instantCache = new NodeCache({
+      stdTTL: 60, // 1 minute - ultra-fast access
+      maxKeys: 1000,
+      checkperiod: 30, // Check every 30 seconds
       useClones: false,
       deleteOnExpire: true,
     });
@@ -137,9 +146,76 @@ class CacheService {
   clearUserCache(telegramId) {
     if (telegramId) {
       this.userCache.del(`user:${telegramId}`);
+      this.instantCache.del(`user:${telegramId}`);
     } else {
       this.userCache.flushAll();
+      this.instantCache.flushAll();
     }
+  }
+
+  // BEAST MODE: Instant response methods
+  getInstant(key) {
+    const result = this.instantCache.get(key);
+    if (result) {
+      const performanceMonitor = require("./performance");
+      performanceMonitor.recordCacheHit();
+    } else {
+      const performanceMonitor = require("./performance");
+      performanceMonitor.recordCacheMiss();
+    }
+    return result;
+  }
+
+  setInstant(key, data) {
+    return this.instantCache.set(key, data);
+  }
+
+  // BEAST MODE: Smart cache warming for instant response
+  async warmupInstantCache() {
+    try {
+      // Pre-load critical data for instant access
+      const criticalKeys = [
+        "stats:global",
+        "stats:recent",
+        "top_referrers",
+        "active_companies",
+      ];
+
+      for (const key of criticalKeys) {
+        const data = this.statsCache.get(key);
+        if (data) {
+          this.instantCache.set(key, data);
+        }
+      }
+
+      logger.info("Instant cache warmed up for maximum performance");
+    } catch (error) {
+      logger.error("Error warming up instant cache:", error);
+    }
+  }
+
+  // BEAST MODE: Cache health monitoring
+  getCacheHealth() {
+    return {
+      userCache: {
+        keys: this.userCache.keys().length,
+        maxKeys: this.userCache.options.maxKeys,
+        hitRate:
+          (this.userCache.getStats().hits /
+            (this.userCache.getStats().hits +
+              this.userCache.getStats().misses)) *
+          100,
+      },
+      instantCache: {
+        keys: this.instantCache.keys().length,
+        maxKeys: this.instantCache.options.maxKeys,
+        hitRate:
+          (this.instantCache.getStats().hits /
+            (this.instantCache.getStats().hits +
+              this.instantCache.getStats().misses)) *
+          100,
+      },
+    };
   }
 }
 

@@ -1,5 +1,8 @@
 const { Markup } = require("telegraf");
 
+// 🚀 SMART REALISTIC OPTIMIZER INTEGRATION
+const smartOptimizer = require("../config/smart-optimizer-integration");
+
 const adminService = require("../services/adminService");
 
 const userService = require("../services/userService");
@@ -65,9 +68,8 @@ class AdminHandlers {
   async isAdminAsync(telegramId) {
     if (this.adminIds.includes(telegramId)) return true;
     try {
-      const user = await userService.userService.getUserByTelegramId(
-        telegramId
-      );
+      // 🚀 Use Smart Optimizer for optimized user retrieval with caching
+      const user = await smartOptimizer.getUser(telegramId);
       return user && (user.role === "admin" || user.isAdmin === true);
     } catch {
       return false;

@@ -1,5 +1,6 @@
 const admin = require("firebase-admin");
 const logger = require("../../utils/logger");
+const quotaProtector = require("./quotaProtector");
 
 class DatabaseService {
   constructor() {
@@ -33,14 +34,15 @@ class DatabaseService {
         admin.initializeApp({
           credential: admin.credential.cert(serviceAccount),
           projectId: process.env.FIREBASE_PROJECT_ID,
-          // Optimize for high concurrency
+          // BEAST MODE: Optimized for maximum concurrency and performance
           httpAgent: {
             keepAlive: true,
-            keepAliveMsecs: 30000,
-            maxSockets: 100,
-            maxFreeSockets: 10,
-            timeout: 30000,
-            freeSocketTimeout: 30000,
+            keepAliveMsecs: 60000, // 1 minute keep-alive
+            maxSockets: 200, // Increased for high concurrency
+            maxFreeSockets: 50, // More free sockets
+            timeout: 15000, // Faster timeout
+            freeSocketTimeout: 60000, // 1 minute free socket timeout
+            maxTotalSockets: 300, // Total socket limit
           },
         });
       }
@@ -119,11 +121,21 @@ class DatabaseService {
 
   async getUser(telegramId) {
     try {
+      // BEAST MODE: Check quota before operation
+      if (!quotaProtector.canPerformOperation("reads", 1)) {
+        logger.warn("Quota protection: Skipping getUser operation");
+        return null;
+      }
+
       const performanceMonitor = require("./performance");
       const result = await performanceMonitor.trackExecution(
         "getUser",
         async () => {
           const userDoc = await this.users().doc(telegramId.toString()).get();
+
+          // Record quota usage
+          quotaProtector.recordOperation("reads", 1);
+
           if (userDoc.exists) {
             return { id: userDoc.id, ...userDoc.data() };
           }
@@ -209,9 +221,23 @@ class DatabaseService {
   increment(value = 1) {
     return admin.firestore.FieldValue.increment(value);
   }
-  async getAllUserTelegramIds() {
+  // BEAST MODE: Paginated user fetching to prevent quota overload
+  async getAllUserTelegramIds(page = 1, limit = 100) {
     try {
-      const snapshot = await this.users().get();
+      const cacheKey = `user_telegram_ids_page_${page}_${limit}`;
+
+      // Try cache first
+      const cacheService = require("./cache");
+      const cached = cacheService.getStats(cacheKey);
+      if (cached) return cached;
+
+      // Optimized query with pagination
+      const snapshot = await this.users()
+        .orderBy("createdAt", "desc")
+        .limit(limit)
+        .offset((page - 1) * limit)
+        .get();
+
       const users = [];
       snapshot.forEach((doc) => {
         const data = doc.data();
@@ -219,9 +245,12 @@ class DatabaseService {
           users.push({ telegramId: data.telegramId });
         }
       });
+
+      // Cache for 5 minutes
+      cacheService.setStats(cacheKey, users, 300);
       return users;
     } catch (error) {
-      logger.error("Error fetching all user telegram IDs:", error);
+      logger.error("Error fetching user telegram IDs:", error);
       throw error;
     }
   }
