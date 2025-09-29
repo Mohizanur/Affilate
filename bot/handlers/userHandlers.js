@@ -70,6 +70,14 @@ function requirePhoneVerification(ctx, user, userLanguage) {
     JSON.stringify(user, null, 2)
   );
 
+  // Ensure both fields are mapped for consistency
+  if (user.phone_verified && typeof user.phoneVerified === "undefined") {
+    user.phoneVerified = user.phone_verified;
+  }
+  if (user.phoneVerified && typeof user.phone_verified === "undefined") {
+    user.phone_verified = user.phoneVerified;
+  }
+
   // Check both phone_verified and phoneVerified fields
   const isPhoneVerified =
     user.phone_verified === true || user.phoneVerified === true;
@@ -255,14 +263,26 @@ class UserHandlers {
       }
       console.log("[DEBUG] handleStart user:", user);
 
-      // After fetching user, map phone_verified to phoneVerified for compatibility
+      // After fetching user, map phone verification fields for compatibility
       if (user.phone_verified && typeof user.phoneVerified === "undefined") {
         user.phoneVerified = user.phone_verified;
+      }
+      if (user.phoneVerified && typeof user.phone_verified === "undefined") {
+        user.phone_verified = user.phoneVerified;
       }
 
       const isVerified = user.phoneVerified;
       const isAdmin = user.role === "admin" || user.isAdmin === true;
       const isCompany = user.isCompanyOwner === true || user.companyId;
+      
+      // Debug logging for admin panel access
+      console.log("🔍 Main Menu Debug - User ID:", ctx.from.id);
+      console.log("🔍 Main Menu Debug - User role:", user.role);
+      console.log("🔍 Main Menu Debug - User isAdmin:", user.isAdmin);
+      console.log("🔍 Main Menu Debug - isAdmin result:", isAdmin);
+      console.log("🔍 Main Menu Debug - User phoneVerified:", user.phoneVerified);
+      console.log("🔍 Main Menu Debug - User phone_verified:", user.phone_verified);
+      console.log("🔍 Main Menu Debug - isVerified result:", isVerified);
 
       // Get user's language preference
       const userLanguage = ctx.session?.language || user.language || "en";
