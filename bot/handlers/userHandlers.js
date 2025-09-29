@@ -95,43 +95,33 @@ function requirePhoneVerification(ctx, user, userLanguage) {
 class UserHandlers {
   async handleStart(ctx) {
     try {
+      console.log("🚀 Starting handleStart for user:", ctx.from.id);
       let user;
+      
+      // BEAST MODE: Use regular userService for maximum reliability
       try {
-        // 🚀 Try Smart Optimizer first, fallback to regular service
+        console.log("📊 Using regular userService for maximum reliability");
+        user = await userService.getUserByTelegramId(ctx.from.id);
+        console.log("✅ User retrieved successfully:", user ? "found" : "not found");
+      } catch (getUserError) {
+        console.log("⚠️ Failed to get user:", getUserError.message);
+        user = null;
+      }
+
+      // If user not found, create them
+      if (!user) {
         try {
-          user = await smartOptimizer.getUser(ctx.from.id);
-        } catch (optimizerError) {
-          console.log("⚠️ Smart Optimizer failed, using regular userService:", optimizerError.message);
-          user = await userService.getUserByTelegramId(ctx.from.id);
-        }
-      } catch (err) {
-        if (err.message === "User not found" || !user) {
-          try {
-            // Try Smart Optimizer first, fallback to regular service
-            try {
-              user = await smartOptimizer.createOrUpdateUser({
-                telegramId: ctx.from.id,
-                username: ctx.from.username || null,
-                firstName: ctx.from.first_name || null,
-                lastName: ctx.from.last_name || null,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              });
-            } catch (optimizerError) {
-              console.log("⚠️ Smart Optimizer create failed, using regular userService:", optimizerError.message);
-              user = await userService.createOrUpdateUser({
-                telegramId: ctx.from.id,
-                username: ctx.from.username || null,
-                firstName: ctx.from.first_name || null,
-                lastName: ctx.from.last_name || null,
-              });
-            }
-          } catch (createError) {
-            console.error("❌ Failed to create user:", createError);
-            throw createError;
-          }
-        } else {
-          throw err;
+          console.log("📝 Creating new user for:", ctx.from.id);
+          user = await userService.createOrUpdateUser({
+            telegramId: ctx.from.id,
+            username: ctx.from.username || null,
+            firstName: ctx.from.first_name || null,
+            lastName: ctx.from.last_name || null,
+          });
+          console.log("✅ User created successfully");
+        } catch (createError) {
+          console.error("❌ Failed to create user:", createError);
+          throw createError;
         }
       }
       ctx.session = {}; // Reset session state
