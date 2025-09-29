@@ -65,15 +65,28 @@ function blockIfBanned(ctx, user) {
 
 function requirePhoneVerification(ctx, user, userLanguage) {
   // Debug: Log user object to see what fields are available
-  console.log("🔍 requirePhoneVerification - User object:", JSON.stringify(user, null, 2));
-  
+  console.log(
+    "🔍 requirePhoneVerification - User object:",
+    JSON.stringify(user, null, 2)
+  );
+
   // Check both phone_verified and phoneVerified fields
-  const isPhoneVerified = user.phone_verified === true || user.phoneVerified === true;
-  
-  console.log("🔍 requirePhoneVerification - phone_verified:", user.phone_verified);
-  console.log("🔍 requirePhoneVerification - phoneVerified:", user.phoneVerified);
-  console.log("🔍 requirePhoneVerification - isPhoneVerified:", isPhoneVerified);
-  
+  const isPhoneVerified =
+    user.phone_verified === true || user.phoneVerified === true;
+
+  console.log(
+    "🔍 requirePhoneVerification - phone_verified:",
+    user.phone_verified
+  );
+  console.log(
+    "🔍 requirePhoneVerification - phoneVerified:",
+    user.phoneVerified
+  );
+  console.log(
+    "🔍 requirePhoneVerification - isPhoneVerified:",
+    isPhoneVerified
+  );
+
   if (!isPhoneVerified) {
     ctx.reply(t("must_verify_phone", {}, userLanguage), {
       reply_markup: {
@@ -97,25 +110,37 @@ class UserHandlers {
     try {
       console.log("🚀 Starting handleStart for user:", ctx.from.id);
       let user;
-      
+
       // BEAST MODE: Hybrid approach - Smart Optimizer with bulletproof fallback
       try {
         // Try Smart Optimizer first (for performance), fallback to regular service (for reliability)
         try {
-          if (smartOptimizer && typeof smartOptimizer.getUser === 'function') {
+          if (smartOptimizer && typeof smartOptimizer.getUser === "function") {
             console.log("🚀 Attempting Smart Optimizer for user retrieval");
             user = await smartOptimizer.getUser(ctx.from.id);
-            console.log("✅ Smart Optimizer success - user:", user ? "found" : "not found");
+            console.log(
+              "✅ Smart Optimizer success - user:",
+              user ? "found" : "not found"
+            );
           } else {
             throw new Error("Smart Optimizer not available");
           }
         } catch (optimizerError) {
-          console.log("⚠️ Smart Optimizer failed, using regular userService:", optimizerError.message);
+          console.log(
+            "⚠️ Smart Optimizer failed, using regular userService:",
+            optimizerError.message
+          );
           user = await userService.getUserByTelegramId(ctx.from.id);
-          console.log("✅ Regular service success - user:", user ? "found" : "not found");
+          console.log(
+            "✅ Regular service success - user:",
+            user ? "found" : "not found"
+          );
         }
       } catch (getUserError) {
-        console.log("⚠️ All user retrieval methods failed:", getUserError.message);
+        console.log(
+          "⚠️ All user retrieval methods failed:",
+          getUserError.message
+        );
         user = null;
       }
 
@@ -123,10 +148,13 @@ class UserHandlers {
       if (!user) {
         try {
           console.log("📝 Creating new user for:", ctx.from.id);
-          
+
           // Try Smart Optimizer first for creation
           try {
-            if (smartOptimizer && typeof smartOptimizer.createOrUpdateUser === 'function') {
+            if (
+              smartOptimizer &&
+              typeof smartOptimizer.createOrUpdateUser === "function"
+            ) {
               console.log("🚀 Attempting Smart Optimizer for user creation");
               user = await smartOptimizer.createOrUpdateUser({
                 telegramId: ctx.from.id,
@@ -141,7 +169,10 @@ class UserHandlers {
               throw new Error("Smart Optimizer not available");
             }
           } catch (optimizerError) {
-            console.log("⚠️ Smart Optimizer creation failed, using regular userService:", optimizerError.message);
+            console.log(
+              "⚠️ Smart Optimizer creation failed, using regular userService:",
+              optimizerError.message
+            );
             user = await userService.createOrUpdateUser({
               telegramId: ctx.from.id,
               username: ctx.from.username || null,
@@ -204,7 +235,10 @@ class UserHandlers {
 
       // Create or update user in Firestore using hybrid approach
       try {
-        if (smartOptimizer && typeof smartOptimizer.createOrUpdateUser === 'function') {
+        if (
+          smartOptimizer &&
+          typeof smartOptimizer.createOrUpdateUser === "function"
+        ) {
           console.log("🚀 Attempting Smart Optimizer for user update");
           user = await smartOptimizer.createOrUpdateUser(userData);
           console.log("✅ Smart Optimizer update success");
@@ -212,7 +246,10 @@ class UserHandlers {
           throw new Error("Smart Optimizer not available");
         }
       } catch (optimizerError) {
-        console.log("⚠️ Smart Optimizer update failed, using regular userService:", optimizerError.message);
+        console.log(
+          "⚠️ Smart Optimizer update failed, using regular userService:",
+          optimizerError.message
+        );
         user = await userService.createOrUpdateUser(userData);
         console.log("✅ Regular service update success");
       }
@@ -386,7 +423,40 @@ class UserHandlers {
     ctx.session = {}; // Reset session state
 
     // Get user and check verification
-    const user = await userService.userService.getUserByTelegramId(ctx.from.id);
+    // BEAST MODE: Hybrid approach - Smart Optimizer with bulletproof fallback
+    let user;
+    try {
+      try {
+        if (smartOptimizer && typeof smartOptimizer.getUser === "function") {
+          console.log(
+            "🚀 Attempting Smart Optimizer for user retrieval in browse products"
+          );
+          user = await smartOptimizer.getUser(ctx.from.id);
+          console.log(
+            "✅ Smart Optimizer success - user:",
+            user ? "found" : "not found"
+          );
+        } else {
+          throw new Error("Smart Optimizer not available");
+        }
+      } catch (optimizerError) {
+        console.log(
+          "⚠️ Smart Optimizer failed in browse products, using regular userService:",
+          optimizerError.message
+        );
+        user = await userService.userService.getUserByTelegramId(ctx.from.id);
+        console.log(
+          "✅ Regular service success in browse products - user:",
+          user ? "found" : "not found"
+        );
+      }
+    } catch (getUserError) {
+      console.log(
+        "⚠️ All user retrieval methods failed in browse products:",
+        getUserError.message
+      );
+      user = null;
+    }
     const userLanguage = ctx.session?.language || user?.language || "en";
 
     if (blockIfBanned(ctx, user)) return;
@@ -897,9 +967,40 @@ class UserHandlers {
         return;
       }
 
-      const user = await userService.userService.getUserByTelegramId(
-        ctx.from.id
-      );
+      // BEAST MODE: Hybrid approach - Smart Optimizer with bulletproof fallback
+      let user;
+      try {
+        try {
+          if (smartOptimizer && typeof smartOptimizer.getUser === "function") {
+            console.log(
+              "🚀 Attempting Smart Optimizer for user retrieval in referrals"
+            );
+            user = await smartOptimizer.getUser(ctx.from.id);
+            console.log(
+              "✅ Smart Optimizer success - user:",
+              user ? "found" : "not found"
+            );
+          } else {
+            throw new Error("Smart Optimizer not available");
+          }
+        } catch (optimizerError) {
+          console.log(
+            "⚠️ Smart Optimizer failed in referrals, using regular userService:",
+            optimizerError.message
+          );
+          user = await userService.userService.getUserByTelegramId(ctx.from.id);
+          console.log(
+            "✅ Regular service success in referrals - user:",
+            user ? "found" : "not found"
+          );
+        }
+      } catch (getUserError) {
+        console.log(
+          "⚠️ All user retrieval methods failed in referrals:",
+          getUserError.message
+        );
+        user = null;
+      }
       const userLanguage = ctx.session?.language || user?.language || "en";
 
       if (blockIfBanned(ctx, user)) return;
@@ -1468,9 +1569,41 @@ class UserHandlers {
     try {
       ctx.session = {}; // Reset session state
       const telegramId = ctx.from.id;
-      const user = await userService.userService.getUserByTelegramId(
-        telegramId
-      );
+
+      // BEAST MODE: Hybrid approach - Smart Optimizer with bulletproof fallback
+      let user;
+      try {
+        try {
+          if (smartOptimizer && typeof smartOptimizer.getUser === "function") {
+            console.log(
+              "🚀 Attempting Smart Optimizer for user retrieval in profile"
+            );
+            user = await smartOptimizer.getUser(telegramId);
+            console.log(
+              "✅ Smart Optimizer success - user:",
+              user ? "found" : "not found"
+            );
+          } else {
+            throw new Error("Smart Optimizer not available");
+          }
+        } catch (optimizerError) {
+          console.log(
+            "⚠️ Smart Optimizer failed in profile, using regular userService:",
+            optimizerError.message
+          );
+          user = await userService.userService.getUserByTelegramId(telegramId);
+          console.log(
+            "✅ Regular service success in profile - user:",
+            user ? "found" : "not found"
+          );
+        }
+      } catch (getUserError) {
+        console.log(
+          "⚠️ All user retrieval methods failed in profile:",
+          getUserError.message
+        );
+        user = null;
+      }
       const userLanguage = ctx.session?.language || user.language || "en";
 
       if (blockIfBanned(ctx, user)) return;
@@ -1726,9 +1859,40 @@ What would you like to do?
 
   async handleBalance(ctx) {
     try {
-      const user = await userService.userService.getUserByTelegramId(
-        ctx.from.id
-      );
+      // BEAST MODE: Hybrid approach - Smart Optimizer with bulletproof fallback
+      let user;
+      try {
+        try {
+          if (smartOptimizer && typeof smartOptimizer.getUser === "function") {
+            console.log(
+              "🚀 Attempting Smart Optimizer for user retrieval in balance"
+            );
+            user = await smartOptimizer.getUser(ctx.from.id);
+            console.log(
+              "✅ Smart Optimizer success - user:",
+              user ? "found" : "not found"
+            );
+          } else {
+            throw new Error("Smart Optimizer not available");
+          }
+        } catch (optimizerError) {
+          console.log(
+            "⚠️ Smart Optimizer failed in balance, using regular userService:",
+            optimizerError.message
+          );
+          user = await userService.userService.getUserByTelegramId(ctx.from.id);
+          console.log(
+            "✅ Regular service success in balance - user:",
+            user ? "found" : "not found"
+          );
+        }
+      } catch (getUserError) {
+        console.log(
+          "⚠️ All user retrieval methods failed in balance:",
+          getUserError.message
+        );
+        user = null;
+      }
       const userLanguage = ctx.session?.language || user?.language || "en";
 
       if (blockIfBanned(ctx, user)) return;
@@ -2670,9 +2834,40 @@ Toggle notifications:
 
   async handleFavorites(ctx, pageArg) {
     try {
-      const user = await userService.userService.getUserByTelegramId(
-        ctx.from.id
-      );
+      // BEAST MODE: Hybrid approach - Smart Optimizer with bulletproof fallback
+      let user;
+      try {
+        try {
+          if (smartOptimizer && typeof smartOptimizer.getUser === "function") {
+            console.log(
+              "🚀 Attempting Smart Optimizer for user retrieval in favorites"
+            );
+            user = await smartOptimizer.getUser(ctx.from.id);
+            console.log(
+              "✅ Smart Optimizer success - user:",
+              user ? "found" : "not found"
+            );
+          } else {
+            throw new Error("Smart Optimizer not available");
+          }
+        } catch (optimizerError) {
+          console.log(
+            "⚠️ Smart Optimizer failed in favorites, using regular userService:",
+            optimizerError.message
+          );
+          user = await userService.userService.getUserByTelegramId(ctx.from.id);
+          console.log(
+            "✅ Regular service success in favorites - user:",
+            user ? "found" : "not found"
+          );
+        }
+      } catch (getUserError) {
+        console.log(
+          "⚠️ All user retrieval methods failed in favorites:",
+          getUserError.message
+        );
+        user = null;
+      }
       const userLanguage = ctx.session?.language || user?.language || "en";
 
       if (blockIfBanned(ctx, user)) return;
@@ -2822,9 +3017,40 @@ Toggle notifications:
 
   async handleCart(ctx, pageArg) {
     try {
-      const user = await userService.userService.getUserByTelegramId(
-        ctx.from.id
-      );
+      // BEAST MODE: Hybrid approach - Smart Optimizer with bulletproof fallback
+      let user;
+      try {
+        try {
+          if (smartOptimizer && typeof smartOptimizer.getUser === "function") {
+            console.log(
+              "🚀 Attempting Smart Optimizer for user retrieval in cart"
+            );
+            user = await smartOptimizer.getUser(ctx.from.id);
+            console.log(
+              "✅ Smart Optimizer success - user:",
+              user ? "found" : "not found"
+            );
+          } else {
+            throw new Error("Smart Optimizer not available");
+          }
+        } catch (optimizerError) {
+          console.log(
+            "⚠️ Smart Optimizer failed in cart, using regular userService:",
+            optimizerError.message
+          );
+          user = await userService.userService.getUserByTelegramId(ctx.from.id);
+          console.log(
+            "✅ Regular service success in cart - user:",
+            user ? "found" : "not found"
+          );
+        }
+      } catch (getUserError) {
+        console.log(
+          "⚠️ All user retrieval methods failed in cart:",
+          getUserError.message
+        );
+        user = null;
+      }
       const userLanguage = ctx.session?.language || user?.language || "en";
 
       if (blockIfBanned(ctx, user)) return;
@@ -2995,7 +3221,9 @@ Toggle notifications:
 
   async handleMyReferralCodes(ctx, pageArg) {
     try {
-      const user = await userService.userService.getUserByTelegramId(ctx.from.id);
+      const user = await userService.userService.getUserByTelegramId(
+        ctx.from.id
+      );
       const userLanguage = ctx.session?.language || user?.language || "en";
 
       if (blockIfBanned(ctx, user)) return;
