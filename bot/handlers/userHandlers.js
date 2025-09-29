@@ -202,8 +202,20 @@ class UserHandlers {
         }
       }
 
-      // Create or update user in Firestore using Smart Optimizer
-      user = await smartOptimizer.createOrUpdateUser(userData);
+      // Create or update user in Firestore using hybrid approach
+      try {
+        if (smartOptimizer && typeof smartOptimizer.createOrUpdateUser === 'function') {
+          console.log("🚀 Attempting Smart Optimizer for user update");
+          user = await smartOptimizer.createOrUpdateUser(userData);
+          console.log("✅ Smart Optimizer update success");
+        } else {
+          throw new Error("Smart Optimizer not available");
+        }
+      } catch (optimizerError) {
+        console.log("⚠️ Smart Optimizer update failed, using regular userService:", optimizerError.message);
+        user = await userService.createOrUpdateUser(userData);
+        console.log("✅ Regular service update success");
+      }
       console.log("[DEBUG] handleStart user:", user);
 
       // After fetching user, map phone_verified to phoneVerified for compatibility

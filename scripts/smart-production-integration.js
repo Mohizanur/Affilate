@@ -1,4 +1,5 @@
 const SmartRealisticOptimizer = require('./smart-realistic-optimizer');
+const admin = require('firebase-admin');
 
 /**
  * SMART PRODUCTION INTEGRATION
@@ -88,8 +89,8 @@ class SmartProductionIntegration {
             const userDoc = {
                 id: userId,
                 ...userData,
-                createdAt: this.optimizer.db.FieldValue.serverTimestamp(),
-                updatedAt: this.optimizer.db.FieldValue.serverTimestamp()
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
             };
             
             await userRef.set(userDoc);
@@ -119,7 +120,7 @@ class SmartProductionIntegration {
             const userRef = this.optimizer.db.collection('users').doc(user.id);
             await userRef.update({
                 ...updateData,
-                updatedAt: this.optimizer.db.FieldValue.serverTimestamp()
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
             });
             
             this.optimizer.performanceMetrics.quotaUsage.writes += 1;
@@ -212,8 +213,8 @@ class SmartProductionIntegration {
             const companyDoc = {
                 id: companyId,
                 ...companyData,
-                createdAt: this.optimizer.db.FieldValue.serverTimestamp(),
-                updatedAt: this.optimizer.db.FieldValue.serverTimestamp()
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
             };
             
             await companyRef.set(companyDoc);
@@ -260,7 +261,7 @@ class SmartProductionIntegration {
             const referralDoc = {
                 id: referralId,
                 ...referralData,
-                createdAt: this.optimizer.db.FieldValue.serverTimestamp()
+                createdAt: admin.firestore.FieldValue.serverTimestamp()
             };
             
             await referralRef.set(referralDoc);
@@ -357,8 +358,8 @@ class SmartProductionIntegration {
             const orderDoc = {
                 id: orderId,
                 ...orderData,
-                createdAt: this.optimizer.db.FieldValue.serverTimestamp(),
-                updatedAt: this.optimizer.db.FieldValue.serverTimestamp()
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
             };
             
             await orderRef.set(orderDoc);
