@@ -71,7 +71,8 @@ class DatabaseService {
     if (!this.initialized) {
       throw new Error("Database not initialized. Call initialize() first.");
     }
-    return this.db;
+    // Ensure we return the admin.firestore() instance for session storage
+    return admin.firestore();
   }
 
   // Collection references

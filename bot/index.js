@@ -265,19 +265,44 @@ async function startBot(app) {
     const notificationService = new NotificationService(bot);
     setNotificationServiceInstance(notificationService);
 
-    // Add error handlers
+    // Add error handlers with better error recovery
     bot.catch((err, ctx) => {
       console.error("❌ Bot error:", err);
+      
+      // Don't let session errors crash the bot
+      if (err.message && err.message.includes('collection.doc is not a function')) {
+        console.log("⚠️ Session error detected, continuing operation...");
+        return;
+      }
+      
+      // Send error message to user if possible
+      if (ctx && ctx.reply) {
+        try {
+          ctx.reply("⚠️ An error occurred. Please try again.");
+        } catch (replyError) {
+          console.error("Failed to send error message:", replyError);
+        }
+      }
     });
 
     // BEAST MODE: Firestore session storage for scalability
-    const FirestoreSession = require("telegraf-session-firestore");
-    bot.use(
-      new FirestoreSession({
-        database: databaseService.getDb(),
-        collection: "bot_sessions",
-      })
-    );
+    try {
+      const FirestoreSession = require("telegraf-session-firestore");
+      bot.use(
+        new FirestoreSession({
+          database: databaseService.getDb(),
+          collection: "bot_sessions",
+        })
+      );
+      console.log("✅ Firestore session storage initialized");
+    } catch (error) {
+      console.log("⚠️ Firestore session failed, falling back to local sessions:", error.message);
+      // Fallback to local sessions
+      const LocalSession = require("telegraf-session-local");
+      bot.use(
+        new LocalSession({ database: "./temp/session_db.json" }).middleware()
+      );
+    }
 
     // Add maintenance mode middleware
     bot.use(async (ctx, next) => {
