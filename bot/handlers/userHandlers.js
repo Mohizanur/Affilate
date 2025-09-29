@@ -98,29 +98,60 @@ class UserHandlers {
       console.log("🚀 Starting handleStart for user:", ctx.from.id);
       let user;
       
-      // BEAST MODE: Use regular userService for maximum reliability
+      // BEAST MODE: Hybrid approach - Smart Optimizer with bulletproof fallback
       try {
-        console.log("📊 Using regular userService for maximum reliability");
-        user = await userService.getUserByTelegramId(ctx.from.id);
-        console.log("✅ User retrieved successfully:", user ? "found" : "not found");
+        // Try Smart Optimizer first (for performance), fallback to regular service (for reliability)
+        try {
+          if (smartOptimizer && typeof smartOptimizer.getUser === 'function') {
+            console.log("🚀 Attempting Smart Optimizer for user retrieval");
+            user = await smartOptimizer.getUser(ctx.from.id);
+            console.log("✅ Smart Optimizer success - user:", user ? "found" : "not found");
+          } else {
+            throw new Error("Smart Optimizer not available");
+          }
+        } catch (optimizerError) {
+          console.log("⚠️ Smart Optimizer failed, using regular userService:", optimizerError.message);
+          user = await userService.getUserByTelegramId(ctx.from.id);
+          console.log("✅ Regular service success - user:", user ? "found" : "not found");
+        }
       } catch (getUserError) {
-        console.log("⚠️ Failed to get user:", getUserError.message);
+        console.log("⚠️ All user retrieval methods failed:", getUserError.message);
         user = null;
       }
 
-      // If user not found, create them
+      // If user not found, create them with hybrid approach
       if (!user) {
         try {
           console.log("📝 Creating new user for:", ctx.from.id);
-          user = await userService.createOrUpdateUser({
-            telegramId: ctx.from.id,
-            username: ctx.from.username || null,
-            firstName: ctx.from.first_name || null,
-            lastName: ctx.from.last_name || null,
-          });
-          console.log("✅ User created successfully");
+          
+          // Try Smart Optimizer first for creation
+          try {
+            if (smartOptimizer && typeof smartOptimizer.createOrUpdateUser === 'function') {
+              console.log("🚀 Attempting Smart Optimizer for user creation");
+              user = await smartOptimizer.createOrUpdateUser({
+                telegramId: ctx.from.id,
+                username: ctx.from.username || null,
+                firstName: ctx.from.first_name || null,
+                lastName: ctx.from.last_name || null,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+              console.log("✅ Smart Optimizer creation success");
+            } else {
+              throw new Error("Smart Optimizer not available");
+            }
+          } catch (optimizerError) {
+            console.log("⚠️ Smart Optimizer creation failed, using regular userService:", optimizerError.message);
+            user = await userService.createOrUpdateUser({
+              telegramId: ctx.from.id,
+              username: ctx.from.username || null,
+              firstName: ctx.from.first_name || null,
+              lastName: ctx.from.last_name || null,
+            });
+            console.log("✅ Regular service creation success");
+          }
         } catch (createError) {
-          console.error("❌ Failed to create user:", createError);
+          console.error("❌ All user creation methods failed:", createError);
           throw createError;
         }
       }
