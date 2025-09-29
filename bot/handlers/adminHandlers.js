@@ -68,8 +68,26 @@ class AdminHandlers {
   async isAdminAsync(telegramId) {
     if (this.adminIds.includes(telegramId)) return true;
     try {
-      // 🚀 Use Smart Optimizer for optimized user retrieval with caching
-      const user = await smartOptimizer.getUser(telegramId);
+      // BEAST MODE: Hybrid approach - Smart Optimizer with bulletproof fallback
+      let user;
+      try {
+        try {
+          if (smartOptimizer && typeof smartOptimizer.getUser === 'function') {
+            console.log("🚀 Attempting Smart Optimizer for admin check");
+            user = await smartOptimizer.getUser(telegramId);
+            console.log("✅ Smart Optimizer success for admin check - user:", user ? "found" : "not found");
+          } else {
+            throw new Error("Smart Optimizer not available");
+          }
+        } catch (optimizerError) {
+          console.log("⚠️ Smart Optimizer failed for admin check, using regular userService:", optimizerError.message);
+          user = await userService.getUserByTelegramId(telegramId);
+          console.log("✅ Regular service success for admin check - user:", user ? "found" : "not found");
+        }
+      } catch (getUserError) {
+        console.log("⚠️ All user retrieval methods failed for admin check:", getUserError.message);
+        user = null;
+      }
       return user && (user.role === "admin" || user.isAdmin === true);
     } catch {
       return false;
