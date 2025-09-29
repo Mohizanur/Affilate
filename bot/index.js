@@ -269,23 +269,26 @@ async function startBot(app) {
     bot.catch((err, ctx) => {
       // Log error for debugging
       console.error("❌ Bot error:", err.message);
-      
+
       // Handle specific error types gracefully
-      if (err.message && (
-        err.message.includes('collection.doc is not a function') ||
-        err.message.includes('session') ||
-        err.message.includes('firestore')
-      )) {
-        console.log("⚠️ Database/session error detected, continuing operation...");
+      if (
+        err.message &&
+        (err.message.includes("collection.doc is not a function") ||
+          err.message.includes("session") ||
+          err.message.includes("firestore"))
+      ) {
+        console.log(
+          "⚠️ Database/session error detected, continuing operation..."
+        );
         return;
       }
-      
+
       // Handle Telegram API errors
       if (err.code && (err.code === 429 || err.code === 420)) {
         console.log("⚠️ Rate limit error, continuing operation...");
         return;
       }
-      
+
       // Send user-friendly error message
       if (ctx && ctx.reply && ctx.from) {
         try {
@@ -297,7 +300,9 @@ async function startBot(app) {
     });
 
     // BEAST MODE: Using local sessions for maximum stability
-    console.log("🔧 Initializing local session storage for maximum stability...");
+    console.log(
+      "🔧 Initializing local session storage for maximum stability..."
+    );
     const LocalSession = require("telegraf-session-local");
     bot.use(
       new LocalSession({ database: "./temp/session_db.json" }).middleware()

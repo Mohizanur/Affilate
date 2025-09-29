@@ -97,19 +97,39 @@ class UserHandlers {
     try {
       let user;
       try {
-        // 🚀 Use Smart Optimizer for optimized user retrieval with caching
-        user = await smartOptimizer.getUser(ctx.from.id);
+        // 🚀 Try Smart Optimizer first, fallback to regular service
+        try {
+          user = await smartOptimizer.getUser(ctx.from.id);
+        } catch (optimizerError) {
+          console.log("⚠️ Smart Optimizer failed, using regular userService:", optimizerError.message);
+          user = await userService.getUserByTelegramId(ctx.from.id);
+        }
       } catch (err) {
-        if (err.message === "User not found") {
-          // Create the user if not found using Smart Optimizer
-          user = await smartOptimizer.createOrUpdateUser({
-            telegramId: ctx.from.id,
-            username: ctx.from.username || null,
-            firstName: ctx.from.first_name || null,
-            lastName: ctx.from.last_name || null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          });
+        if (err.message === "User not found" || !user) {
+          try {
+            // Try Smart Optimizer first, fallback to regular service
+            try {
+              user = await smartOptimizer.createOrUpdateUser({
+                telegramId: ctx.from.id,
+                username: ctx.from.username || null,
+                firstName: ctx.from.first_name || null,
+                lastName: ctx.from.last_name || null,
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              });
+            } catch (optimizerError) {
+              console.log("⚠️ Smart Optimizer create failed, using regular userService:", optimizerError.message);
+              user = await userService.createOrUpdateUser({
+                telegramId: ctx.from.id,
+                username: ctx.from.username || null,
+                firstName: ctx.from.first_name || null,
+                lastName: ctx.from.last_name || null,
+              });
+            }
+          } catch (createError) {
+            console.error("❌ Failed to create user:", createError);
+            throw createError;
+          }
         } else {
           throw err;
         }
