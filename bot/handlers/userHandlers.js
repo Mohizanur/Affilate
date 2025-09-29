@@ -138,7 +138,7 @@ class UserHandlers {
             "⚠️ Smart Optimizer failed, using regular userService:",
             optimizerError.message
           );
-          user = await userService.getUserByTelegramId(ctx.from.id);
+          user = await userService.userService.getUserByTelegramId(ctx.from.id);
           console.log(
             "✅ Regular service success - user:",
             user ? "found" : "not found"
@@ -181,11 +181,13 @@ class UserHandlers {
               "⚠️ Smart Optimizer creation failed, using regular userService:",
               optimizerError.message
             );
-            user = await userService.createOrUpdateUser({
+            user = await userService.userService.createUser({
               telegramId: ctx.from.id,
               username: ctx.from.username || null,
               firstName: ctx.from.first_name || null,
               lastName: ctx.from.last_name || null,
+              createdAt: new Date(),
+              updatedAt: new Date(),
             });
             console.log("✅ Regular service creation success");
           }
@@ -258,7 +260,7 @@ class UserHandlers {
           "⚠️ Smart Optimizer update failed, using regular userService:",
           optimizerError.message
         );
-        user = await userService.createOrUpdateUser(userData);
+        user = await userService.userService.createOrUpdateUser(userData);
         console.log("✅ Regular service update success");
       }
       console.log("[DEBUG] handleStart user:", user);
