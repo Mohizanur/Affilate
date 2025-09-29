@@ -69,19 +69,11 @@ function requirePhoneVerification(ctx, user, userLanguage) {
     "🔍 requirePhoneVerification - User object:",
     JSON.stringify(user, null, 2)
   );
-
-  // Ensure both fields are mapped for consistency
-  if (user.phone_verified && typeof user.phoneVerified === "undefined") {
-    user.phoneVerified = user.phone_verified;
-  }
-  if (user.phoneVerified && typeof user.phone_verified === "undefined") {
-    user.phone_verified = user.phoneVerified;
-  }
-
+  
   // Check both phone_verified and phoneVerified fields
   const isPhoneVerified =
     user.phone_verified === true || user.phoneVerified === true;
-
+  
   console.log(
     "🔍 requirePhoneVerification - phone_verified:",
     user.phone_verified
@@ -94,7 +86,7 @@ function requirePhoneVerification(ctx, user, userLanguage) {
     "🔍 requirePhoneVerification - isPhoneVerified:",
     isPhoneVerified
   );
-
+  
   if (!isPhoneVerified) {
     ctx.reply(t("must_verify_phone", {}, userLanguage), {
       reply_markup: {
@@ -265,12 +257,9 @@ class UserHandlers {
       }
       console.log("[DEBUG] handleStart user:", user);
 
-      // After fetching user, map phone verification fields for compatibility
+      // After fetching user, map phone_verified to phoneVerified for compatibility
       if (user.phone_verified && typeof user.phoneVerified === "undefined") {
         user.phoneVerified = user.phone_verified;
-      }
-      if (user.phoneVerified && typeof user.phone_verified === "undefined") {
-        user.phone_verified = user.phoneVerified;
       }
 
       const isVerified = user.phoneVerified;
