@@ -1846,11 +1846,50 @@ class UserHandlers {
   async handleMainMenu(ctx) {
     try {
       ctx.session = {}; // Reset session state
-      const menuMessage = `
-🏠 *Main Menu*
+      
+      // BEAST MODE: Hybrid approach - Smart Optimizer with bulletproof fallback
+      let user;
+      try {
+        try {
+          if (smartOptimizer && typeof smartOptimizer.getUser === 'function') {
+            console.log("🚀 Attempting Smart Optimizer for user retrieval in main menu");
+            user = await smartOptimizer.getUser(ctx.from.id);
+            console.log("✅ Smart Optimizer success in main menu - user:", user ? "found" : "not found");
+          } else {
+            throw new Error("Smart Optimizer not available");
+          }
+        } catch (optimizerError) {
+          console.log("⚠️ Smart Optimizer failed in main menu, using regular userService:", optimizerError.message);
+          user = await userService.userService.getUserByTelegramId(ctx.from.id);
+          console.log("✅ Regular service success in main menu - user:", user ? "found" : "not found");
+        }
+      } catch (getUserError) {
+        console.log("⚠️ All user retrieval methods failed in main menu:", getUserError.message);
+        user = null;
+      }
+      
+      const userLanguage = ctx.session?.language || user?.language || "en";
+      
+      // After fetching user, map phone verification fields for compatibility
+      if (user) {
+        if (user.phone_verified && typeof user.phoneVerified === "undefined") {
+          user.phoneVerified = user.phone_verified;
+        }
+        if (user.phoneVerified && typeof user.phone_verified === "undefined") {
+          user.phone_verified = user.phoneVerified;
+        }
+      }
 
-What would you like to do?
-      `;
+      const isVerified = user?.phoneVerified;
+      const isAdmin = user?.role === "admin" || user?.isAdmin === true;
+      
+      // Debug logging for main menu
+      console.log("🔍 Main Menu Function Debug - User ID:", ctx.from.id);
+      console.log("🔍 Main Menu Function Debug - User role:", user?.role);
+      console.log("🔍 Main Menu Function Debug - User isAdmin:", user?.isAdmin);
+      console.log("🔍 Main Menu Function Debug - isAdmin result:", isAdmin);
+      console.log("🔍 Main Menu Function Debug - User phoneVerified:", user?.phoneVerified);
+      console.log("🔍 Main Menu Function Debug - isVerified result:", isVerified);
 
       const buttons = [
         [
@@ -1861,11 +1900,29 @@ What would you like to do?
           Markup.button.callback("👤 Profile", "user_profile"),
           Markup.button.callback("📋 Order History", "order_history"),
         ],
-        [
+      ];
+      
+      // Only add verify phone button if user is not verified
+      if (!isVerified) {
+        buttons.push([
           Markup.button.callback("📱 Verify Phone", "verify_phone"),
           Markup.button.callback(t("btn_help", {}, userLanguage), "help"),
-        ],
-      ];
+        ]);
+      } else {
+        buttons.push([
+          Markup.button.callback(t("btn_help", {}, userLanguage), "help"),
+        ]);
+      }
+      
+      // Add admin panel button if user is admin
+      if (isAdmin) {
+        buttons.push([
+          Markup.button.callback(
+            t("btn_admin_panel", {}, userLanguage),
+            "admin_panel"
+          ),
+        ]);
+      }
 
       ctx.reply(t("main_menu"), {
         parse_mode: "Markdown",
@@ -1873,6 +1930,7 @@ What would you like to do?
       });
     } catch (error) {
       logger.error("Error showing main menu:", error);
+      const userLanguage = ctx.session?.language || "en";
       ctx.reply(t("msg__failed_to_load_menu", {}, userLanguage));
     }
   }
