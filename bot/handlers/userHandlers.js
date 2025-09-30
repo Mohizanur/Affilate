@@ -111,80 +111,37 @@ class UserHandlers {
       console.log("🚀 Starting handleStart for user:", ctx.from.id);
       let user;
 
-      // BEAST MODE: Hybrid approach - Smart Optimizer with bulletproof fallback
+      // Use regular userService directly for reliability
       try {
-        // Try Smart Optimizer first (for performance), fallback to regular service (for reliability)
-        try {
-          if (smartOptimizer && typeof smartOptimizer.getUser === "function") {
-            console.log("🚀 Attempting Smart Optimizer for user retrieval");
-            user = await smartOptimizer.getUser(ctx.from.id);
-            console.log(
-              "✅ Smart Optimizer success - user:",
-              user ? "found" : "not found"
-            );
-          } else {
-            throw new Error("Smart Optimizer not available");
-          }
-        } catch (optimizerError) {
-          console.log(
-            "⚠️ Smart Optimizer failed, using regular userService:",
-            optimizerError.message
-          );
-          user = await userService.userService.getUserByTelegramId(ctx.from.id);
-          console.log(
-            "✅ Regular service success - user:",
-            user ? "found" : "not found"
-          );
+        console.log("🔍 Getting user data for:", ctx.from.id);
+        user = await userService.userService.getUserByTelegramId(ctx.from.id);
+        console.log("✅ User retrieved:", user ? "found" : "not found");
+        if (user) {
+          console.log("🔍 User role:", user.role);
+          console.log("🔍 User isAdmin:", user.isAdmin);
+          console.log("🔍 User phoneVerified:", user.phoneVerified);
+          console.log("🔍 User phone_verified:", user.phone_verified);
         }
       } catch (getUserError) {
-        console.log(
-          "⚠️ All user retrieval methods failed:",
-          getUserError.message
-        );
+        console.log("❌ User retrieval failed:", getUserError.message);
         user = null;
       }
 
-      // If user not found, create them with hybrid approach
+      // If user not found, create them
       if (!user) {
         try {
           console.log("📝 Creating new user for:", ctx.from.id);
-
-          // Try Smart Optimizer first for creation
-          try {
-            if (
-              smartOptimizer &&
-              typeof smartOptimizer.createOrUpdateUser === "function"
-            ) {
-              console.log("🚀 Attempting Smart Optimizer for user creation");
-              user = await smartOptimizer.createOrUpdateUser({
-                telegramId: ctx.from.id,
-                username: ctx.from.username || null,
-                firstName: ctx.from.first_name || null,
-                lastName: ctx.from.last_name || null,
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              });
-              console.log("✅ Smart Optimizer creation success");
-            } else {
-              throw new Error("Smart Optimizer not available");
-            }
-          } catch (optimizerError) {
-            console.log(
-              "⚠️ Smart Optimizer creation failed, using regular userService:",
-              optimizerError.message
-            );
-            user = await userService.userService.createUser({
-              telegramId: ctx.from.id,
-              username: ctx.from.username || null,
-              firstName: ctx.from.first_name || null,
-              lastName: ctx.from.last_name || null,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-            });
-            console.log("✅ Regular service creation success");
-          }
+          user = await userService.userService.createUser({
+            telegramId: ctx.from.id,
+            username: ctx.from.username || null,
+            firstName: ctx.from.first_name || null,
+            lastName: ctx.from.last_name || null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+          console.log("✅ User created successfully");
         } catch (createError) {
-          console.error("❌ All user creation methods failed:", createError);
+          console.error("❌ User creation failed:", createError);
           throw createError;
         }
       }
@@ -235,25 +192,13 @@ class UserHandlers {
         }
       }
 
-      // Create or update user in Firestore using hybrid approach
+      // Update user data if needed
       try {
-        if (
-          smartOptimizer &&
-          typeof smartOptimizer.createOrUpdateUser === "function"
-        ) {
-          console.log("🚀 Attempting Smart Optimizer for user update");
-          user = await smartOptimizer.createOrUpdateUser(userData);
-          console.log("✅ Smart Optimizer update success");
-        } else {
-          throw new Error("Smart Optimizer not available");
-        }
-      } catch (optimizerError) {
-        console.log(
-          "⚠️ Smart Optimizer update failed, using regular userService:",
-          optimizerError.message
-        );
+        console.log("🔄 Updating user data for:", ctx.from.id);
         user = await userService.userService.createOrUpdateUser(userData);
-        console.log("✅ Regular service update success");
+        console.log("✅ User data updated successfully");
+      } catch (updateError) {
+        console.log("⚠️ User update failed, continuing with existing data:", updateError.message);
       }
       console.log("[DEBUG] handleStart user:", user);
 
