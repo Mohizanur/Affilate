@@ -1545,7 +1545,7 @@ class UserHandlers {
   async handleJoinCompany(ctx, companyId) {
     try {
       const telegramId = ctx.from.id;
-      const user = await userService.getUserByTelegramId(telegramId);
+      const user = await userService.userService.getUserByTelegramId(telegramId);
       const userLanguage = ctx.session?.language || user.language || "en";
 
       // Fetch company info (assume companyService.getCompanyById exists)
@@ -1672,7 +1672,7 @@ class UserHandlers {
     try {
       ctx.session = {}; // Reset session state
       const telegramId = ctx.from.id;
-      const user = await userService.getUserByTelegramId(telegramId);
+      const user = await userService.userService.getUserByTelegramId(telegramId);
       const userLanguage = ctx.session?.language || user.language || "en";
 
       if (blockIfBanned(ctx, user)) return;
@@ -4484,7 +4484,7 @@ Toggle notifications:
       );
 
       // Notify user
-      const user = await userService.getUserByTelegramId(withdrawal.userId);
+      const user = await userService.userService.getUserByTelegramId(withdrawal.userId);
       const company =
         await require("../services/companyService").getCompanyById(
           withdrawal.companyId
