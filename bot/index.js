@@ -241,6 +241,16 @@ async function startBot(app) {
     const memoryManager = require("./config/memoryManager");
     console.log("🧠 Memory Manager initialized for optimal performance");
 
+    // BEAST MODE: Initialize quota protector for bulletproof quota management
+    const quotaProtector = require("./config/quotaProtector");
+    console.log(
+      "🛡️ Quota Protector initialized for bulletproof quota management"
+    );
+
+    // BEAST MODE: Initialize cache system for instant responses
+    const cacheService = require("./config/cache");
+    console.log("⚡ Cache System initialized for instant responses");
+
     // 🚀 Initialize Smart Realistic Optimizer
     console.log("🚀 Initializing Smart Realistic Optimizer...");
     await smartOptimizer.initializeSmartOptimizer();
