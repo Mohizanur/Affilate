@@ -377,6 +377,13 @@ async function startBot(app) {
     const cacheService = require("./config/cache");
     console.log("⚡ Cache System initialized for instant responses");
 
+    // 🛡️ Initialize Quota-Aware System (CRITICAL - Prevents quota exhaustion)
+    console.log("🛡️ Initializing Quota-Aware System to prevent quota exhaustion...");
+    const quotaAwareInitializer = require("./config/quotaAwareInitializer");
+    await quotaAwareInitializer.initialize();
+    console.log("✅ Quota-Aware System initialized - quota protected!");
+    performanceLogger.system("✅ Quota-Aware System initialized");
+
     // 🚀 Initialize Smart Realistic Optimizer
     console.log("🚀 Initializing Smart Realistic Optimizer...");
     await smartOptimizer.initializeSmartOptimizer();

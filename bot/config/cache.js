@@ -46,7 +46,16 @@ class CacheService {
       maxKeys: 1000,
       checkperiod: 30, // Check every 30 seconds
       useClones: false,
-      deleteOnExpire: true,
+      deleteOnExpire: false, // Keep for stale cache access
+    });
+
+    // 🎯 Stale cache for quota protection
+    this.staleCache = new NodeCache({
+      stdTTL: 3600, // 1 hour - keep stale data longer
+      maxKeys: 5000,
+      checkperiod: 600, // Check every 10 minutes
+      useClones: false,
+      deleteOnExpire: false, // Never delete - always available as fallback
     });
 
     // Pre-warm cache with common data patterns
@@ -194,6 +203,54 @@ class CacheService {
     }
   }
 
+  // 🎯 Get data from stale cache (for quota protection)
+  getStale(key) {
+    // Try instant cache first (might be expired but still there)
+    let value = this.instantCache.get(key, false); // Don't update TTL
+    if (value) return value;
+    
+    // Try stale cache
+    value = this.staleCache.get(key);
+    if (value) return value;
+    
+    // Try other caches
+    value = this.userCache.get(key, false) || 
+            this.companyCache.get(key, false) || 
+            this.statsCache.get(key, false);
+    
+    return value;
+  }
+
+  // 🎯 Set data in both regular and stale cache
+  set(key, value, ttl) {
+    // Set in appropriate cache
+    if (key.includes('user:')) {
+      this.userCache.set(key, value, ttl);
+    } else if (key.includes('company:')) {
+      this.companyCache.set(key, value, ttl);
+    } else if (key.includes('stats:') || key.includes('leaderboard:')) {
+      this.statsCache.set(key, value, ttl);
+    } else {
+      this.instantCache.set(key, value, ttl);
+    }
+    
+    // Always set in stale cache for fallback
+    this.staleCache.set(key, value, 3600); // 1 hour in stale cache
+  }
+
+  // 🎯 Get data from regular cache
+  get(key) {
+    if (key.includes('user:')) {
+      return this.userCache.get(key);
+    } else if (key.includes('company:')) {
+      return this.companyCache.get(key);
+    } else if (key.includes('stats:') || key.includes('leaderboard:')) {
+      return this.statsCache.get(key);
+    } else {
+      return this.instantCache.get(key);
+    }
+  }
+
   // BEAST MODE: Cache health monitoring
   getCacheHealth() {
     return {
@@ -214,6 +271,11 @@ class CacheService {
             (this.instantCache.getStats().hits +
               this.instantCache.getStats().misses)) *
           100,
+      },
+      staleCache: {
+        keys: this.staleCache.keys().length,
+        maxKeys: this.staleCache.options.maxKeys,
+        purpose: "Quota protection fallback"
       },
     };
   }

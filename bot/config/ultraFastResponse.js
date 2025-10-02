@@ -57,71 +57,63 @@ class UltraFastResponse {
   }
 
   /**
-   * Pre-warm critical caches for instant responses
+   * Pre-warm critical caches for instant responses (QUOTA-AWARE)
    */
   async preWarmCaches() {
     try {
-      const databaseService = require("./database");
+      const quotaAwareInitializer = require("./quotaAwareInitializer");
       const cacheService = require("./cache");
       
-      // Check if database is initialized before trying to use it
-      if (databaseService.isInitialized && databaseService.isInitialized()) {
-        // Pre-load common user data
-        const commonUsers = await databaseService.users()
-          .orderBy("last_active", "desc")
-          .limit(100)
-          .get();
-        
-        commonUsers.docs.forEach(doc => {
-          const userData = doc.data();
+      // Use quota-aware initialization data instead of direct database queries
+      const cacheData = quotaAwareInitializer.getQuotaSafeCacheData();
+      
+      // Pre-load user data from quota-safe source
+      cacheData.users.forEach(userData => {
+        if (userData.telegram_id) {
           cacheService.setUser(userData.telegram_id, userData);
           this.precomputedResponses.set(`user:${userData.telegram_id}`, userData);
-        });
-        
-        // Pre-load company data
-        const companies = await databaseService.companies()
-          .limit(50)
-          .get();
-        
-        companies.docs.forEach(doc => {
-          const companyData = doc.data();
-          cacheService.setCompany(doc.id, companyData);
-          this.precomputedResponses.set(`company:${doc.id}`, companyData);
-        });
-      }
+        }
+      });
       
-      // Pre-compute common responses
+      // Pre-load company data from quota-safe source
+      cacheData.companies.forEach(companyData => {
+        if (companyData.id) {
+          cacheService.setCompany(companyData.id, companyData);
+          this.precomputedResponses.set(`company:${companyData.id}`, companyData);
+        }
+      });
+      
+      // Pre-compute common responses (quota-aware)
       await this.preComputeCommonResponses();
       
-      logger.info("🔥 Caches pre-warmed for instant responses");
+      logger.info(`🛡️ Quota-safe caches pre-warmed: ${cacheData.users.length} users, ${cacheData.companies.length} companies`);
     } catch (error) {
       logger.error("Error pre-warming caches:", error);
+      // Continue initialization even if cache pre-warming fails
     }
   }
 
   /**
-   * Pre-compute common responses for instant delivery
+   * Pre-compute common responses for instant delivery (QUOTA-AWARE)
    */
   async preComputeCommonResponses() {
     try {
-      const databaseService = require("./database");
+      const quotaAwareInitializer = require("./quotaAwareInitializer");
       
-      // Only compute database-dependent responses if database is ready
-      if (databaseService.isInitialized && databaseService.isInitialized()) {
-        // Pre-compute leaderboard data
-        const leaderboardData = await this.computeLeaderboard();
-        this.precomputedResponses.set("leaderboard:global", leaderboardData);
+      // Only compute database-dependent responses if we're the master process
+      if (!quotaAwareInitializer.shouldSkipDatabaseOps()) {
+        const cacheData = quotaAwareInitializer.getQuotaSafeCacheData();
         
-        // Pre-compute stats
-        const statsData = await this.computeStats();
-        this.precomputedResponses.set("stats:global", statsData);
+        // Use pre-computed data instead of making new database queries
+        this.precomputedResponses.set("leaderboard:global", cacheData.leaderboard);
+        this.precomputedResponses.set("stats:global", cacheData.stats);
       }
       
       // Pre-compute common command responses (these don't need database)
       this.precomputedResponses.set("help:response", this.getHelpResponse());
       this.precomputedResponses.set("start:response", this.getStartResponse());
       
-      logger.info("⚡ Common responses pre-computed");
+      logger.info("🛡️ Quota-safe common responses pre-computed");
     } catch (error) {
       logger.error("Error pre-computing responses:", error);
       // Continue initialization even if pre-computation fails
@@ -132,11 +124,19 @@ class UltraFastResponse {
    * Start background processors for continuous optimization
    */
   startBackgroundProcessors() {
-    // Update pre-computed data every 30 seconds
-    setInterval(() => {
-      this.updatePrecomputedData();
-    }, 30000);
+    const quotaAwareInitializer = require("./quotaAwareInitializer");
     
+    // Only master process should do database-heavy background tasks
+    if (!quotaAwareInitializer.shouldSkipDatabaseOps()) {
+      // Update pre-computed data every 5 minutes (reduced frequency to save quota)
+      setInterval(() => {
+        this.updatePrecomputedData();
+      }, 300000); // 5 minutes instead of 30 seconds
+      
+      logger.info("🛡️ Master process: Database background tasks started (quota-safe)");
+    }
+    
+    // All processes can do these lightweight tasks
     // Clean up old cache entries every minute
     setInterval(() => {
       this.cleanupCache();
@@ -151,6 +151,8 @@ class UltraFastResponse {
     setInterval(() => {
       this.updateMetrics();
     }, 10000);
+    
+    logger.info("🛡️ Quota-safe background processors started");
   }
 
   /**
