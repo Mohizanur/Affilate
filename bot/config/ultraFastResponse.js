@@ -64,28 +64,31 @@ class UltraFastResponse {
       const databaseService = require("./database");
       const cacheService = require("./cache");
       
-      // Pre-load common user data
-      const commonUsers = await databaseService.users()
-        .orderBy("last_active", "desc")
-        .limit(100)
-        .get();
-      
-      commonUsers.docs.forEach(doc => {
-        const userData = doc.data();
-        cacheService.setUser(userData.telegram_id, userData);
-        this.precomputedResponses.set(`user:${userData.telegram_id}`, userData);
-      });
-      
-      // Pre-load company data
-      const companies = await databaseService.companies()
-        .limit(50)
-        .get();
-      
-      companies.docs.forEach(doc => {
-        const companyData = doc.data();
-        cacheService.setCompany(doc.id, companyData);
-        this.precomputedResponses.set(`company:${doc.id}`, companyData);
-      });
+      // Check if database is initialized before trying to use it
+      if (databaseService.isInitialized && databaseService.isInitialized()) {
+        // Pre-load common user data
+        const commonUsers = await databaseService.users()
+          .orderBy("last_active", "desc")
+          .limit(100)
+          .get();
+        
+        commonUsers.docs.forEach(doc => {
+          const userData = doc.data();
+          cacheService.setUser(userData.telegram_id, userData);
+          this.precomputedResponses.set(`user:${userData.telegram_id}`, userData);
+        });
+        
+        // Pre-load company data
+        const companies = await databaseService.companies()
+          .limit(50)
+          .get();
+        
+        companies.docs.forEach(doc => {
+          const companyData = doc.data();
+          cacheService.setCompany(doc.id, companyData);
+          this.precomputedResponses.set(`company:${doc.id}`, companyData);
+        });
+      }
       
       // Pre-compute common responses
       await this.preComputeCommonResponses();
@@ -101,21 +104,27 @@ class UltraFastResponse {
    */
   async preComputeCommonResponses() {
     try {
-      // Pre-compute leaderboard data
-      const leaderboardData = await this.computeLeaderboard();
-      this.precomputedResponses.set("leaderboard:global", leaderboardData);
+      const databaseService = require("./database");
       
-      // Pre-compute stats
-      const statsData = await this.computeStats();
-      this.precomputedResponses.set("stats:global", statsData);
+      // Only compute database-dependent responses if database is ready
+      if (databaseService.isInitialized && databaseService.isInitialized()) {
+        // Pre-compute leaderboard data
+        const leaderboardData = await this.computeLeaderboard();
+        this.precomputedResponses.set("leaderboard:global", leaderboardData);
+        
+        // Pre-compute stats
+        const statsData = await this.computeStats();
+        this.precomputedResponses.set("stats:global", statsData);
+      }
       
-      // Pre-compute common command responses
+      // Pre-compute common command responses (these don't need database)
       this.precomputedResponses.set("help:response", this.getHelpResponse());
       this.precomputedResponses.set("start:response", this.getStartResponse());
       
       logger.info("⚡ Common responses pre-computed");
     } catch (error) {
       logger.error("Error pre-computing responses:", error);
+      // Continue initialization even if pre-computation fails
     }
   }
 

@@ -123,7 +123,13 @@ class ConnectionPool {
         pool.idleConnections.add(connection);
         pool.metrics.totalCreated++;
       } catch (error) {
-        logger.error(`Failed to pre-create connection for pool ${poolName}:`, error);
+        // Only log as warning if it's a database initialization issue
+        if (error.message.includes("Database not initialized")) {
+          logger.warn(`Skipping connection pool setup for ${poolName} - database not ready yet`);
+          break; // Don't try to create more connections
+        } else {
+          logger.error(`Failed to pre-create connection for pool ${poolName}:`, error);
+        }
       }
     }
   }
@@ -167,6 +173,12 @@ class ConnectionPool {
    */
   async initializeUserConnection() {
     const databaseService = require("./database");
+    
+    // Check if database is initialized
+    if (!databaseService.isInitialized || !databaseService.isInitialized()) {
+      throw new Error("Database not initialized - skipping connection pool setup");
+    }
+    
     return {
       collection: databaseService.users(),
       query: (id) => databaseService.users().doc(id),
@@ -179,6 +191,12 @@ class ConnectionPool {
    */
   async initializeCompanyConnection() {
     const databaseService = require("./database");
+    
+    // Check if database is initialized
+    if (!databaseService.isInitialized || !databaseService.isInitialized()) {
+      throw new Error("Database not initialized - skipping connection pool setup");
+    }
+    
     return {
       collection: databaseService.companies(),
       query: (id) => databaseService.companies().doc(id),
@@ -191,6 +209,12 @@ class ConnectionPool {
    */
   async initializeReferralConnection() {
     const databaseService = require("./database");
+    
+    // Check if database is initialized
+    if (!databaseService.isInitialized || !databaseService.isInitialized()) {
+      throw new Error("Database not initialized - skipping connection pool setup");
+    }
+    
     return {
       collection: databaseService.referrals(),
       query: (id) => databaseService.referrals().doc(id),
@@ -203,6 +227,12 @@ class ConnectionPool {
    */
   async initializeAnalyticsConnection() {
     const databaseService = require("./database");
+    
+    // Check if database is initialized
+    if (!databaseService.isInitialized || !databaseService.isInitialized()) {
+      throw new Error("Database not initialized - skipping connection pool setup");
+    }
+    
     return {
       collection: databaseService.analytics(),
       query: (id) => databaseService.analytics().doc(id),

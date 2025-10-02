@@ -8,6 +8,13 @@ class DatabaseService {
     this.initialized = false;
   }
 
+  /**
+   * Check if database is initialized
+   */
+  isInitialized() {
+    return this.initialized && this.db !== null;
+  }
+
   async initialize() {
     try {
       if (this.initialized) {
