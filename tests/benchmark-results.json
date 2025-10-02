@@ -1,0 +1,194 @@
+[
+  {
+    "timestamp": "2025-10-02T13:42:52.673Z",
+    "version": "1.0.0",
+    "environment": "development",
+    "tests": {
+      "api": {
+        "Health Check": {
+          "avgResponseTime": 19.69,
+          "maxResponseTime": 77.96,
+          "minResponseTime": 7.8,
+          "errorRate": 0,
+          "throughput": 1282761.73,
+          "iterations": 100
+        },
+        "User API": {
+          "avgResponseTime": 68.02,
+          "maxResponseTime": 97.35,
+          "minResponseTime": 56.11,
+          "errorRate": 0,
+          "throughput": 513598.55,
+          "iterations": 50
+        },
+        "Company API": {
+          "avgResponseTime": 44.6,
+          "maxResponseTime": 54.74,
+          "minResponseTime": 30.35,
+          "errorRate": 0,
+          "throughput": 913368.8,
+          "iterations": 50
+        },
+        "Stats API": {
+          "avgResponseTime": 111.1,
+          "maxResponseTime": 125.77,
+          "minResponseTime": 107.27,
+          "errorRate": 0,
+          "throughput": 238528.75,
+          "iterations": 30
+        }
+      },
+      "database": {
+        "User Lookup": {
+          "avgResponseTime": 34.66,
+          "maxResponseTime": 87.02,
+          "minResponseTime": 15.42,
+          "errorRate": 0,
+          "iterations": 100
+        },
+        "User List": {
+          "avgResponseTime": 95.38,
+          "maxResponseTime": 122.38,
+          "minResponseTime": 88.23,
+          "errorRate": 0,
+          "iterations": 50
+        },
+        "Company Lookup": {
+          "avgResponseTime": 35.9,
+          "maxResponseTime": 131.48,
+          "minResponseTime": 23.98,
+          "errorRate": 0,
+          "iterations": 100
+        },
+        "Stats Query": {
+          "avgResponseTime": 73.78,
+          "maxResponseTime": 108.74,
+          "minResponseTime": 60.5,
+          "errorRate": 0,
+          "iterations": 30
+        },
+        "User Update": {
+          "avgResponseTime": 48.84,
+          "maxResponseTime": 63.16,
+          "minResponseTime": 41.9,
+          "errorRate": 0,
+          "iterations": 50
+        }
+      },
+      "cache": {
+        "Cache Set": {
+          "avgResponseTime": 0,
+          "maxResponseTime": 1.6,
+          "minResponseTime": 0,
+          "errorRate": 0,
+          "iterations": 1000
+        },
+        "Cache Get": {
+          "avgResponseTime": 0,
+          "maxResponseTime": 0.1,
+          "minResponseTime": 0,
+          "errorRate": 0,
+          "iterations": 1000
+        },
+        "Cache Delete": {
+          "avgResponseTime": 0,
+          "maxResponseTime": 0.08,
+          "minResponseTime": 0,
+          "errorRate": 0,
+          "iterations": 500
+        },
+        "Cache Clear": {
+          "avgResponseTime": 0,
+          "maxResponseTime": 0.04,
+          "minResponseTime": 0,
+          "errorRate": 0,
+          "iterations": 10
+        },
+        "cacheHitRate": {
+          "hitRate": 85,
+          "totalOperations": 0
+        }
+      },
+      "memory": {
+        "initialMemory": {
+          "heapUsed": 11,
+          "heapTotal": 12,
+          "external": 3,
+          "rss": 32
+        },
+        "finalMemory": {
+          "heapUsed": 29,
+          "heapTotal": 48,
+          "external": 3,
+          "rss": 65
+        },
+        "memoryDelta": {
+          "heapUsed": 17,
+          "heapTotal": 36,
+          "external": 0,
+          "rss": 32
+        },
+        "cpuDelta": {
+          "user": 7,
+          "system": 0
+        },
+        "memoryUsage": 58.97,
+        "memoryLeakRate": 17941.9,
+        "operations": 1000
+      },
+      "concurrency": {
+        "10Concurrent": {
+          "concurrentLevel": 10,
+          "duration": 66.18,
+          "throughput": 151.1,
+          "avgResponseTime": 6.62,
+          "successRate": 100,
+          "errorRate": 0
+        },
+        "25Concurrent": {
+          "concurrentLevel": 25,
+          "duration": 62.15,
+          "throughput": 402.27,
+          "avgResponseTime": 2.49,
+          "successRate": 100,
+          "errorRate": 0
+        },
+        "50Concurrent": {
+          "concurrentLevel": 50,
+          "duration": 64.52,
+          "throughput": 774.9,
+          "avgResponseTime": 1.29,
+          "successRate": 100,
+          "errorRate": 0
+        },
+        "100Concurrent": {
+          "concurrentLevel": 100,
+          "duration": 76.77,
+          "throughput": 1302.54,
+          "avgResponseTime": 0.77,
+          "successRate": 100,
+          "errorRate": 0
+        },
+        "200Concurrent": {
+          "concurrentLevel": 200,
+          "duration": 81.98,
+          "throughput": 2439.57,
+          "avgResponseTime": 0.41,
+          "successRate": 100,
+          "errorRate": 0
+        }
+      }
+    },
+    "overallScore": {
+      "score": 38.4,
+      "maxScore": 10,
+      "breakdown": {
+        "api": 93.75,
+        "database": 90,
+        "cache": 100,
+        "memory": 0,
+        "concurrency": 100
+      }
+    }
+  }
+]

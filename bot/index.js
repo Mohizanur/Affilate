@@ -4,6 +4,16 @@ require("dotenv").config();
 // 🚀 SMART REALISTIC OPTIMIZER INTEGRATION
 const smartOptimizer = require("./config/smart-optimizer-integration");
 
+// 🚀 PRODUCTION OPTIMIZER - FINAL EDGE SYSTEM
+const ProductionOptimizer = require("./config/productionOptimizer");
+const productionOptimizer = new ProductionOptimizer();
+
+// Legacy ultra-fast systems (fallback)
+const ultraFastResponse = require("./config/ultraFastResponse");
+const ultraFastMiddleware = require("./config/ultraFastMiddleware");
+const connectionPool = require("./config/connectionPool");
+const realTimeMonitor = require("./config/realTimeMonitor");
+
 const { Telegraf } = require("telegraf");
 const LocalSession = require("telegraf-session-local");
 const databaseService = require("./config/database");
@@ -60,7 +70,7 @@ function registerHandlers(bot) {
     try {
       const stats = smartOptimizer.getPerformanceStats();
       const quota = smartOptimizer.getQuotaStatus();
-
+      
       let message = "📊 **BOT PERFORMANCE STATS**\n\n";
       message += `🚀 **Cache Hit Rate:** ${stats.cacheHitRate}%\n`;
       message += `⚡ **Avg Response Time:** ${stats.avgResponseTime}ms\n`;
@@ -70,7 +80,7 @@ function registerHandlers(bot) {
       message += `⏱️ **Uptime:** ${Math.round(
         stats.uptime / 1000 / 60
       )} minutes\n`;
-
+      
       ctx.reply(message, { parse_mode: "Markdown" });
     } catch (error) {
       ctx.reply("❌ Could not fetch stats: " + error.message);
@@ -81,7 +91,7 @@ function registerHandlers(bot) {
     try {
       const quota = smartOptimizer.getQuotaStatus();
       const stats = smartOptimizer.getPerformanceStats();
-
+      
       let message = "📈 **FIRESTORE QUOTA STATUS**\n\n";
       message += `📊 **Reads:** ${quota.reads}\n`;
       message += `📊 **Writes:** ${quota.writes}\n`;
@@ -90,7 +100,7 @@ function registerHandlers(bot) {
       message += `⏱️ **Uptime:** ${Math.round(
         stats.uptime / 1000 / 60
       )} minutes\n`;
-
+      
       ctx.reply(message, { parse_mode: "Markdown" });
     } catch (error) {
       ctx.reply("❌ Could not fetch quota status: " + error.message);
@@ -100,7 +110,7 @@ function registerHandlers(bot) {
   bot.command("cache", async (ctx) => {
     try {
       const cache = smartOptimizer.getCacheStats();
-
+      
       let message = "💾 **CACHE STATUS**\n\n";
       message += `🔑 **Total Keys:** ${cache.totalKeys}\n`;
       message += `📏 **Max Keys:** ${cache.maxKeys}\n`;
@@ -108,7 +118,7 @@ function registerHandlers(bot) {
       message += `💻 **Memory Usage:** ${Math.round(
         cache.memoryUsage.heapUsed / 1024 / 1024
       )}MB\n`;
-
+      
       ctx.reply(message, { parse_mode: "Markdown" });
     } catch (error) {
       ctx.reply("❌ Could not fetch cache status: " + error.message);
@@ -123,11 +133,11 @@ function registerHandlers(bot) {
       const user = await userService.userService.getUserByTelegramId(
         ctx.from.id
       );
-
+      
       if (!user || (user.role !== "admin" && !user.isAdmin)) {
         return ctx.reply("❌ Admin access required for this command.");
       }
-
+      
       smartOptimizer.clearCache();
       ctx.reply("🧹 Cache cleared successfully!");
     } catch (error) {
@@ -142,11 +152,11 @@ function registerHandlers(bot) {
       const user = await userService.userService.getUserByTelegramId(
         ctx.from.id
       );
-
+      
       if (!user || (user.role !== "admin" && !user.isAdmin)) {
         return ctx.reply("❌ Admin access required for this command.");
       }
-
+      
       await smartOptimizer.performMaintenance();
       ctx.reply("🔧 Manual maintenance completed!");
     } catch (error) {
@@ -154,7 +164,7 @@ function registerHandlers(bot) {
     }
   });
 
-  // BEAST MODE: Enhanced performance monitoring commands
+  // 🚀 ULTRA-FAST: Enhanced performance monitoring commands
   bot.command("memory", async (ctx) => {
     try {
       const memoryManager = require("./config/memoryManager");
@@ -176,6 +186,122 @@ function registerHandlers(bot) {
       ctx.reply(message, { parse_mode: "Markdown" });
     } catch (error) {
       ctx.reply("❌ Could not fetch memory status: " + error.message);
+    }
+  });
+
+  // 🚀 ULTRA-FAST: Real-time performance monitoring
+  bot.command("realtime", async (ctx) => {
+    try {
+      const monitor = require("./config/realTimeMonitor");
+      const summary = monitor.getPerformanceSummary();
+      const metrics = monitor.getMetrics();
+
+      let message = "⚡ **REAL-TIME PERFORMANCE**\n\n";
+      message += `🚀 **Status:** ${summary.status.toUpperCase()}\n`;
+      message += `⏱️ **Response Time:** ${summary.responseTime}\n`;
+      message += `📊 **Error Rate:** ${summary.errorRate}\n`;
+      message += `💾 **Memory Usage:** ${summary.memoryUsage}\n`;
+      message += `🎯 **Cache Hit Rate:** ${summary.cacheHitRate}\n`;
+      message += `📈 **Requests/sec:** ${summary.requestsPerSecond}\n`;
+      message += `🚨 **Active Alerts:** ${summary.activeAlerts}\n`;
+      message += `⏰ **Uptime:** ${summary.uptime}s\n`;
+
+      ctx.reply(message, { parse_mode: "Markdown" });
+    } catch (error) {
+      ctx.reply("❌ Could not fetch real-time stats: " + error.message);
+    }
+  });
+
+  // 🚀 ULTRA-FAST: Connection pool status
+  bot.command("pools", async (ctx) => {
+    try {
+      const pool = require("./config/connectionPool");
+      const stats = pool.getPoolStats();
+      const globalStats = pool.getGlobalStats();
+
+      let message = "🏊 **CONNECTION POOLS**\n\n";
+      message += `📊 **Global Stats:**\n`;
+      message += `   • Active: ${globalStats.activeConnections}\n`;
+      message += `   • Queued: ${globalStats.queuedRequests}\n`;
+      message += `   • Completed: ${globalStats.completedRequests}\n`;
+      message += `   • Failed: ${globalStats.failedRequests}\n\n`;
+      
+      message += `🔧 **Pool Details:**\n`;
+      for (const [poolName, poolStats] of Object.entries(stats)) {
+        message += `   • ${poolName}: ${poolStats.connections.active}/${poolStats.connections.total} active\n`;
+      }
+
+      ctx.reply(message, { parse_mode: "Markdown" });
+    } catch (error) {
+      ctx.reply("❌ Could not fetch pool stats: " + error.message);
+    }
+  });
+
+  // 🚀 ULTRA-FAST: Ultra-fast response stats
+  // 🚀 PRODUCTION: Production optimizer stats
+  bot.command("production", async (ctx) => {
+    try {
+      const stats = productionOptimizer.getProductionStats();
+      
+      let message = "🚀 **PRODUCTION OPTIMIZER STATS**\n\n";
+      message += `🏭 **Environment:** ${stats.environment}\n`;
+      message += `⏱️ **Uptime:** ${Math.round(stats.uptime / 1000 / 60)} minutes\n`;
+      message += `📊 **Requests:** ${stats.requests.toLocaleString()}\n`;
+      message += `✅ **Success Rate:** ${(100 - stats.errorRate).toFixed(2)}%\n`;
+      message += `⚡ **Avg Response:** ${stats.avgResponseTime.toFixed(2)}ms\n`;
+      message += `🚀 **Request Rate:** ${stats.requestRate.toFixed(1)} req/sec\n`;
+      message += `💾 **Memory:** ${stats.memory?.usage.toFixed(1)}% (${stats.memory?.heapUsed}MB)\n`;
+      message += `🎯 **Cache Hit Rate:** ${stats.cache?.hitRate?.toFixed(1) || 0}%\n`;
+      message += `👷 **Workers:** ${stats.cluster.isMaster ? `${stats.cluster.workers} active` : `Worker ${stats.cluster.workerId}`}\n`;
+      
+      ctx.reply(message, { parse_mode: "Markdown" });
+    } catch (error) {
+      ctx.reply("❌ Could not fetch production stats: " + error.message);
+    }
+  });
+
+  // 🚀 HEALTH: Health check endpoint
+  bot.command("health", async (ctx) => {
+    try {
+      const health = productionOptimizer.getHealthCheck();
+      
+      const statusEmoji = health.status === 'healthy' ? '✅' : '❌';
+      let message = `${statusEmoji} **SYSTEM HEALTH CHECK**\n\n`;
+      message += `📊 **Status:** ${health.status.toUpperCase()}\n`;
+      message += `⏱️ **Uptime:** ${Math.round(health.uptime / 1000 / 60)} minutes\n`;
+      message += `🔧 **Version:** ${health.version}\n`;
+      message += `🌍 **Environment:** ${health.environment}\n`;
+      message += `💻 **Node.js:** ${health.nodeVersion}\n`;
+      message += `🖥️ **Platform:** ${health.platform} ${health.arch}\n`;
+      message += `💾 **Memory:** ${health.memory?.usage.toFixed(1)}%\n`;
+      message += `⚡ **Response Time:** ${health.performance.avgResponseTime.toFixed(2)}ms\n`;
+      message += `📈 **Request Rate:** ${health.performance.requestRate.toFixed(1)} req/sec\n`;
+      message += `🎯 **Cache Hit Rate:** ${health.performance.cacheHitRate.toFixed(1)}%\n`;
+      
+      ctx.reply(message, { parse_mode: "Markdown" });
+    } catch (error) {
+      ctx.reply("❌ Could not fetch health status: " + error.message);
+    }
+  });
+
+  bot.command("ultrafast", async (ctx) => {
+    try {
+      const ultraFast = require("./config/ultraFastResponse");
+      const stats = ultraFast.getPerformanceStats();
+
+      let message = "🚀 **ULTRA-FAST RESPONSE STATS**\n\n";
+      message += `⚡ **Avg Response Time:** ${stats.avgResponseTime}\n`;
+      message += `🎯 **Cache Hit Rate:** ${stats.cacheHitRate}\n`;
+      message += `📈 **Total Requests:** ${stats.totalRequests}\n`;
+      message += `🔄 **Concurrent:** ${stats.concurrentRequests}\n`;
+      message += `🔝 **Peak Concurrency:** ${stats.peakConcurrency}\n`;
+      message += `💾 **Precomputed:** ${stats.precomputedResponses}\n`;
+      message += `🗄️ **Cache Size:** ${stats.responseCacheSize}\n`;
+      message += `⏰ **Uptime:** ${Math.floor(stats.uptime / 60)}m\n`;
+
+      ctx.reply(message, { parse_mode: "Markdown" });
+    } catch (error) {
+      ctx.reply("❌ Could not fetch ultra-fast stats: " + error.message);
     }
   });
 
@@ -257,6 +383,20 @@ async function startBot(app) {
     console.log("✅ Smart Realistic Optimizer initialized successfully!");
     performanceLogger.system("✅ Smart Realistic Optimizer initialized");
 
+    // 🚀 Initialize Production Optimizer (Final Edge System)
+    console.log("🚀 Initializing Production Optimizer - Final Edge System...");
+    await productionOptimizer.initialize();
+    
+    // If we're a cluster worker, continue with bot initialization
+    // If we're master, the optimizer handles worker management
+    if (require('cluster').isMaster && productionOptimizer.config.enableClustering) {
+      console.log("🏭 Master process managing workers, bot will run in workers");
+      return;
+    }
+    
+    console.log("✅ Production Optimizer initialized - proceeding with bot setup");
+    performanceLogger.system("✅ Production Optimizer initialized");
+
     const token = process.env.BOT_TOKEN;
     if (!token) {
       throw new Error("Missing BOT_TOKEN in environment variables.");
@@ -264,10 +404,13 @@ async function startBot(app) {
 
     bot = new Telegraf(token, {
       telegram: {
-        // BEAST MODE: Optimized for maximum performance while staying under Telegram limits
-        timeout: 10000, // Reduced to 10 seconds for ultra-fast responses
-        retryAfter: 0.3, // Faster retry for immediate failure detection
+        // 🚀 ULTRA-FAST MODE: Optimized for microsecond-level responses
+        timeout: 5000, // Reduced to 5 seconds for ultra-fast responses
+        retryAfter: 0.1, // Ultra-fast retry for immediate failure detection
         maxRetries: 1, // Single retry for maximum speed
+        // Additional optimizations
+        agent: false, // Disable agent for faster connections
+        compress: true, // Enable compression
       },
     });
 
@@ -309,15 +452,21 @@ async function startBot(app) {
       }
     });
 
-    // BEAST MODE: Using local sessions for maximum stability
+    // 🚀 ULTRA-FAST MODE: Using local sessions with ultra-fast middleware
     console.log(
-      "🔧 Initializing local session storage for maximum stability..."
+      "🔧 Initializing ultra-fast session storage and middleware..."
     );
     const LocalSession = require("telegraf-session-local");
     bot.use(
       new LocalSession({ database: "./temp/session_db.json" }).middleware()
     );
-    console.log("✅ Local session storage initialized successfully");
+    
+    // Add production optimizer middleware
+    bot.use(async (ctx, next) => {
+      await productionOptimizer.processRequest(ctx, next);
+    });
+    
+    console.log("✅ Ultra-fast session storage and middleware initialized successfully");
 
     // Add maintenance mode middleware
     bot.use(async (ctx, next) => {
@@ -357,7 +506,7 @@ async function startBot(app) {
         return next();
       }
     });
-
+    
     try {
       registerHandlers(bot);
     } catch (e) {
@@ -366,7 +515,7 @@ async function startBot(app) {
     }
 
     // Test bot connection first with better error handling
-
+    
     let botInfo = null;
     try {
       botInfo = await bot.telegram.getMe();
@@ -400,11 +549,14 @@ async function startBot(app) {
           command: "feecalculator",
           description: "Calculate fee for a transaction",
         },
-        // 🚀 BEAST MODE Performance Commands
+        // 🚀 PRODUCTION Performance Commands
+        { command: "production", description: "Production optimizer statistics" },
+        { command: "health", description: "System health check" },
         { command: "stats", description: "Bot performance statistics" },
         { command: "quota", description: "Firestore quota status" },
         { command: "cache", description: "Cache status and info" },
         { command: "memory", description: "Memory usage and health" },
+        { command: "ultrafast", description: "Ultra-fast response statistics" },
       ];
 
       try {

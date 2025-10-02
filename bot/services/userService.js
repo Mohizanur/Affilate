@@ -91,7 +91,7 @@ class UserService {
         createdAt: new Date(),
         updatedAt: new Date(),
       });
-
+      
       return { id: userRef.id, ...userData };
     } catch (error) {
       logger.error("Error creating user:", error);
@@ -165,10 +165,10 @@ class UserService {
         phone_verified: true,
         phone_verified_at: new Date(),
       });
-
+      
       // Clear user cache to ensure fresh data is retrieved
       cacheService.clearUserCache(telegramId);
-
+      
       logger.info(`Phone verified for user: ${telegramId}`);
       return {
         id: userDoc.id,
@@ -730,7 +730,7 @@ class UserService {
       const userDoc = await userRef.get();
       if (!userDoc.exists) throw new Error("User not found");
       await userRef.update({ banned: true, bannedAt: new Date() });
-
+      
       return true;
     } catch (error) {
       logger.error("Error banning user:", error);
@@ -744,7 +744,7 @@ class UserService {
       const userDoc = await userRef.get();
       if (!userDoc.exists) throw new Error("User not found");
       await userRef.update({ banned: false, bannedAt: null });
-
+      
       return true;
     } catch (error) {
       logger.error("Error unbanning user:", error);
