@@ -697,12 +697,27 @@ async function startBot(app) {
       );
       console.log("✅ Webhook route setup complete with error handling");
       
-      // Add error handling for webhook processing
+      // Add comprehensive error handling for webhook processing
       bot.catch((err, ctx) => {
         console.error("❌ Bot error:", err);
         console.error("❌ Context:", ctx);
         console.error("❌ Error details:", err.message);
         console.error("❌ Stack trace:", err.stack);
+        
+        // Try to send error message to user
+        if (ctx && ctx.reply) {
+          ctx.reply("❌ Sorry, there was an error processing your request.").catch(console.error);
+        }
+      });
+      
+      // Add global error handler for unhandled promise rejections
+      process.on('unhandledRejection', (reason, promise) => {
+        console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+      });
+      
+      // Add global error handler for uncaught exceptions
+      process.on('uncaughtException', (error) => {
+        console.error('❌ Uncaught Exception:', error);
       });
 
       // Set webhook URL (will be set after server starts)
