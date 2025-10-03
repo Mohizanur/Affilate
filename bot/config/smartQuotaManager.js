@@ -26,13 +26,13 @@ class SmartQuotaManager {
       lastReset: new Date().toDateString()
     };
     
-    // Smart quota distribution (reads per minute)
+    // Smart quota distribution (reads per minute) - Ultra-conservative for free tier
     this.quotaDistribution = {
-      // Peak hours (when users are most active)
-      peak: 50,      // 50 reads/minute during peak (9 AM - 11 PM)
-      normal: 25,    // 25 reads/minute during normal hours
-      low: 10,       // 10 reads/minute during low hours (2 AM - 6 AM)
-      emergency: 5   // 5 reads/minute when quota is critically low
+      // Peak hours (when users are most active) - Reduced for free tier
+      peak: 20,      // 20 reads/minute during peak (9 AM - 11 PM)
+      normal: 15,    // 15 reads/minute during normal hours
+      low: 8,        // 8 reads/minute during low hours (2 AM - 6 AM)
+      emergency: 3   // 3 reads/minute when quota is critically low
     };
     
     // Current quota allowance

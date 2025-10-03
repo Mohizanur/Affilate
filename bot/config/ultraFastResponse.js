@@ -128,10 +128,10 @@ class UltraFastResponse {
     
     // Only master process should do database-heavy background tasks
     if (!quotaAwareInitializer.shouldSkipDatabaseOps()) {
-      // Update pre-computed data every 5 minutes (reduced frequency to save quota)
-      setInterval(() => {
-        this.updatePrecomputedData();
-      }, 300000); // 5 minutes instead of 30 seconds
+        // Disable automatic pre-computed data updates to save quota
+        // setInterval(() => {
+        //   this.updatePrecomputedData();
+        // }, 1800000); // Disabled to prevent quota exhaustion
       
       logger.info("🛡️ Master process: Database background tasks started (quota-safe)");
     }

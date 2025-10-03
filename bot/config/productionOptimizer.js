@@ -31,16 +31,16 @@ class ProductionOptimizer {
       enableMonitoring: true,
       enableGracefulShutdown: true,
       
-      // Cache configuration
-      cacheSize: 10000,
+      // Cache configuration (optimized for Render free tier)
+      cacheSize: 5000, // Reduced cache size for free tier
       cacheTTL: 300000, // 5 minutes
-      hotCacheSize: 1000,
+      hotCacheSize: 500, // Reduced hot cache for free tier
       hotCacheTTL: 60000, // 1 minute
       
-      // Memory management
-      gcInterval: 30000, // 30 seconds
-      memoryThreshold: 0.8, // 80%
-      objectPoolSize: 1000
+      // Memory management (optimized for Render free tier)
+      gcInterval: 15000, // 15 seconds - more frequent GC
+      memoryThreshold: 0.75, // 75% - lower threshold for free tier
+      objectPoolSize: 500 // Reduced pool size for free tier
     };
     
     this.cache = {
