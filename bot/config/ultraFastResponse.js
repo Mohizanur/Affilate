@@ -64,29 +64,41 @@ class UltraFastResponse {
       const quotaAwareInitializer = require("./quotaAwareInitializer");
       const cacheService = require("./cache");
       
+      // Skip cache pre-warming if quota is low or we should skip database ops
+      if (quotaAwareInitializer.shouldSkipDatabaseOps()) {
+        logger.info("🛡️ Skipping cache pre-warming to preserve quota");
+        return;
+      }
+      
       // Use quota-aware initialization data instead of direct database queries
       const cacheData = quotaAwareInitializer.getQuotaSafeCacheData();
       
-      // Pre-load user data from quota-safe source
-      cacheData.users.forEach(userData => {
-        if (userData.telegram_id) {
-          cacheService.setUser(userData.telegram_id, userData);
-          this.precomputedResponses.set(`user:${userData.telegram_id}`, userData);
-        }
-      });
-      
-      // Pre-load company data from quota-safe source
-      cacheData.companies.forEach(companyData => {
-        if (companyData.id) {
-          cacheService.setCompany(companyData.id, companyData);
-          this.precomputedResponses.set(`company:${companyData.id}`, companyData);
-        }
-      });
+      // Only pre-load if we have safe data
+      if (cacheData && cacheData.users && cacheData.companies) {
+        // Pre-load user data from quota-safe source
+        cacheData.users.forEach(userData => {
+          if (userData.telegram_id) {
+            cacheService.setUser(userData.telegram_id, userData);
+            this.precomputedResponses.set(`user:${userData.telegram_id}`, userData);
+          }
+        });
+        
+        // Pre-load company data from quota-safe source
+        cacheData.companies.forEach(companyData => {
+          if (companyData.id) {
+            cacheService.setCompany(companyData.id, companyData);
+            this.precomputedResponses.set(`company:${companyData.id}`, companyData);
+          }
+        });
+        
+        logger.info(`🛡️ Quota-safe caches pre-warmed: ${cacheData.users.length} users, ${cacheData.companies.length} companies`);
+      } else {
+        logger.info("🛡️ No quota-safe cache data available, skipping pre-warming");
+      }
       
       // Pre-compute common responses (quota-aware)
       await this.preComputeCommonResponses();
       
-      logger.info(`🛡️ Quota-safe caches pre-warmed: ${cacheData.users.length} users, ${cacheData.companies.length} companies`);
     } catch (error) {
       logger.error("Error pre-warming caches:", error);
       // Continue initialization even if cache pre-warming fails

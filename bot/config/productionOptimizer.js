@@ -38,9 +38,9 @@ class ProductionOptimizer {
       hotCacheTTL: 60000, // 1 minute
       
       // Memory management (optimized for Render free tier)
-      gcInterval: 15000, // 15 seconds - more frequent GC
-      memoryThreshold: 0.75, // 75% - lower threshold for free tier
-      objectPoolSize: 500 // Reduced pool size for free tier
+      gcInterval: 10000, // 10 seconds - even more frequent GC
+      memoryThreshold: 0.70, // 70% - even lower threshold for free tier
+      objectPoolSize: 300 // Further reduced pool size for free tier
     };
     
     this.cache = {
