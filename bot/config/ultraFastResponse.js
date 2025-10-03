@@ -70,11 +70,9 @@ class UltraFastResponse {
         return;
       }
       
-      // Additional safety check - skip if we're in production to avoid quota issues
-      if (process.env.NODE_ENV === 'production' || process.env.RENDER) {
-        logger.info("🛡️ Skipping cache pre-warming in production to preserve quota");
-        return;
-      }
+      // Skip cache pre-warming completely to avoid quota issues
+      logger.info("🛡️ Skipping cache pre-warming to preserve quota");
+      return;
       
       // Use quota-aware initialization data instead of direct database queries
       const cacheData = quotaAwareInitializer.getQuotaSafeCacheData();

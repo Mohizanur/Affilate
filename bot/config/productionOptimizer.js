@@ -39,7 +39,7 @@ class ProductionOptimizer {
       
       // Memory management (minimal for free tier)
       gcInterval: 5000, // 5 seconds - very frequent GC
-      memoryThreshold: 0.60, // 60% - very low threshold for free tier
+      memoryThreshold: 0.55, // 55% - ultra-low threshold for free tier
       objectPoolSize: 100 // Minimal pool size for free tier
     };
     
