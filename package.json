@@ -4,7 +4,7 @@
   "description": "Lightning-fast affiliate referral platform with Telegram bot",
   "main": "server.js",
   "scripts": {
-    "start": "set LOG_LEVEL=error && set PERFORMANCE_MODE=true && node --max-old-space-size=2048 server.js",
+    "start": "set LOG_LEVEL=info && set PERFORMANCE_MODE=false && node --max-old-space-size=1024 server.js",
     "dev": "set LOG_LEVEL=error && set PERFORMANCE_MODE=true && nodemon --max-old-space-size=2048 server.js",
     "dev:bot": "set LOG_LEVEL=error && set PERFORMANCE_MODE=true && nodemon --exec node --max-old-space-size=1024 bot/index.js",
     "test": "jest",
