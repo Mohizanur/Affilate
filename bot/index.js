@@ -52,7 +52,36 @@ function registerHandlers(bot) {
       const commandName = file.slice(0, -3);
       try {
         const commandHandler = require(path.join(commandsDir, file));
-        bot.command(commandName, commandHandler);
+        
+        // Wrap command handler with timeout and error handling
+        bot.command(commandName, async (ctx) => {
+          try {
+            console.log(`🚀 Command /${commandName} received from user:`, ctx.from.id);
+            
+            // Add timeout to prevent hanging
+            const timeoutPromise = new Promise((_, reject) => {
+              setTimeout(() => reject(new Error(`Command /${commandName} timeout`)), 15000);
+            });
+            
+            const commandPromise = commandHandler(ctx);
+            
+            await Promise.race([commandPromise, timeoutPromise]);
+            console.log(`✅ Command /${commandName} completed successfully`);
+            
+          } catch (error) {
+            console.error(`❌ Error in /${commandName} command:`, error.message);
+            console.error(`❌ Stack trace:`, error.stack);
+            
+            // Send fallback message to user
+            try {
+              await ctx.reply(`❌ Sorry, there was an error processing your request. Please try again.`);
+            } catch (replyError) {
+              console.error(`❌ Failed to send error reply:`, replyError.message);
+            }
+          }
+        });
+        
+        console.log(`✅ Registered /${commandName} command with timeout protection`);
       } catch (e) {
         console.error(
           `❌ Error registering /${commandName} command:`,
@@ -65,6 +94,18 @@ function registerHandlers(bot) {
   // Register aliases
   bot.command("referrals", require("./commands/referral"));
   bot.command("browse", require("./commands/products"));
+  
+  // 🧪 TEST COMMAND - Simple response to verify bot is working
+  bot.command("test", async (ctx) => {
+    try {
+      console.log("🧪 /test command received from user:", ctx.from.id);
+      await ctx.reply("✅ Bot is working! Test command successful.");
+      console.log("✅ /test command completed successfully");
+    } catch (error) {
+      console.error("❌ Error in /test command:", error.message);
+      await ctx.reply("❌ Test command failed: " + error.message);
+    }
+  });
 
   // 🚀 Smart Optimizer Performance Commands
   bot.command("stats", async (ctx) => {
@@ -603,7 +644,7 @@ async function startBot(app) {
         );
       }
 
-      // Set up webhook endpoint with debugging
+      // Set up webhook endpoint with debugging and error handling
       console.log("🔍 DEBUG: Setting up webhook route at:", webhookPath);
       app.use(
         webhookPath,
@@ -612,9 +653,18 @@ async function startBot(app) {
           console.log("📦 Request body:", JSON.stringify(req.body, null, 2));
           next();
         },
-        bot.webhookCallback()
+        async (req, res, next) => {
+          try {
+            await bot.webhookCallback()(req, res, next);
+            console.log("✅ Webhook processed successfully");
+          } catch (error) {
+            console.error("❌ Webhook processing error:", error.message);
+            console.error("❌ Stack trace:", error.stack);
+            res.status(500).json({ error: "Webhook processing failed" });
+          }
+        }
       );
-      console.log("✅ Webhook route setup complete");
+      console.log("✅ Webhook route setup complete with error handling");
       
       // Add error handling for webhook processing
       bot.catch((err, ctx) => {
