@@ -106,6 +106,23 @@ function registerHandlers(bot) {
       await ctx.reply("❌ Test command failed: " + error.message);
     }
   });
+  
+  // 🚨 EMERGENCY FALLBACK - Respond to any message if no other handler matches
+  bot.on('text', async (ctx) => {
+    try {
+      console.log("📝 Text message received:", ctx.message.text, "from user:", ctx.from.id);
+      
+      // Simple fallback response
+      if (ctx.message.text.toLowerCase().includes('hello') || 
+          ctx.message.text.toLowerCase().includes('hi') ||
+          ctx.message.text.toLowerCase().includes('hey')) {
+        await ctx.reply("👋 Hello! I'm working! Send /test to verify.");
+        console.log("✅ Fallback response sent");
+      }
+    } catch (error) {
+      console.error("❌ Error in fallback handler:", error.message);
+    }
+  });
 
   // 🚀 Smart Optimizer Performance Commands
   bot.command("stats", async (ctx) => {
@@ -402,10 +419,24 @@ function registerHandlers(bot) {
 }
 
 async function startBot(app) {
-  performanceLogger.system("🚀 $1");
+  performanceLogger.system("🚀 Starting bot initialization");
   try {
-    await databaseService.initialize();
-    performanceLogger.system("✅ $1");
+    // Initialize database with timeout protection
+    console.log("🔧 Initializing database with timeout protection...");
+    const dbInitPromise = databaseService.initialize();
+    const dbTimeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Database initialization timeout after 10 seconds')), 10000);
+    });
+    
+    try {
+      await Promise.race([dbInitPromise, dbTimeoutPromise]);
+      console.log("✅ Database initialized successfully");
+      performanceLogger.system("✅ Database initialized");
+    } catch (error) {
+      console.error("❌ Database initialization failed:", error.message);
+      console.log("🔄 Continuing with bot setup (database will be retried on demand)...");
+      performanceLogger.system("⚠️ Database init failed, continuing");
+    }
 
     // BEAST MODE: Initialize memory manager for optimal performance
     const memoryManager = require("./config/memoryManager");
