@@ -152,7 +152,8 @@ app.get("/keep-alive", (req, res) => {
 // Bot status endpoint
 app.get("/bot-status", async (req, res) => {
   try {
-    const bot = require("./bot").bot; // Get the bot instance
+    const { getBot } = require("./bot");
+    const bot = getBot(); // Get the bot instance using the exported function
     if (bot && bot.telegram) {
       const webhookInfo = await bot.telegram.getWebhookInfo();
       res.json({
