@@ -616,14 +616,40 @@ async function startBot(app) {
       console.log("🔗 Webhook URL:", webhookUrl);
 
       // Set webhook after a short delay to ensure server is running
-      setTimeout(async () => {
-        try {
-          await bot.telegram.setWebhook(webhookUrl);
-          performanceLogger.system("✅ $1");
-        } catch (error) {
-          console.error("❌ Failed to set webhook:", error);
-        }
-      }, 2000);
+      // Only master process should set webhook to avoid rate limiting
+      if (cluster.isMaster) {
+        setTimeout(async () => {
+          try {
+            // Add retry logic with exponential backoff
+            let retries = 0;
+            const maxRetries = 5;
+            
+            const setWebhookWithRetry = async () => {
+              try {
+                await bot.telegram.setWebhook(webhookUrl);
+                console.log("✅ Webhook set successfully");
+                performanceLogger.system("✅ Webhook set successfully");
+              } catch (error) {
+                if (error.response?.error_code === 429 && retries < maxRetries) {
+                  retries++;
+                  const delay = Math.pow(2, retries) * 1000; // Exponential backoff
+                  console.log(`⏳ Webhook rate limited, retrying in ${delay}ms (attempt ${retries}/${maxRetries})`);
+                  setTimeout(setWebhookWithRetry, delay);
+                } else {
+                  console.error("❌ Failed to set webhook after retries:", error);
+                  console.log("🔄 Falling back to polling mode...");
+                  // Fallback to polling if webhook fails
+                  bot.launch().catch(console.error);
+                }
+              }
+            };
+            
+            setWebhookWithRetry();
+          } catch (error) {
+            console.error("❌ Failed to set webhook:", error);
+          }
+        }, 5000); // Increased delay to 5 seconds
+      }
     } else if (
       isLocalDevelopment &&
       process.env.ENABLE_LOCAL_POLLING === "true"

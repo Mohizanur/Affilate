@@ -149,6 +149,34 @@ app.get("/keep-alive", (req, res) => {
   });
 });
 
+// Bot status endpoint
+app.get("/bot-status", async (req, res) => {
+  try {
+    const bot = require("./bot").bot; // Get the bot instance
+    if (bot && bot.telegram) {
+      const webhookInfo = await bot.telegram.getWebhookInfo();
+      res.json({
+        status: "bot_ready",
+        webhook: webhookInfo,
+        timestamp: new Date().toISOString(),
+        uptime: process.uptime()
+      });
+    } else {
+      res.status(500).json({
+        status: "bot_not_ready",
+        error: "Bot not initialized",
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      status: "error",
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Error Handling
 app.use((err, req, res, next) => {
   console.error("❌ Global Error:", err);
