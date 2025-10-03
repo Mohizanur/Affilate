@@ -104,6 +104,7 @@ function registerHandlers(bot) {
       
       ctx.reply(message, { parse_mode: "Markdown" });
     } catch (error) {
+      console.error("Error in quota command:", error);
       ctx.reply("❌ Could not fetch quota status: " + error.message);
     }
   });
@@ -306,12 +307,12 @@ function registerHandlers(bot) {
     }
   });
 
-  bot.command("quota", async (ctx) => {
+  bot.command("quotadetailed", async (ctx) => {
     try {
       const quotaProtector = require("./config/quotaProtector");
       const status = quotaProtector.getQuotaStatus();
 
-      let message = "📈 **QUOTA STATUS**\n\n";
+      let message = "📈 **DETAILED QUOTA STATUS**\n\n";
       message += `📖 **Reads:** ${status.reads.used}/${status.reads.limit} (${status.reads.percentage}%)\n`;
       message += `✍️ **Writes:** ${status.writes.used}/${status.writes.limit} (${status.writes.percentage}%)\n`;
       message += `🗑️ **Deletes:** ${status.deletes.used}/${status.deletes.limit} (${status.deletes.percentage}%)\n`;
@@ -322,6 +323,7 @@ function registerHandlers(bot) {
 
       ctx.reply(message, { parse_mode: "Markdown" });
     } catch (error) {
+      console.error("Error in quotadetailed command:", error);
       ctx.reply("❌ Could not fetch quota status: " + error.message);
     }
   });
@@ -613,6 +615,14 @@ async function startBot(app) {
         bot.webhookCallback()
       );
       console.log("✅ Webhook route setup complete");
+      
+      // Add error handling for webhook processing
+      bot.catch((err, ctx) => {
+        console.error("❌ Bot error:", err);
+        console.error("❌ Context:", ctx);
+        console.error("❌ Error details:", err.message);
+        console.error("❌ Stack trace:", err.stack);
+      });
 
       // Set webhook URL (will be set after server starts)
       const webhookUrl = `${
