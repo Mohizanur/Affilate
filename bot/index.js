@@ -587,6 +587,8 @@ async function startBot(app) {
 
     if (isProduction) {
       console.log("🌐 Setting up webhook for production...");
+      console.log("🔍 DEBUG: Bot instance:", bot ? "exists" : "missing");
+      console.log("🔍 DEBUG: Bot telegram:", bot?.telegram ? "exists" : "missing");
 
       // Delete any existing webhook
       try {
@@ -599,6 +601,7 @@ async function startBot(app) {
       }
 
       // Set up webhook endpoint with debugging
+      console.log("🔍 DEBUG: Setting up webhook route at:", webhookPath);
       app.use(
         webhookPath,
         (req, res, next) => {
@@ -608,6 +611,7 @@ async function startBot(app) {
         },
         bot.webhookCallback()
       );
+      console.log("✅ Webhook route setup complete");
 
       // Set webhook URL (will be set after server starts)
       const webhookUrl = `${
