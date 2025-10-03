@@ -1,4 +1,5 @@
 const performanceLogger = require("./config/performanceLogger");
+const cluster = require("cluster");
 require("dotenv").config();
 
 // 🚀 SMART REALISTIC OPTIMIZER INTEGRATION
