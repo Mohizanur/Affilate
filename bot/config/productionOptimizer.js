@@ -25,7 +25,7 @@ class ProductionOptimizer {
       maxErrorRate: 2, // 2% max error rate
       
       // Optimization features
-      enableClustering: true,
+      enableClustering: false, // Disabled for now to fix webhook issues
       enableCaching: true,
       enableCompression: true,
       enableMonitoring: true,
@@ -81,7 +81,8 @@ class ProductionOptimizer {
       // 1. Setup clustering if enabled and we're master
       if (this.config.enableClustering && cluster.isMaster) {
         await this.setupProductionCluster();
-        return; // Master process just manages workers
+        console.log("🏭 Master process managing workers, bot will run in workers");
+        // Don't return - master process should also initialize bot
       }
       
       // 2. Initialize caching system

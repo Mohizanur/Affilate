@@ -589,7 +589,7 @@ async function startBot(app) {
       console.log("🌐 Setting up webhook for production...");
       console.log("🔍 DEBUG: Bot instance:", bot ? "exists" : "missing");
       console.log("🔍 DEBUG: Bot telegram:", bot?.telegram ? "exists" : "missing");
-      console.log("🔍 DEBUG: Cluster master:", cluster.isMaster ? "yes" : "no");
+      console.log("🔍 DEBUG: Single process mode (clustering disabled)");
 
       // Delete any existing webhook
       try {
@@ -601,22 +601,18 @@ async function startBot(app) {
         );
       }
 
-      // Set up webhook endpoint with debugging (only in master process)
-      if (cluster.isMaster) {
-        console.log("🔍 DEBUG: Setting up webhook route at:", webhookPath);
-        app.use(
-          webhookPath,
-          (req, res, next) => {
-            console.log("🔔 Webhook request received:", req.method, req.url);
-            console.log("📦 Request body:", JSON.stringify(req.body, null, 2));
-            next();
-          },
-          bot.webhookCallback()
-        );
-        console.log("✅ Webhook route setup complete");
-      } else {
-        console.log("🔄 Worker process - skipping webhook route setup");
-      }
+      // Set up webhook endpoint with debugging
+      console.log("🔍 DEBUG: Setting up webhook route at:", webhookPath);
+      app.use(
+        webhookPath,
+        (req, res, next) => {
+          console.log("🔔 Webhook request received:", req.method, req.url);
+          console.log("📦 Request body:", JSON.stringify(req.body, null, 2));
+          next();
+        },
+        bot.webhookCallback()
+      );
+      console.log("✅ Webhook route setup complete");
 
       // Set webhook URL (will be set after server starts)
       const webhookUrl = `${
@@ -626,8 +622,7 @@ async function startBot(app) {
       console.log("🔗 Webhook URL:", webhookUrl);
 
       // Set webhook after a short delay to ensure server is running
-      // Only master process should set webhook to avoid rate limiting
-      if (cluster.isMaster) {
+      // Single process mode - no clustering
         setTimeout(async () => {
           try {
             // Add retry logic with exponential backoff
@@ -659,7 +654,6 @@ async function startBot(app) {
             console.error("❌ Failed to set webhook:", error);
           }
         }, 5000); // Increased delay to 5 seconds
-      }
     } else if (
       isLocalDevelopment &&
       process.env.ENABLE_LOCAL_POLLING === "true"

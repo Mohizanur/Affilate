@@ -217,11 +217,8 @@ app.use((err, req, res, next) => {
       }
     }
 
-    // Only start server if not in cluster mode or if this is the master process
-    const cluster = require('cluster');
-    if (!cluster.isMaster) {
-      console.log("🔄 Worker process - skipping server startup");
-    } else {
+    // Start server (clustering disabled for now)
+    console.log("🚀 Starting server...");
       try {
         app
           .listen(PORT, () => {
@@ -274,7 +271,6 @@ app.use((err, req, res, next) => {
           console.error("❌ Server startup error:", error);
         }
       }
-    }
   } catch (err) {
     console.error("FATAL ERROR DURING STARTUP:", err);
     process.exit(1);
