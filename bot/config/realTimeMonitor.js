@@ -56,7 +56,7 @@ class RealTimeMonitor {
     this.thresholds = {
       responseTime: 1000, // 1 second
       errorRate: 0.05, // 5%
-      memoryUsage: 0.85, // 85%
+      memoryUsage: 0.70, // 70% (optimized for free tier)
       cpuUsage: 0.80, // 80%
       cacheHitRate: 0.70 // 70%
     };

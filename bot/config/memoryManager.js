@@ -9,7 +9,7 @@ const logger = require("../../utils/logger");
 
 class MemoryManager {
   constructor() {
-    this.memoryThreshold = 0.85; // 85% memory usage threshold
+    this.memoryThreshold = 0.70; // 70% memory usage threshold (optimized for free tier)
     this.cleanupInterval = 30000; // 30 seconds
     this.forceGCInterval = 300000; // 5 minutes
     this.startupTime = Date.now();
