@@ -178,6 +178,34 @@ app.get("/bot-status", async (req, res) => {
   }
 });
 
+// Test bot token endpoint
+app.get("/test-bot-token", async (req, res) => {
+  try {
+    const { getBot } = require("./bot");
+    const bot = getBot();
+    if (bot && bot.telegram) {
+      const botInfo = await bot.telegram.getMe();
+      res.json({
+        status: "bot_token_valid",
+        bot_info: botInfo,
+        timestamp: new Date().toISOString()
+      });
+    } else {
+      res.status(500).json({
+        status: "bot_not_ready",
+        error: "Bot not initialized",
+        timestamp: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      status: "bot_token_invalid",
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
 // Error Handling
 app.use((err, req, res, next) => {
   console.error("❌ Global Error:", err);

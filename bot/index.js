@@ -99,10 +99,12 @@ function registerHandlers(bot) {
   bot.command("test", async (ctx) => {
     try {
       console.log("🧪 /test command received from user:", ctx.from.id);
+      console.log("🧪 Command context:", JSON.stringify(ctx, null, 2));
       await ctx.reply("✅ Bot is working! Test command successful.");
       console.log("✅ /test command completed successfully");
     } catch (error) {
       console.error("❌ Error in /test command:", error.message);
+      console.error("❌ Error stack:", error.stack);
       await ctx.reply("❌ Test command failed: " + error.message);
     }
   });
