@@ -53,33 +53,8 @@ function registerHandlers(bot) {
       try {
         const commandHandler = require(path.join(commandsDir, file));
         
-        // Wrap command handler with timeout and error handling
-        bot.command(commandName, async (ctx) => {
-          try {
-            console.log(`🚀 Command /${commandName} received from user:`, ctx.from.id);
-            
-            // Add timeout to prevent hanging
-            const timeoutPromise = new Promise((_, reject) => {
-              setTimeout(() => reject(new Error(`Command /${commandName} timeout`)), 15000);
-            });
-            
-            const commandPromise = commandHandler(ctx);
-            
-            await Promise.race([commandPromise, timeoutPromise]);
-            console.log(`✅ Command /${commandName} completed successfully`);
-            
-          } catch (error) {
-            console.error(`❌ Error in /${commandName} command:`, error.message);
-            console.error(`❌ Stack trace:`, error.stack);
-            
-            // Send fallback message to user
-            try {
-              await ctx.reply(`❌ Sorry, there was an error processing your request. Please try again.`);
-            } catch (replyError) {
-              console.error(`❌ Failed to send error reply:`, replyError.message);
-            }
-          }
-        });
+        // Register command handler normally
+        bot.command(commandName, commandHandler);
         
         console.log(`✅ Registered /${commandName} command with timeout protection`);
       } catch (e) {
@@ -109,22 +84,7 @@ function registerHandlers(bot) {
     }
   });
   
-  // 🚨 EMERGENCY FALLBACK - Respond to any message if no other handler matches
-  bot.on('text', async (ctx) => {
-    try {
-      console.log("📝 Text message received:", ctx.message.text, "from user:", ctx.from.id);
-      
-      // Simple fallback response
-      if (ctx.message.text.toLowerCase().includes('hello') || 
-          ctx.message.text.toLowerCase().includes('hi') ||
-          ctx.message.text.toLowerCase().includes('hey')) {
-        await ctx.reply("👋 Hello! I'm working! Send /test to verify.");
-        console.log("✅ Fallback response sent");
-      }
-    } catch (error) {
-      console.error("❌ Error in fallback handler:", error.message);
-    }
-  });
+  // Text message handler is already registered in messageHandlers.js
 
   // 🚀 Smart Optimizer Performance Commands
   bot.command("stats", async (ctx) => {

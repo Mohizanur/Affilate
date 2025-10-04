@@ -14,23 +14,8 @@ module.exports = async (ctx) => {
       lastName: ctx.from.last_name
     });
     
-    // Add timeout to prevent hanging
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Command timeout')), 10000);
-    });
-    
-    const startPromise = userHandlers.handleStart(ctx);
-    
-    try {
-      return await Promise.race([startPromise, timeoutPromise]);
-    } catch (error) {
-      if (error.message.includes('RESOURCE_EXHAUSTED') || error.message.includes('Quota exceeded')) {
-        console.log('🛡️ Quota exceeded, sending fallback response');
-        await ctx.reply('👋 Welcome to DegAffiliatebot!\n\n🚀 The bot is working but temporarily limited due to quota restrictions.\n\n✅ Your account has been created successfully!\n\n📱 Try again in a few minutes for full functionality.');
-        return;
-      }
-      throw error;
-    }
+    // Call the original handler directly
+    return userHandlers.handleStart(ctx);
   } catch (error) {
     console.error("❌ Error in /start command:", error.message);
     
