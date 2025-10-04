@@ -358,14 +358,18 @@ class SmartRealisticOptimizer {
         console.log('🔥 Warming up cache...');
         
         try {
-            // Pre-load user count
-            await this.getUserCount();
+            // Skip cache warmup to prevent quota exhaustion
+            console.log('🛡️ Skipping cache warmup to preserve quota');
+            return;
             
-            // Pre-load top referrers
-            await this.getTopReferrers();
+            // Pre-load user count (DISABLED)
+            // await this.getUserCount();
             
-            // Pre-load first page of users
-            await this.getUsersPaginated(20);
+            // Pre-load top referrers (DISABLED)
+            // await this.getTopReferrers();
+            
+            // Pre-load first page of users (DISABLED)
+            // await this.getUsersPaginated(20);
             
             console.log('✅ Cache warmup complete');
         } catch (error) {
