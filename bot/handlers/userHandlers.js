@@ -1588,9 +1588,9 @@ class UserHandlers {
       if (user.phone_verified && !user.phoneVerified)
         user.phoneVerified = user.phone_verified;
 
-      // Get referral stats to show actual total referrals
-      const referralService = require("../services/referralService");
-      const stats = await referralService.getReferralStats(telegramId);
+      // Get referral stats with smart caching
+      const smartAnalyticsService = require("../services/smartAnalyticsService");
+      const stats = await smartAnalyticsService.getUserStats(telegramId);
 
       const message =
         t("msg_profile_title", {}, userLanguage) +
