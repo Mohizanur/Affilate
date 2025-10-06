@@ -4,6 +4,7 @@ const { Markup } = require("telegraf");
 const smartOptimizer = require("../config/smart-optimizer-integration");
 
 const userService = require("../services/userService");
+const smartUserService = require("../services/smartUserService");
 
 const productService = require("../services/productService");
 
@@ -106,15 +107,38 @@ function requirePhoneVerification(ctx, user, userLanguage) {
 }
 
 class UserHandlers {
+  /**
+   * Get user data with smart caching
+   * @param {number} telegramId - User's Telegram ID
+   * @returns {Object} User data
+   */
+  async getUserWithCache(telegramId) {
+    try {
+      return await smartUserService.getUserByTelegramId(telegramId);
+    } catch (error) {
+      console.error(`❌ Failed to get user ${telegramId} from cache:`, error.message);
+      // Fallback to direct database call
+      try {
+        const user = await userService.userService.getUserByTelegramId(telegramId);
+        if (user) {
+          smartUserService.setUser(telegramId, user);
+        }
+        return user;
+      } catch (dbError) {
+        console.error(`❌ Database fallback also failed for user ${telegramId}:`, dbError.message);
+        throw dbError;
+      }
+    }
+  }
   async handleStart(ctx) {
     try {
       console.log("🚀 Starting handleStart for user:", ctx.from.id);
       let user;
 
-      // Use regular userService directly for reliability
+      // Use smart caching service for better performance
       try {
         console.log("🔍 Getting user data for:", ctx.from.id);
-        user = await userService.userService.getUserByTelegramId(ctx.from.id);
+        user = await smartUserService.getUserByTelegramId(ctx.from.id);
         console.log("✅ User retrieved:", user ? "found" : "not found");
         if (user) {
           console.log("🔍 User role:", user.role);
@@ -131,7 +155,7 @@ class UserHandlers {
       if (!user) {
         try {
           console.log("📝 Creating new user for:", ctx.from.id);
-          user = await userService.userService.createUser({
+          user = await smartUserService.createUser({
             telegramId: ctx.from.id,
             username: ctx.from.username || null,
             firstName: ctx.from.first_name || null,
@@ -139,7 +163,7 @@ class UserHandlers {
             createdAt: new Date(),
             updatedAt: new Date(),
           });
-          console.log("✅ User created successfully");
+          console.log("✅ User created successfully and cached");
         } catch (createError) {
           console.error("❌ User creation failed:", createError);
           throw createError;
@@ -518,10 +542,8 @@ class UserHandlers {
         }
       }
 
-      // Get user and check verification
-      const user = await userService.userService.getUserByTelegramId(
-        ctx.from.id
-      );
+      // Get user and check verification (with smart caching)
+      const user = await this.getUserWithCache(ctx.from.id);
       const userLanguage = ctx.session?.language || user?.language || "en";
 
       if (blockIfBanned(ctx, user)) return;
@@ -830,10 +852,8 @@ class UserHandlers {
         return;
       }
 
-      // Check if user is phone verified
-      const user = await userService.userService.getUserByTelegramId(
-        telegramId
-      );
+      // Check if user is phone verified (with smart caching)
+      const user = await this.getUserWithCache(telegramId);
       if (!user.phoneVerified) {
         ctx.reply(
           t(
