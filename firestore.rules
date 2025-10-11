@@ -1,4 +1,4 @@
-image.pngrules_version = '2';
+rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     // Users can only read/write their own user document
