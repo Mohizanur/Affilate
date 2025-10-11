@@ -9,17 +9,22 @@ const logger = require("../../utils/logger");
 
 class MemoryManager {
   constructor() {
-    this.memoryThreshold = 0.55; // 55% memory usage threshold (ultra-minimal for free tier)
-    this.cleanupInterval = 30000; // 30 seconds
-    this.forceGCInterval = 300000; // 5 minutes
+    // 🔧 RENDER FIX: More lenient for 512MB free tier
+    this.memoryThreshold = 0.85; // 85% (was 55% - too aggressive for Render)
+    this.cleanupInterval = 120000; // 2 minutes (was 30s)
+    this.forceGCInterval = 600000; // 10 minutes (was 5m)
     this.startupTime = Date.now();
 
     this.memoryHistory = [];
     this.cleanupCount = 0;
     this.lastCleanup = null;
 
-    // Start monitoring
-    this.startMonitoring();
+    // Start monitoring only if not disabled
+    if (process.env.DISABLE_HEAVY_MONITORING !== 'true') {
+      this.startMonitoring();
+    } else {
+      console.log('🛡️ Heavy memory monitoring disabled for Render free tier');
+    }
   }
 
   /**
