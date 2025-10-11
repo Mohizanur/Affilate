@@ -279,6 +279,107 @@ class CacheService {
       },
     };
   }
+
+  // 🚀 SMART CACHE INVALIDATION - Invalidate related data when updates occur
+  invalidateUser(telegramId) {
+    // Clear user-specific caches
+    this.userCache.del(`user:${telegramId}`);
+    this.instantCache.del(`user:${telegramId}`);
+    
+    // Clear related caches
+    const keys = this.statsCache.keys();
+    keys.forEach(key => {
+      if (key.includes('leaderboard') || key.includes('user_search') || key.includes('all_users')) {
+        this.statsCache.del(key);
+      }
+    });
+    
+    logger.info(`♻️ Smart invalidation: User ${telegramId} and related caches cleared`);
+  }
+
+  invalidateCompany(companyId) {
+    // Clear company-specific caches
+    this.companyCache.del(`company:${companyId}`);
+    this.instantCache.del(`company:${companyId}`);
+    
+    // Clear related caches
+    const keys = this.statsCache.keys();
+    keys.forEach(key => {
+      if (key.includes('companies') || key.includes('company_count')) {
+        this.statsCache.del(key);
+      }
+    });
+    
+    logger.info(`♻️ Smart invalidation: Company ${companyId} and related caches cleared`);
+  }
+
+  invalidateLeaderboard() {
+    // Clear all leaderboard-related caches
+    const keys = this.statsCache.keys();
+    keys.forEach(key => {
+      if (key.includes('leaderboard') || key.includes('leaderboard_pos')) {
+        this.statsCache.del(key);
+      }
+    });
+    
+    logger.info(`♻️ Smart invalidation: All leaderboard caches cleared`);
+  }
+
+  invalidateAnalytics() {
+    // Clear analytics and count caches
+    const keys = this.statsCache.keys();
+    keys.forEach(key => {
+      if (key.includes('count:') || key.includes('analytics') || key.includes('stats')) {
+        this.statsCache.del(key);
+      }
+    });
+    
+    logger.info(`♻️ Smart invalidation: All analytics caches cleared`);
+  }
+
+  invalidatePattern(pattern) {
+    // Invalidate all caches matching a pattern (regex support)
+    const regex = new RegExp(pattern);
+    
+    [this.userCache, this.companyCache, this.statsCache, this.instantCache].forEach(cache => {
+      const keys = cache.keys();
+      keys.forEach(key => {
+        if (regex.test(key)) {
+          cache.del(key);
+        }
+      });
+    });
+    
+    logger.info(`♻️ Smart invalidation: Pattern "${pattern}" cleared`);
+  }
+
+  // 🚀 BATCH INVALIDATION - Clear multiple items efficiently
+  batchInvalidate(items) {
+    items.forEach(item => {
+      if (item.type === 'user') {
+        this.invalidateUser(item.id);
+      } else if (item.type === 'company') {
+        this.invalidateCompany(item.id);
+      } else if (item.type === 'pattern') {
+        this.invalidatePattern(item.pattern);
+      }
+    });
+    
+    logger.info(`♻️ Batch invalidation: ${items.length} items cleared`);
+  }
+
+  // 🚀 AUTO-INVALIDATION on write operations
+  setUserWithInvalidation(telegramId, userData) {
+    this.setUser(telegramId, userData);
+    // Auto-invalidate leaderboard since user data changed
+    this.invalidateLeaderboard();
+  }
+
+  setCompanyWithInvalidation(companyId, companyData) {
+    this.setCompany(companyId, companyData);
+    // Auto-invalidate company counts
+    this.invalidatePattern('company_count');
+  }
 }
 
 const cacheService = new CacheService();

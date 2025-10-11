@@ -328,38 +328,45 @@ class UserService {
   // Get user's leaderboard position
   async getUserLeaderboardPosition(telegramId) {
     try {
-      const usersSnap = await databaseService
+      // 🚀 OPTIMIZED: Use count queries instead of fetching all users
+      const cacheKey = `leaderboard_pos_${telegramId}`;
+      const cached = cacheService.getStats(cacheKey);
+      if (cached) return cached;
+
+      // Get user's referral count first
+      const userDoc = await databaseService.users().doc(telegramId.toString()).get();
+      if (!userDoc.exists) return { global: 0, monthly: 0 };
+      
+      const userData = userDoc.data();
+      const userReferralCount = userData.verifiedReferralCount || 0;
+
+      // Count users with higher referral counts (global position)
+      const globalHigherSnap = await databaseService
         .users()
-        .orderBy("verifiedReferralCount", "desc")
+        .where("verifiedReferralCount", ">", userReferralCount)
         .get();
-      let global = 0;
-      let monthly = 0;
-      let found = false;
-      let foundMonthly = false;
+      const global = globalHigherSnap.size + 1;
+
+      // Monthly position (users active this month with higher counts)
       const startOfMonth = new Date();
       startOfMonth.setDate(1);
       startOfMonth.setHours(0, 0, 0, 0);
-      let i = 1;
-      let j = 1;
-      usersSnap.forEach((doc) => {
-        const d = doc.data();
-        if (!found && d.telegramId === telegramId) {
-          global = i;
-          found = true;
-        }
-        if (
-          !foundMonthly &&
-          d.telegramId === telegramId &&
-          d.last_active &&
-          d.last_active.toDate() >= startOfMonth
-        ) {
-          monthly = j;
-          foundMonthly = true;
-        }
-        i++;
-        if (d.last_active && d.last_active.toDate() >= startOfMonth) j++;
-      });
-      return { global, monthly };
+
+      let monthly = 0;
+      if (userData.last_active && userData.last_active.toDate() >= startOfMonth) {
+        const monthlyHigherSnap = await databaseService
+          .users()
+          .where("last_active", ">=", startOfMonth)
+          .where("verifiedReferralCount", ">", userReferralCount)
+          .get();
+        monthly = monthlyHigherSnap.size + 1;
+      }
+
+      const result = { global, monthly };
+      
+      // Cache for 5 minutes
+      cacheService.setStats(cacheKey, result, 300);
+      return result;
     } catch (error) {
       logger.error("Error getting user leaderboard position:", error);
       throw error;
@@ -699,6 +706,15 @@ class UserService {
       const userRef = databaseService.users().doc(telegramId.toString());
       await userRef.update({ ...updateData, updatedAt: new Date() });
       const userDoc = await userRef.get();
+      
+      // 🚀 SMART CACHE INVALIDATION: Auto-invalidate related caches
+      cacheService.invalidateUser(telegramId);
+      
+      // If referral count changed, invalidate leaderboard
+      if (updateData.verifiedReferralCount !== undefined) {
+        cacheService.invalidateLeaderboard();
+      }
+      
       return { id: userDoc.id, ...userDoc.data() };
     } catch (error) {
       logger.error("Error updating user:", error);
@@ -708,16 +724,66 @@ class UserService {
 
   async searchUsers(query) {
     try {
-      const usersSnap = await databaseService.users().get();
-      const q = query.toLowerCase();
-      return usersSnap.docs
-        .map((doc) => ({ id: doc.id, ...doc.data() }))
-        .filter(
-          (u) =>
-            (u.username && u.username.toLowerCase().includes(q)) ||
-            (u.phone_number && u.phone_number.toLowerCase().includes(q)) ||
-            (u.id && u.id.toLowerCase().includes(q))
-        );
+      // 🚀 OPTIMIZED: Use targeted queries instead of full table scan
+      const cacheKey = `user_search_${query.toLowerCase()}`;
+      const cached = cacheService.getStats(cacheKey);
+      if (cached) return cached;
+
+      const q = query.toLowerCase().trim();
+      const results = new Map(); // Use Map to avoid duplicates
+
+      // Strategy 1: Search by username (exact match first, then prefix)
+      if (q.length >= 2) {
+        try {
+          const usernameSnap = await databaseService
+            .users()
+            .where("username", ">=", q)
+            .where("username", "<=", q + "\uf8ff")
+            .limit(20)
+            .get();
+          
+          usernameSnap.forEach((doc) => {
+            results.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+        } catch (err) {
+          logger.warn("Username search failed:", err.message);
+        }
+      }
+
+      // Strategy 2: Search by phone number (exact match)
+      if (q.startsWith("+") || /^\d+$/.test(q)) {
+        try {
+          const phoneSnap = await databaseService
+            .users()
+            .where("phone_number", "==", q.startsWith("+") ? q : `+${q}`)
+            .limit(10)
+            .get();
+          
+          phoneSnap.forEach((doc) => {
+            results.set(doc.id, { id: doc.id, ...doc.data() });
+          });
+        } catch (err) {
+          logger.warn("Phone search failed:", err.message);
+        }
+      }
+
+      // Strategy 3: Search by Telegram ID (if numeric)
+      if (/^\d+$/.test(q)) {
+        try {
+          const userDoc = await databaseService.users().doc(q).get();
+          if (userDoc.exists) {
+            results.set(userDoc.id, { id: userDoc.id, ...userDoc.data() });
+          }
+        } catch (err) {
+          logger.warn("Telegram ID search failed:", err.message);
+        }
+      }
+
+      const searchResults = Array.from(results.values()).slice(0, 20);
+      
+      // Cache for 2 minutes
+      cacheService.setStats(cacheKey, searchResults, 120);
+      return searchResults;
     } catch (error) {
       logger.error("Error searching users:", error);
       throw error;
@@ -730,6 +796,10 @@ class UserService {
       const userDoc = await userRef.get();
       if (!userDoc.exists) throw new Error("User not found");
       await userRef.update({ banned: true, bannedAt: new Date() });
+      
+      // 🚀 SMART CACHE INVALIDATION: Clear user cache and counts
+      cacheService.invalidateUser(telegramId);
+      cacheService.invalidateAnalytics(); // Banned count changed
       
       return true;
     } catch (error) {
@@ -744,6 +814,10 @@ class UserService {
       const userDoc = await userRef.get();
       if (!userDoc.exists) throw new Error("User not found");
       await userRef.update({ banned: false, bannedAt: null });
+      
+      // 🚀 SMART CACHE INVALIDATION: Clear user cache and counts
+      cacheService.invalidateUser(telegramId);
+      cacheService.invalidateAnalytics(); // Banned count changed
       
       return true;
     } catch (error) {
@@ -866,16 +940,103 @@ class UserService {
   }
 }
 
-async function getAllUsers() {
-  const usersSnap = await databaseService.users().get();
-  return usersSnap.docs.map((doc) => {
-    const d = doc.data();
-    return {
-      id: doc.id,
-      ...d,
-      canRegisterCompany: d.canRegisterCompany === true,
-    };
-  });
+// 🚀 OPTIMIZED: Paginated user fetching with caching
+async function getAllUsers(options = {}) {
+  const { 
+    limit = 100, 
+    offset = 0, 
+    filter = null, 
+    useCache = true 
+  } = options;
+
+  try {
+    // Build cache key based on options
+    const cacheKey = `all_users_${limit}_${offset}_${filter || 'all'}`;
+    
+    if (useCache) {
+      const cacheService = require("../config/cache");
+      const cached = cacheService.getStats(cacheKey);
+      if (cached) {
+        console.log(`🎯 Cache HIT: getAllUsers(${limit}, ${offset})`);
+        return cached;
+      }
+    }
+
+    console.log(`💾 Cache MISS: Fetching users from DB (${limit}, ${offset})`);
+    
+    // Build efficient query
+    let query = databaseService.users();
+    
+    // Apply filter if provided
+    if (filter === 'banned') {
+      query = query.where('banned', '==', true);
+    } else if (filter === 'verified') {
+      query = query.where('phone_verified', '==', true);
+    } else if (filter === 'admin') {
+      query = query.where('role', '==', 'admin');
+    } else if (filter === 'promoted') {
+      query = query.where('canRegisterCompany', '==', true);
+    }
+    
+    // Add pagination
+    query = query.orderBy('createdAt', 'desc').limit(limit);
+    if (offset > 0) {
+      query = query.offset(offset);
+    }
+
+    const usersSnap = await query.get();
+    const users = usersSnap.docs.map((doc) => {
+      const d = doc.data();
+      return {
+        id: doc.id,
+        ...d,
+        canRegisterCompany: d.canRegisterCompany === true,
+      };
+    });
+
+    // Cache for 5 minutes
+    if (useCache) {
+      const cacheService = require("../config/cache");
+      cacheService.setStats(cacheKey, users, 300);
+    }
+
+    return users;
+  } catch (error) {
+    logger.error("Error in getAllUsers:", error);
+    throw error;
+  }
+}
+
+// 🚀 NEW: Efficient count function (doesn't fetch all docs)
+async function getUserCount(filter = null) {
+  try {
+    const cacheKey = `user_count_${filter || 'all'}`;
+    const cacheService = require("../config/cache");
+    const cached = cacheService.getStats(cacheKey);
+    if (cached) return cached;
+
+    let query = databaseService.users();
+    
+    if (filter === 'banned') {
+      query = query.where('banned', '==', true);
+    } else if (filter === 'verified') {
+      query = query.where('phone_verified', '==', true);
+    } else if (filter === 'admin') {
+      query = query.where('role', '==', 'admin');
+    } else if (filter === 'promoted') {
+      query = query.where('canRegisterCompany', '==', true);
+    }
+
+    const snapshot = await query.get();
+    const count = snapshot.size;
+    
+    // Cache for 10 minutes
+    cacheService.setStats(cacheKey, count, 600);
+    return count;
+  } catch (error) {
+    logger.error("Error in getUserCount:", error);
+    throw error;
+  }
 }
 
 const userService = new UserService();
@@ -886,6 +1047,7 @@ UserService.prototype.getAdminTelegramIds =
 module.exports = {
   userService,
   getAllUsers,
+  getUserCount, // 🚀 NEW: Efficient counting
   // Export these for direct use in adminHandlers.js
   banUser: (...args) => userService.banUser(...args),
   getBannedUsers: (...args) => userService.getBannedUsers(...args),

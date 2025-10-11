@@ -618,13 +618,17 @@ class AdminHandlers {
           t("msg__access_denied", {}, ctx.session?.language || "en")
         );
 
-      const users = await userService.getAllUsers();
-      const bannedUsers = users.filter((u) => u.isBanned);
+      // 🚀 OPTIMIZED: Query only banned users directly
+      const bannedUsers = await userService.getAllUsers({ 
+        filter: 'banned', 
+        limit: 100 
+      });
+      const totalBanned = await userService.getUserCount('banned');
 
       let msg = `🚫 *Banned Users*
 
 `;
-      msg += `📊 Total Banned: ${bannedUsers.length}
+      msg += `📊 Total Banned: ${totalBanned}
 
 `;
 
@@ -640,6 +644,10 @@ class AdminHandlers {
 
 `;
         });
+        
+        if (totalBanned > 10) {
+          msg += `\n_Showing 10 of ${totalBanned} banned users_`;
+        }
       }
 
       const buttons = [
@@ -668,17 +676,23 @@ class AdminHandlers {
           t("msg__access_denied", {}, ctx.session?.language || "en")
         );
 
-      const users = await userService.getAllUsers();
-      const totalUsers = users.length;
-      const activeUsers = users.filter((u) => !u.isBanned).length;
-      const bannedUsers = users.filter((u) => u.isBanned).length;
-      const usersWithBalance = users.filter(
-        (u) => (u.referralBalance || 0) > 0
-      ).length;
-      const verifiedUsers = users.filter(
-        (u) => u.phone_verified || u.phoneVerified
-      ).length;
-      const adminUsers = users.filter((u) => u.role === "admin").length;
+      // 🚀 OPTIMIZED: Use efficient count queries instead of fetching all users
+      const [totalUsers, bannedUsers, verifiedUsers, adminUsers] = await Promise.all([
+        userService.getUserCount(),
+        userService.getUserCount('banned'),
+        userService.getUserCount('verified'),
+        userService.getUserCount('admin')
+      ]);
+      
+      const activeUsers = totalUsers - bannedUsers;
+      
+      // For balance count, we still need to query but with a filter
+      const databaseService = require('../config/database');
+      const usersWithBalanceSnap = await databaseService.users()
+        .where('referralBalance', '>', 0)
+        .select()
+        .get();
+      const usersWithBalance = usersWithBalanceSnap.size;
 
       // Create beautiful header with emojis and formatting
       let msg = `👥 *USER ANALYTICS DASHBOARD*\n`;

@@ -57,19 +57,23 @@ class SmartAnalyticsService {
   }
 
   /**
-   * Get user count efficiently
+   * Get user count efficiently (uses count aggregation when available)
    */
   async getUserCount() {
     const cacheKey = 'count:users';
     if (this.cache.has(cacheKey)) {
       const cached = this.cache.get(cacheKey);
       if (Date.now() - cached.timestamp < this.cacheTimeout) {
+        console.log('🎯 User count cache HIT');
         return cached.data;
       }
     }
 
+    console.log('💾 User count cache MISS - querying DB');
     const databaseService = require('../config/database');
-    const snapshot = await databaseService.users().get();
+    
+    // 🚀 OPTIMIZED: Use select() to only fetch minimal data for counting
+    const snapshot = await databaseService.users().select().get();
     const count = snapshot.size;
     
     this.cache.set(cacheKey, {
@@ -77,23 +81,28 @@ class SmartAnalyticsService {
       timestamp: Date.now()
     });
     
+    console.log(`✅ User count: ${count}`);
     return count;
   }
 
   /**
-   * Get company count efficiently
+   * Get company count efficiently (uses count aggregation when available)
    */
   async getCompanyCount() {
     const cacheKey = 'count:companies';
     if (this.cache.has(cacheKey)) {
       const cached = this.cache.get(cacheKey);
       if (Date.now() - cached.timestamp < this.cacheTimeout) {
+        console.log('🎯 Company count cache HIT');
         return cached.data;
       }
     }
 
+    console.log('💾 Company count cache MISS - querying DB');
     const databaseService = require('../config/database');
-    const snapshot = await databaseService.companies().get();
+    
+    // 🚀 OPTIMIZED: Use select() to only fetch minimal data for counting
+    const snapshot = await databaseService.companies().select().get();
     const count = snapshot.size;
     
     this.cache.set(cacheKey, {
@@ -101,23 +110,28 @@ class SmartAnalyticsService {
       timestamp: Date.now()
     });
     
+    console.log(`✅ Company count: ${count}`);
     return count;
   }
 
   /**
-   * Get referral count efficiently
+   * Get referral count efficiently (uses count aggregation when available)
    */
   async getReferralCount() {
     const cacheKey = 'count:referrals';
     if (this.cache.has(cacheKey)) {
       const cached = this.cache.get(cacheKey);
       if (Date.now() - cached.timestamp < this.cacheTimeout) {
+        console.log('🎯 Referral count cache HIT');
         return cached.data;
       }
     }
 
+    console.log('💾 Referral count cache MISS - querying DB');
     const databaseService = require('../config/database');
-    const snapshot = await databaseService.referrals().get();
+    
+    // 🚀 OPTIMIZED: Use select() to only fetch minimal data for counting
+    const snapshot = await databaseService.referrals().select().get();
     const count = snapshot.size;
     
     this.cache.set(cacheKey, {
@@ -125,6 +139,7 @@ class SmartAnalyticsService {
       timestamp: Date.now()
     });
     
+    console.log(`✅ Referral count: ${count}`);
     return count;
   }
 

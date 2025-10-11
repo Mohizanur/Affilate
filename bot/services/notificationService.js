@@ -134,12 +134,41 @@ class NotificationService {
           type: "system",
         });
       } else {
-        // Send to all users
-        const allUsers = await userService.getAllUsers();
-        const allUserIds = allUsers.map((user) => user.telegram_id);
-        await this.sendBulkNotification(allUserIds, maintenanceMessage, {
-          type: "system",
-        });
+        // 🚀 OPTIMIZED: Fetch users in batches instead of all at once
+        const batchSize = 100;
+        let offset = 0;
+        let hasMore = true;
+        
+        while (hasMore) {
+          const users = await userService.getAllUsers({ 
+            limit: batchSize, 
+            offset: offset,
+            useCache: false // Don't cache during bulk operations
+          });
+          
+          if (users.length === 0) {
+            hasMore = false;
+            break;
+          }
+          
+          const userIds = users.map((user) => user.telegram_id || user.telegramId).filter(Boolean);
+          
+          if (userIds.length > 0) {
+            await this.sendBulkNotification(userIds, maintenanceMessage, {
+              type: "system",
+            });
+          }
+          
+          offset += batchSize;
+          hasMore = users.length === batchSize;
+          
+          // Small delay between batches to avoid rate limits
+          if (hasMore) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+          }
+        }
+        
+        logger.info(`System maintenance notification sent to all users in batches`);
       }
     } catch (error) {
       logger.error("Error sending system maintenance notification:", error);
