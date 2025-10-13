@@ -73,10 +73,11 @@ class RealTimeMonitor {
    * Initialize the monitoring system
    */
   initialize() {
-    this.startMonitoring();
-    this.startAlerting();
+    // EMERGENCY: Disable monitoring to stop quota leak
+    logger.info("🚀 Real-Time Performance Monitor initialized (DISABLED for quota protection)");
+    // this.startMonitoring();
+    // this.startAlerting();
     this.setupEventListeners();
-    logger.info("🚀 Real-Time Performance Monitor initialized");
   }
 
   /**
@@ -87,10 +88,10 @@ class RealTimeMonitor {
     
     this.isMonitoring = true;
     
-    // Monitor every 100ms for real-time data
+    // Monitor every 30 seconds for real-time data (reduced from 100ms to save quota)
     this.monitoringInterval = setInterval(() => {
       this.collectMetrics();
-    }, 100);
+    }, 30000);
     
     logger.info("📊 Real-time monitoring started");
   }
@@ -115,10 +116,10 @@ class RealTimeMonitor {
    * Start alerting system
    */
   startAlerting() {
-    // Check for alerts every 5 seconds
+    // Check for alerts every 60 seconds (reduced from 5s to save quota)
     this.alertInterval = setInterval(() => {
       this.checkAlerts();
-    }, 5000);
+    }, 60000);
   }
 
   /**

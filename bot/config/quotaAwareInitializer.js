@@ -50,25 +50,14 @@ class QuotaAwareInitializer {
         return;
       }
 
-      // MINIMAL queries - only what's absolutely necessary
-      logger.info("🛡️ Performing minimal database queries to save quota");
+      // EMERGENCY: Skip all database queries to stop quota leak
+      logger.info("🛡️ EMERGENCY: Skipping database queries to stop quota leak");
       
-      // Get just 10 recent users instead of 100
-      const recentUsers = await databaseService.users()
-        .orderBy("last_active", "desc")
-        .limit(10)  // Reduced from 100 to 10
-        .get();
+      // Use empty fallback data instead of querying database
+      this.initializationData.set('users', []);
+      this.initializationData.set('companies', []);
       
-      // Get just 5 companies instead of 50
-      const companies = await databaseService.companies()
-        .limit(5)  // Reduced from 50 to 5
-        .get();
-      
-      // Store minimal data for workers
-      this.initializationData.set('users', recentUsers.docs.map(doc => doc.data()));
-      this.initializationData.set('companies', companies.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-      
-      logger.info(`🛡️ Master initialization complete: ${recentUsers.size} users, ${companies.size} companies`);
+      logger.info(`🛡️ Master initialization complete: 0 users, 0 companies (quota protection)`);
       
     } catch (error) {
       logger.error("Error in master initialization:", error.message);

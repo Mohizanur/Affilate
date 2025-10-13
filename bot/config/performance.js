@@ -23,22 +23,22 @@ class PerformanceMonitor {
     // Track concurrent requests
     this.activeRequests = new Set();
 
-    // Memory monitoring
-    setInterval(() => {
-      const memUsage = process.memoryUsage();
-      this.metrics.memoryUsage.push({
-        timestamp: Date.now(),
-        heapUsed: memUsage.heapUsed,
-        heapTotal: memUsage.heapTotal,
-        external: memUsage.external,
-        rss: memUsage.rss,
-      });
+    // EMERGENCY: Disable memory monitoring to stop quota leak
+    // setInterval(() => {
+    //   const memUsage = process.memoryUsage();
+    //   this.metrics.memoryUsage.push({
+    //     timestamp: Date.now(),
+    //     heapUsed: memUsage.heapUsed,
+    //     heapTotal: memUsage.heapTotal,
+    //     external: memUsage.external,
+    //     rss: memUsage.rss,
+    //   });
 
-      // Keep only last 100 memory readings
-      if (this.metrics.memoryUsage.length > 100) {
-        this.metrics.memoryUsage.shift();
-      }
-    }, 30000); // Every 30 seconds
+    //   // Keep only last 100 memory readings
+    //   if (this.metrics.memoryUsage.length > 100) {
+    //     this.metrics.memoryUsage.shift();
+    //   }
+    // }, 300000); // DISABLED to stop quota leak
   }
 
   // Track function execution time

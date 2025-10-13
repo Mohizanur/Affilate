@@ -31,20 +31,18 @@ class MemoryManager {
    * Start memory monitoring
    */
   startMonitoring() {
-    // Monitor memory every 30 seconds
-    setInterval(() => {
-      this.monitorMemory();
-    }, this.cleanupInterval);
+    // EMERGENCY: Disable memory monitoring to stop quota leak
+    // setInterval(() => {
+    //   this.monitorMemory();
+    // }, this.cleanupInterval);
 
-    // Force garbage collection every 5 minutes
-    setInterval(() => {
-      this.forceGarbageCollection();
-    }, this.forceGCInterval);
+    // setInterval(() => {
+    //   this.forceGarbageCollection();
+    // }, this.forceGCInterval);
 
-    // Log memory status every 10 minutes
-    setInterval(() => {
-      this.logMemoryStatus();
-    }, 10 * 60 * 1000);
+    // setInterval(() => {
+    //   this.logMemoryStatus();
+    // }, 15 * 60 * 1000); // DISABLED to stop quota leak
   }
 
   /**
