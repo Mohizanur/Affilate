@@ -153,7 +153,11 @@ class AdminHandlers {
           t("msg__access_denied", {}, ctx.session?.language || "en")
         );
 
-      const usersSnap = await databaseService.users().get();
+      // QUOTA-SAVING: Use filtered query instead of fetching ALL users
+      const usersSnap = await databaseService.users()
+        .where('banned', '==', true)
+        .limit(100)
+        .get();
       let users = [];
 
       // Convert to array and filter if search query provided

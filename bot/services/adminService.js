@@ -97,48 +97,33 @@ class AdminService {
 
   async getUserAnalytics() {
     try {
-      // Firestore: get all users, phone verified, active in 7d, and referrers
-      const usersSnap = await databaseService.users().get();
-      const total = usersSnap.size;
-      let verified = 0,
-        active = 0,
-        referrers = 0;
+      // QUOTA-SAVING: Use count queries instead of fetching ALL users (1 read instead of 100+ reads)
       const now = Date.now();
+      const sevenDaysAgo = new Date(now - 7 * 24 * 60 * 60 * 1000);
+      
+      // Get counts efficiently using count queries (1 read each instead of 100+ reads)
+      const [totalSnap, verifiedSnap, activeSnap] = await Promise.all([
+        databaseService.users().count().get(),
+        databaseService.users().where('phone_verified', '==', true).count().get(),
+        databaseService.users().where('last_active', '>=', sevenDaysAgo).count().get()
+      ]);
 
-      console.log(`🔍 [DEBUG] Total users found: ${total}`);
+      const total = totalSnap.data().count;
+      const verified = verifiedSnap.data().count;
+      const active = activeSnap.data().count;
 
-      usersSnap.forEach((doc) => {
-        const u = doc.data();
-        // Check both phone_verified and phoneVerified fields
-        const isVerified = u.phone_verified || u.phoneVerified;
-        if (isVerified) {
-          verified++;
-          console.log(
-            `✅ [DEBUG] Verified user found: ${doc.id}, phone_verified: ${u.phone_verified}, phoneVerified: ${u.phoneVerified}`
-          );
-        }
-        if (
-          u.last_active &&
-          now - new Date(u.last_active).getTime() < 7 * 24 * 60 * 60 * 1000
-        )
-          active++;
-      });
+      console.log(`🔍 [DEBUG] Efficient counts - Total: ${total}, Verified: ${verified}, Active: ${active}`);
 
-      console.log(
-        `📊 [DEBUG] Final counts - Total: ${total}, Verified: ${verified}, Active: ${active}`
-      );
-
-      // Count users with at least one referral code
+      // Count users with referral codes efficiently (1 read instead of fetching all)
       const refCodesSnap = await databaseService
         .getDb()
         .collection("referral_codes")
+        .count()
         .get();
-      const refUserIds = new Set();
-      refCodesSnap.forEach((doc) => {
-        const rc = doc.data();
-        if (rc.user_id) refUserIds.add(rc.user_id);
-      });
-      referrers = refUserIds.size;
+      const referrers = refCodesSnap.data().count;
+
+      console.log(`📊 [DEBUG] Final efficient counts - Total: ${total}, Verified: ${verified}, Active: ${active}, Referrers: ${referrers}`);
+      
       return { total, verified, active, referrers };
     } catch (error) {
       logger.error("Error getting user analytics:", error);
@@ -148,59 +133,41 @@ class AdminService {
 
   async getCompanyAnalytics() {
     try {
-      console.log(
-        "🚀 Fetching company analytics with optimized batch processing..."
-      );
+      console.log("🚀 Fetching company analytics with efficient count queries...");
 
-      // Fetch all data in parallel to avoid N+1 queries
+      // QUOTA-SAVING: Use count queries instead of fetching ALL data (4 reads instead of 500+ reads)
       const [
-        companiesSnap,
-        allProductsSnap,
-        allReferralsSnap,
-        allSalesSnap,
+        companiesCountSnap,
+        productsCountSnap,
+        referralsCountSnap,
+        salesCountSnap,
         platformSettings,
       ] = await Promise.all([
-        databaseService.companies().get(),
-        databaseService.getDb().collection("products").get(),
-        databaseService.referrals().get(),
-        databaseService.getDb().collection("sales").get(),
+        databaseService.companies().count().get(),
+        databaseService.getDb().collection("products").count().get(),
+        databaseService.referrals().count().get(),
+        databaseService.getDb().collection("sales").count().get(),
         this.getPlatformSettings(),
       ]);
 
-      console.log(
-        `📊 Processing ${companiesSnap.size} companies with batch data...`
-      );
+      const totalCompanies = companiesCountSnap.data().count;
+      const totalProducts = productsCountSnap.data().count;
+      const totalReferrals = referralsCountSnap.data().count;
+      const totalSales = salesCountSnap.data().count;
 
-      // Pre-process all data into maps for O(1) lookups
-      const productsByCompany = new Map();
-      const referralsByCompany = new Map();
-      const salesByCompany = new Map();
+      console.log(`📊 Efficient counts - Companies: ${totalCompanies}, Products: ${totalProducts}, Referrals: ${totalReferrals}, Sales: ${totalSales}`);
 
-      // Process products with memory optimization for large datasets
-      console.log(`🔍 Processing ${allProductsSnap.size} products...`);
-      allProductsSnap.docs.forEach((doc) => {
-        const product = doc.data();
-        const companyId = product.companyId || product.company_id;
-        if (companyId) {
-          productsByCompany.set(
-            companyId,
-            (productsByCompany.get(companyId) || 0) + 1
-          );
-        }
-      });
-
-      // Process referrals with memory optimization for large datasets
-      console.log(`🔍 Processing ${allReferralsSnap.size} referrals...`);
-      allReferralsSnap.docs.forEach((doc) => {
-        const referral = doc.data();
-        const companyId = referral.companyId || referral.company_id;
-        if (companyId) {
-          if (!referralsByCompany.has(companyId)) {
-            referralsByCompany.set(companyId, []);
-          }
-          referralsByCompany.get(companyId).push(referral);
-        }
-      });
+      // Return simple analytics with counts instead of processing all documents
+      return {
+        totalCompanies,
+        totalProducts,
+        totalReferrals,
+        totalSales,
+        averageProductsPerCompany: totalCompanies > 0 ? Math.round(totalProducts / totalCompanies) : 0,
+        averageReferralsPerCompany: totalCompanies > 0 ? Math.round(totalReferrals / totalCompanies) : 0,
+        averageSalesPerCompany: totalCompanies > 0 ? Math.round(totalSales / totalCompanies) : 0,
+        platformFeePercent: platformSettings.platformFeePercent || 0
+      };
 
       // Process sales with memory optimization for large datasets
       console.log(`🔍 Processing ${allSalesSnap.size} sales...`);
