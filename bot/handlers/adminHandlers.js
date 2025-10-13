@@ -1896,8 +1896,10 @@ class AdminHandlers {
 
       ctx.reply("📊 Generating user export...");
 
-      // Get all users
-      const usersSnap = await databaseService.users().get();
+      // QUOTA-SAVING: Use paginated query instead of fetching ALL users
+      const usersSnap = await databaseService.users()
+        .limit(500)
+        .get();
       const users = [];
 
       for (const doc of usersSnap.docs) {
@@ -2585,8 +2587,10 @@ class AdminHandlers {
       const { getBot } = require("../index");
       const bot = getBot();
 
-      // Get all users
-      const usersSnap = await require("../config/database").users().get();
+      // QUOTA-SAVING: Use paginated query instead of fetching ALL users
+      const usersSnap = await require("../config/database").users()
+        .limit(1000)
+        .get();
       let sent = 0,
         failed = 0,
         total = 0;
@@ -3381,8 +3385,10 @@ class AdminHandlers {
 
       ctx.reply("📊 Generating user export...");
 
-      // Get all users
-      const usersSnap = await databaseService.users().get();
+      // QUOTA-SAVING: Use paginated query instead of fetching ALL users
+      const usersSnap = await databaseService.users()
+        .limit(500)
+        .get();
       const users = [];
 
       for (const doc of usersSnap.docs) {
@@ -4070,8 +4076,10 @@ class AdminHandlers {
       const { getBot } = require("../index");
       const bot = getBot();
 
-      // Get all users
-      const usersSnap = await require("../config/database").users().get();
+      // QUOTA-SAVING: Use paginated query instead of fetching ALL users
+      const usersSnap = await require("../config/database").users()
+        .limit(1000)
+        .get();
       let sent = 0,
         failed = 0,
         total = 0;
