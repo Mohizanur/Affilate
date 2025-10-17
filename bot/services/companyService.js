@@ -313,7 +313,8 @@ class CompanyService {
 
   async searchCompanies(query) {
     try {
-      const snap = await databaseService.companies().get();
+      // QUOTA-SAVING: Use limit instead of fetching ALL companies
+      const snap = await databaseService.companies().limit(100).get();
       const q = query.toLowerCase();
       return snap.docs
         .map((doc) => ({ id: doc.id, ...doc.data() }))

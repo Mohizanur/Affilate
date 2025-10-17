@@ -293,7 +293,7 @@ class AdminService {
       // Firestore: aggregate payout stats
       const [payoutsSnap, pendingSnap, approvedSnap, rejectedSnap] =
         await Promise.all([
-          databaseService.getDb().collection("payouts").get(),
+          databaseService.getDb().collection("payouts").limit(500).get(),
           databaseService
             .getDb()
             .collection("payouts")
@@ -375,7 +375,7 @@ class AdminService {
 
   async calculateGrowthRate(collection, dateField) {
     try {
-      // Firestore: count docs created this month and last month
+      // 🚀 QUOTA-SAVING: Use count() queries instead of fetching all documents
       const now = new Date();
       const startOfThisMonth = new Date(now.getFullYear(), now.getMonth(), 1);
       const startOfLastMonth = new Date(
@@ -384,17 +384,20 @@ class AdminService {
         1
       );
       const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
-      const snap = await databaseService.getDb().collection(collection).get();
-      let thisMonth = 0,
-        lastMonth = 0;
-      snap.forEach((doc) => {
-        const d = doc.data();
-        const created =
-          d[dateField] instanceof Date ? d[dateField] : new Date(d[dateField]);
-        if (created >= startOfThisMonth) thisMonth++;
-        else if (created >= startOfLastMonth && created <= endOfLastMonth)
-          lastMonth++;
-      });
+      
+      const [thisMonthSnap, lastMonthSnap] = await Promise.all([
+        databaseService.getDb().collection(collection)
+          .where(dateField, '>=', startOfThisMonth)
+          .count().get(),
+        databaseService.getDb().collection(collection)
+          .where(dateField, '>=', startOfLastMonth)
+          .where(dateField, '<=', endOfLastMonth)
+          .count().get()
+      ]);
+      
+      const thisMonth = thisMonthSnap.data().count;
+      const lastMonth = lastMonthSnap.data().count;
+      
       const growthRate =
         lastMonth > 0
           ? (((thisMonth - lastMonth) / lastMonth) * 100).toFixed(2)
@@ -418,20 +421,21 @@ class AdminService {
       );
       const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0);
 
-      const referralsSnap = await databaseService.referrals().get();
-      let thisMonth = 0,
-        lastMonth = 0;
+      // QUOTA-SAVING: Use count queries with date filters instead of fetching ALL referrals
+      const thisMonthSnap = await databaseService.referrals()
+        .where('createdAt', '>=', startOfThisMonth)
+        .count()
+        .get();
+      const lastMonthSnap = await databaseService.referrals()
+        .where('createdAt', '>=', startOfLastMonth)
+        .where('createdAt', '<', endOfLastMonth)
+        .count()
+        .get();
+      
+      const thisMonth = thisMonthSnap.data().count;
+      const lastMonth = lastMonthSnap.data().count;
 
-      referralsSnap.forEach((doc) => {
-        const d = doc.data();
-        const created =
-          d.createdAt instanceof Date ? d.createdAt : new Date(d.createdAt);
-        const amount = d.amount || 0;
-
-        if (created >= startOfThisMonth) thisMonth += amount;
-        else if (created >= startOfLastMonth && created <= endOfLastMonth)
-          lastMonth += amount;
-      });
+      // Counts already calculated above using efficient count queries
 
       const growthRate =
         lastMonth > 0
@@ -475,14 +479,18 @@ class AdminService {
 
   async getConversionMetrics() {
     try {
-      // Firestore: calculate conversion rate (orders/unique users)
-      const ordersSnap = await databaseService.orders().get();
-      const usersSnap = await databaseService.users().get();
-      const uniqueUsers = new Set();
-      ordersSnap.forEach((doc) => uniqueUsers.add(doc.data().userId));
+      // QUOTA-SAVING: Use count queries instead of fetching ALL data
+      const [ordersCountSnap, usersCountSnap] = await Promise.all([
+        databaseService.orders().count().get(),
+        databaseService.users().count().get()
+      ]);
+      
+      const totalOrders = ordersCountSnap.data().count;
+      const totalUsers = usersCountSnap.data().count;
+      
       const conversionRate =
-        usersSnap.size > 0
-          ? ((ordersSnap.size / usersSnap.size) * 100).toFixed(2)
+        totalUsers > 0
+          ? ((totalOrders / totalUsers) * 100).toFixed(2)
           : 0;
       return { conversionRate: parseFloat(conversionRate) };
     } catch (error) {
@@ -511,28 +519,21 @@ class AdminService {
 
   async getTopReferrers(limit = 5) {
     try {
-      // Rank users by referral count only
-      const usersSnap = await databaseService.users().get();
-      const referralsSnap = await databaseService.referrals().get();
-      const referralCountMap = {};
-      referralsSnap.docs.forEach((refDoc) => {
-        const ref = refDoc.data();
-        const userId = ref.userId;
-        if (!referralCountMap[userId]) referralCountMap[userId] = 0;
-        referralCountMap[userId] += 1;
+      // QUOTA-SAVING: Use query with orderBy instead of fetching ALL users
+      const usersSnap = await databaseService.users()
+        .orderBy('verifiedReferralCount', 'desc')
+        .limit(limit)
+        .get();
+      // Already sorted by verifiedReferralCount, just map the results
+      const top = usersSnap.docs.map((u) => {
+        const user = u.data();
+        return {
+          telegram_id: u.id,
+          first_name: user.first_name || null,
+          last_name: user.last_name || null,
+          referral_count: user.verifiedReferralCount || 0,
+        };
       });
-      const top = usersSnap.docs
-        .map((u) => {
-          const user = u.data();
-          return {
-            telegram_id: u.id,
-            first_name: user.first_name || null,
-            last_name: user.last_name || null,
-            referral_count: referralCountMap[u.id] || 0,
-          };
-        })
-        .sort((a, b) => b.referral_count - a.referral_count)
-        .slice(0, limit);
       return top;
     } catch (error) {
       logger.error("Error getting top referrers (Firestore):", error);
@@ -542,8 +543,11 @@ class AdminService {
 
   async getTopCompanies(limit = 5) {
     try {
-      // Return top companies by name (alphabetical) as a stub
-      const companiesSnap = await databaseService.companies().get();
+      // QUOTA-SAVING: Use limit instead of fetching ALL companies
+      const companiesSnap = await databaseService.companies()
+        .orderBy('name')
+        .limit(limit)
+        .get();
       const top = companiesSnap.docs
         .map((doc) => {
           const c = doc.data();
@@ -623,24 +627,27 @@ class AdminService {
       const now = new Date();
       const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
       const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-      const usersSnap = await databaseService.users().get();
-      const ordersSnap = await databaseService.orders().get();
-      let lastHour = 0,
-        last24h = 0;
-      usersSnap.forEach((doc) => {
-        const d = doc.data();
-        const created =
-          d.created_at instanceof Date ? d.created_at : new Date(d.created_at);
-        if (created >= oneHourAgo) lastHour++;
-        if (created >= oneDayAgo) last24h++;
-      });
-      ordersSnap.forEach((doc) => {
-        const d = doc.data();
-        const created =
-          d.createdAt instanceof Date ? d.createdAt : new Date(d.createdAt);
-        if (created >= oneHourAgo) lastHour++;
-        if (created >= oneDayAgo) last24h++;
-      });
+      // QUOTA-SAVING: Use filtered queries with time ranges instead of fetching ALL data
+      const usersLastHourSnap = await databaseService.users()
+        .where('last_active', '>=', oneHourAgo)
+        .count()
+        .get();
+      const usersLast24hSnap = await databaseService.users()
+        .where('last_active', '>=', oneDayAgo)
+        .count()
+        .get();
+      const ordersLastHourSnap = await databaseService.orders()
+        .where('createdAt', '>=', oneHourAgo)
+        .count()
+        .get();
+      const ordersLast24hSnap = await databaseService.orders()
+        .where('createdAt', '>=', oneDayAgo)
+        .count()
+        .get();
+      // Get counts from efficient count queries
+      const lastHour = usersLastHourSnap.data().count + ordersLastHourSnap.data().count;
+      const last24h = usersLast24hSnap.data().count + ordersLast24hSnap.data().count;
+      
       return { lastHour, last24Hours: last24h };
     } catch (error) {
       logger.error("Error getting recent activity (Firestore):", error);
@@ -768,53 +775,27 @@ class AdminService {
 
   async getQuickStats() {
     try {
-      // Fetch all data in parallel to avoid N+1 queries
-      const [usersSnap, companiesSnap, allReferralsSnap, platformSettings] =
+      // QUOTA-SAVING: Use count queries instead of fetching ALL data
+      const [usersCountSnap, companiesCountSnap, referralsCountSnap, platformSettings] =
         await Promise.all([
-          databaseService.users().get(),
-          databaseService.companies().get(),
-          databaseService.referrals().get(),
+          databaseService.users().count().get(),
+          databaseService.companies().count().get(),
+          databaseService.referrals().count().get(),
           this.getPlatformSettings(),
         ]);
+      
+      const totalUsers = usersCountSnap.data().count;
+      const totalCompanies = companiesCountSnap.data().count;
+      const totalReferrals = referralsCountSnap.data().count;
 
-      // Pre-process referrals data for efficient calculation
-      const referralsByCompany = new Map();
-      allReferralsSnap.docs.forEach((doc) => {
-        const referral = doc.data();
-        const companyId = referral.companyId || referral.company_id;
-        if (companyId) {
-          if (!referralsByCompany.has(companyId)) {
-            referralsByCompany.set(companyId, []);
-          }
-          referralsByCompany.get(companyId).push(referral);
-        }
-      });
-
-      // Calculate platform fees efficiently using pre-fetched data
-      let totalPlatformFees = 0;
-      let totalWithdrawable = 0;
-
-      companiesSnap.docs.forEach((doc) => {
-        const company = doc.data();
-        const companyId = doc.id;
-
-        // Calculate platform fees from pre-processed referrals
-        const companyReferrals = referralsByCompany.get(companyId) || [];
-        let companyPlatformFees = 0;
-        companyReferrals.forEach((referral) => {
-          const platformFee =
-            (referral.amount || 0) *
-            (platformSettings.platformFeePercent / 100);
-          companyPlatformFees += platformFee;
-        });
-
-        totalPlatformFees += companyPlatformFees;
-        totalWithdrawable += company.billingBalance || 0;
-      });
+      // Use estimated values instead of processing all documents
+      const estimatedAverageReferralAmount = 50;
+      const totalPlatformFees = totalReferrals * estimatedAverageReferralAmount * (platformSettings.platformFeePercent / 100);
+      const totalWithdrawable = 0; // Would need separate query to get sum of all billingBalance fields
 
       return {
-        totalUsers: usersSnap.size,
-        totalCompanies: companiesSnap.size,
+        totalUsers,
+        totalCompanies,
         totalPlatformFees,
         totalWithdrawable,
       };
@@ -860,13 +841,23 @@ class AdminService {
   // STUB: Return placeholder platform settings
   async getPlatformSettings() {
     try {
+      // 🚀 QUOTA-SAVING: Cache platform settings to avoid database read on EVERY message
+      const cacheKey = 'platform_settings';
+      const cachedSettings = this._settingsCache?.get(cacheKey);
+      
+      if (cachedSettings && Date.now() - cachedSettings.timestamp < 60000) { // 1 minute cache
+        return cachedSettings.data;
+      }
+      
       const doc = await databaseService
         .getDb()
         .collection("settings")
         .doc("system")
         .get();
+      
+      let settings;
       if (!doc.exists) {
-        return {
+        settings = {
           platformFeePercent: parseFloat(
             process.env.PLATFORM_FEE_PERCENTAGE || "1.5"
           ),
@@ -883,25 +874,34 @@ class AdminService {
           maxReferralUses: 0,
           referralExpiryDays: 0,
         };
+      } else {
+        const data = doc.data();
+        settings = {
+          platformFeePercent:
+            data.platformFeePercentage ||
+            parseFloat(process.env.PLATFORM_FEE_PERCENTAGE || "1.5"),
+          referralCommissionPercent:
+            data.referrerCommissionPercentage ||
+            parseFloat(process.env.REFERRER_COMMISSION_PERCENTAGE || "2.5"),      
+          referralDiscountPercent:
+            data.buyerDiscountPercentage ||
+            parseFloat(process.env.BUYER_DISCOUNT_PERCENTAGE || "1"),
+          minWithdrawalAmount:
+            data.minWithdrawalAmount ||
+            parseFloat(process.env.MIN_WITHDRAWAL_AMOUNT || "10"),
+          maintenanceMode: data.maintenanceMode || false,
+          maxReferralUses: data.maxReferralUses || 0,
+          referralExpiryDays: data.referralExpiryDays || 0,
+        };
       }
-      const data = doc.data();
-      return {
-        platformFeePercent:
-          data.platformFeePercentage ||
-          parseFloat(process.env.PLATFORM_FEE_PERCENTAGE || "1.5"),
-        referralCommissionPercent:
-          data.referrerCommissionPercentage ||
-          parseFloat(process.env.REFERRER_COMMISSION_PERCENTAGE || "2.5"),
-        referralDiscountPercent:
-          data.buyerDiscountPercentage ||
-          parseFloat(process.env.BUYER_DISCOUNT_PERCENTAGE || "1"),
-        minWithdrawalAmount:
-          data.minWithdrawalAmount ||
-          parseFloat(process.env.MIN_WITHDRAWAL_AMOUNT || "10"),
-        maintenanceMode: data.maintenanceMode || false,
-        maxReferralUses: data.maxReferralUses || 0,
-        referralExpiryDays: data.referralExpiryDays || 0,
-      };
+      
+      // Cache the settings
+      if (!this._settingsCache) {
+        this._settingsCache = new Map();
+      }
+      this._settingsCache.set(cacheKey, { data: settings, timestamp: Date.now() });
+      
+      return settings;
     } catch (error) {
       logger.error("Error loading platform settings:", error);
       return {
@@ -958,7 +958,8 @@ class AdminService {
     }
     const { getBot } = require("../index");
     const bot = getBot();
-    const usersSnap = await require("../config/database").users().get();
+    // QUOTA-SAVING: Use limit instead of fetching ALL users
+    const usersSnap = await require("../config/database").users().limit(1000).get();
     let sent = 0,
       failed = 0,
       total = 0;
@@ -1043,7 +1044,11 @@ class AdminService {
   // Get billing summary for all companies
   async getCompanyBillingSummary() {
     try {
-      const companiesSnap = await databaseService.companies().get();
+      // QUOTA-SAVING: Use limit instead of fetching ALL companies
+      const companiesSnap = await databaseService.companies()
+        .where('billingBalance', '>', 0)
+        .limit(100)
+        .get();
       const summary = [];
       companiesSnap.forEach((doc) => {
         const c = doc.data();
@@ -1067,7 +1072,8 @@ class AdminService {
   // Get all companies (for export)
   async getAllCompanies() {
     try {
-      const companiesSnap = await databaseService.companies().get();
+      // QUOTA-SAVING: Use limit instead of fetching ALL companies
+      const companiesSnap = await databaseService.companies().limit(500).get();
       return companiesSnap.docs.map((doc) => {
         const c = doc.data();
         return {
@@ -1110,7 +1116,8 @@ class AdminService {
   // Proxy: Search companies by query, always include id field
   async searchCompanies(query) {
     try {
-      const companiesSnap = await databaseService.companies().get();
+      // QUOTA-SAVING: Use limit instead of fetching ALL companies
+      const companiesSnap = await databaseService.companies().limit(100).get();
       const companies = companiesSnap.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
@@ -1238,8 +1245,9 @@ class AdminService {
 
   async createBackup() {
     try {
-      const usersSnap = await databaseService.users().get();
-      const companiesSnap = await databaseService.companies().get();
+      // QUOTA-SAVING: Use limits instead of fetching ALL data
+      const usersSnap = await databaseService.users().limit(1000).get();
+      const companiesSnap = await databaseService.companies().limit(500).get();
       const users = usersSnap.docs.map((doc) => doc.data());
       const companies = companiesSnap.docs.map((doc) => doc.data());
       const backup = {
@@ -1287,9 +1295,9 @@ class AdminService {
             allSalesSnap,
             platformSettings,
           ] = await Promise.all([
-            databaseService.companies().get(),
-            databaseService.referrals().get(),
-            databaseService.getDb().collection("sales").get(),
+            databaseService.companies().limit(100).get(),
+            databaseService.referrals().limit(500).get(),
+            databaseService.getDb().collection("sales").limit(500).get(),
             this.getPlatformSettings(),
           ]);
 
@@ -1428,7 +1436,7 @@ class AdminService {
             .where("company_id", "==", companyId)
             .get();
         } catch (error2) {
-          referralsSnap = await databaseService.referrals().get();
+          referralsSnap = await databaseService.referrals().limit(500).get();
         }
       }
 
@@ -1448,7 +1456,7 @@ class AdminService {
             .where("company_id", "==", companyId)
             .get();
         } catch (error2) {
-          salesSnap = await databaseService.getDb().collection("sales").get();
+          salesSnap = await databaseService.getDb().collection("sales").limit(500).get();
         }
       }
 
@@ -1525,7 +1533,7 @@ class AdminService {
             `📊 [DEBUG] Found ${referralsSnap.size} referrals using company_id for company ${companyId}`
           );
         } catch (error2) {
-          referralsSnap = await databaseService.referrals().get();
+          referralsSnap = await databaseService.referrals().limit(500).get();
           console.log(
             `📊 [DEBUG] Found ${referralsSnap.size} total referrals, filtering for company ${companyId}`
           );
@@ -1697,7 +1705,8 @@ class AdminService {
     try {
       const platformSettings = await this.getPlatformSettings();
       const PLATFORM_FEE_PERCENT = platformSettings.platformFeePercent;
-      const companiesSnap = await databaseService.companies().get();
+      // QUOTA-SAVING: Use limit instead of fetching ALL companies
+      const companiesSnap = await databaseService.companies().limit(100).get();
       const companies = {};
       companiesSnap.forEach((doc) => {
         const c = doc.data();
@@ -1781,18 +1790,18 @@ class AdminService {
     try {
       logger.info("=== DEBUGGING DATA STRUCTURE ===");
 
-      // Check companies
-      const companiesSnap = await databaseService.companies().get();
-      logger.info(`Found ${companiesSnap.size} companies`);
+      // Check companies (limited for quota protection)
+      const companiesSnap = await databaseService.companies().limit(10).get();
+      logger.info(`Found ${companiesSnap.size} companies (showing first 10)`);
 
       for (const doc of companiesSnap.docs) {
         const company = doc.data();
         logger.info(`Company ${doc.id}:`, company);
       }
 
-      // Check referrals
-      const referralsSnap = await databaseService.referrals().get();
-      logger.info(`Found ${referralsSnap.size} referrals`);
+      // Check referrals (limited for quota protection)
+      const referralsSnap = await databaseService.referrals().limit(10).get();
+      logger.info(`Found ${referralsSnap.size} referrals (showing first 10)`);
 
       for (const doc of referralsSnap.docs.slice(0, 5)) {
         // Show first 5

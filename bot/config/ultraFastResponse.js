@@ -536,14 +536,15 @@ class UltraFastResponse {
   async computeStats() {
     try {
       const databaseService = require("./database");
+      // QUOTA-SAVING: Use count queries instead of fetching ALL data
       const [usersSnap, companiesSnap] = await Promise.all([
-        databaseService.users().get(),
-        databaseService.companies().get()
+        databaseService.users().count().get(),
+        databaseService.companies().count().get()
       ]);
       
       return {
-        totalUsers: usersSnap.size,
-        totalCompanies: companiesSnap.size,
+        totalUsers: usersSnap.data().count,
+        totalCompanies: companiesSnap.data().count,
         timestamp: new Date()
       };
     } catch (error) {

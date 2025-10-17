@@ -256,14 +256,17 @@ class ReferralService {
 
   async getTopReferrers(limit = 10) {
     try {
-      // Fetch all users
-      const usersSnap = await databaseService.users().get();
+      // QUOTA-SAVING: Use limits instead of fetching ALL data
+      const usersSnap = await databaseService.users()
+        .orderBy('verifiedReferralCount', 'desc')
+        .limit(100)
+        .get();
       const users = usersSnap.docs.map((doc) => ({
         telegramId: doc.id,
         ...doc.data(),
       }));
-      // Fetch all referrals
-      const referralsSnap = await databaseService.referrals().get();
+      // Fetch top referrals only
+      const referralsSnap = await databaseService.referrals().limit(500).get();
       const referrals = referralsSnap.docs.map((doc) => doc.data());
       // Map: telegramId -> total referrals
       const referralCountMap = {};

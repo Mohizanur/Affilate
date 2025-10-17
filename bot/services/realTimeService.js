@@ -119,18 +119,19 @@ class RealTimeService {
     return await smartQuotaManager.smartQuery(
       async () => {
         // Batch multiple queries efficiently
+        // QUOTA-SAVING: Use count queries instead of fetching ALL data
         const queries = {
-          totalUsers: () => databaseService.users().get(),
-          totalCompanies: () => databaseService.companies().get(),
-          totalReferrals: () => databaseService.referrals().get()
+          totalUsers: () => databaseService.users().count().get(),
+          totalCompanies: () => databaseService.companies().count().get(),
+          totalReferrals: () => databaseService.referrals().count().get()
         };
         
         const results = await smartQuotaManager.batchQueries(queries, priority);
         
         return {
-          totalUsers: results.totalUsers?.size || 0,
-          totalCompanies: results.totalCompanies?.size || 0,
-          totalReferrals: results.totalReferrals?.size || 0,
+          totalUsers: results.totalUsers?.data?.().count || 0,
+          totalCompanies: results.totalCompanies?.data?.().count || 0,
+          totalReferrals: results.totalReferrals?.data?.().count || 0,
           lastUpdated: new Date().toISOString()
         };
       },
@@ -186,16 +187,17 @@ class RealTimeService {
         case 'stats':
           cacheKey = 'stats:global';
           queryFunction = async () => {
+            // QUOTA-SAVING: Use count queries instead of fetching ALL data
             const [users, companies, referrals] = await Promise.all([
-              databaseService.users().get(),
-              databaseService.companies().get(),
-              databaseService.referrals().get()
+              databaseService.users().count().get(),
+              databaseService.companies().count().get(),
+              databaseService.referrals().count().get()
             ]);
             
             return {
-              totalUsers: users.size,
-              totalCompanies: companies.size,
-              totalReferrals: referrals.size,
+              totalUsers: users.data().count,
+              totalCompanies: companies.data().count,
+              totalReferrals: referrals.data().count,
               lastUpdated: new Date().toISOString()
             };
           };

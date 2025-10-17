@@ -72,9 +72,9 @@ class SmartAnalyticsService {
     console.log('💾 User count cache MISS - querying DB');
     const databaseService = require('../config/database');
     
-    // 🚀 OPTIMIZED: Use select() to only fetch minimal data for counting
-    const snapshot = await databaseService.users().select().get();
-    const count = snapshot.size;
+    // 🚀 QUOTA-SAVING: Use count() instead of select() to avoid full collection scan
+    const snapshot = await databaseService.users().count().get();
+    const count = snapshot.data().count;
     
     this.cache.set(cacheKey, {
       data: count,
@@ -101,9 +101,9 @@ class SmartAnalyticsService {
     console.log('💾 Company count cache MISS - querying DB');
     const databaseService = require('../config/database');
     
-    // 🚀 OPTIMIZED: Use select() to only fetch minimal data for counting
-    const snapshot = await databaseService.companies().select().get();
-    const count = snapshot.size;
+    // 🚀 QUOTA-SAVING: Use count() instead of select() to avoid full collection scan
+    const snapshot = await databaseService.companies().count().get();
+    const count = snapshot.data().count;
     
     this.cache.set(cacheKey, {
       data: count,
@@ -130,9 +130,9 @@ class SmartAnalyticsService {
     console.log('💾 Referral count cache MISS - querying DB');
     const databaseService = require('../config/database');
     
-    // 🚀 OPTIMIZED: Use select() to only fetch minimal data for counting
-    const snapshot = await databaseService.referrals().select().get();
-    const count = snapshot.size;
+    // 🚀 QUOTA-SAVING: Use count() instead of select() to avoid full collection scan
+    const snapshot = await databaseService.referrals().count().get();
+    const count = snapshot.data().count;
     
     this.cache.set(cacheKey, {
       data: count,

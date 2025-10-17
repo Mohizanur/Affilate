@@ -425,9 +425,11 @@ class ProductService {
 
   async getAllActiveProductsWithCompany() {
     const db = databaseService.getDb();
+    // QUOTA-SAVING: Use limit instead of fetching ALL products
     const productsSnapshot = await db
       .collection("products")
       .orderBy("createdAt", "desc")
+      .limit(500)
       .get();
     if (productsSnapshot.empty) {
       return [];

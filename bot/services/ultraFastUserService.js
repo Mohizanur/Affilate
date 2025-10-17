@@ -300,9 +300,14 @@ class UltraFastUserService {
     
     try {
       const result = await connectionPool.executeWithConnection('users', async (connection) => {
-        const usersSnap = await connection.db.collection.get();
-        const q = query.toLowerCase();
+        // 🚀 QUOTA-SAVING: Use targeted query with limit instead of full collection scan
+        const usersSnap = await connection.db.collection
+          .where('username', '>=', query.toLowerCase())
+          .where('username', '<=', query.toLowerCase() + '\uf8ff')
+          .limit(20)
+          .get();
         
+        const q = query.toLowerCase();
         return usersSnap.docs
           .map((doc) => ({ id: doc.id, ...doc.data() }))
           .filter(
@@ -343,15 +348,17 @@ class UltraFastUserService {
       
       // Compute stats
       const result = await connectionPool.executeWithConnection('users', async (connection) => {
-        const usersSnap = await connection.db.collection.get();
+        // 🚀 QUOTA-SAVING: Use count() queries instead of full collection scan
+        const [totalUsersSnap, verifiedUsersSnap, activeUsersSnap] = await Promise.all([
+          connection.db.collection.count().get(),
+          connection.db.collection.where('phone_verified', '==', true).count().get(),
+          connection.db.collection.where('last_active', '>', new Date(Date.now() - 24 * 60 * 60 * 1000)).count().get()
+        ]);
         
         return {
-          totalUsers: usersSnap.size,
-          verifiedUsers: usersSnap.docs.filter(doc => doc.data().phone_verified).length,
-          activeUsers: usersSnap.docs.filter(doc => {
-            const lastActive = doc.data().last_active;
-            return lastActive && lastActive.toDate() > new Date(Date.now() - 24 * 60 * 60 * 1000);
-          }).length,
+          totalUsers: totalUsersSnap.data().count,
+          verifiedUsers: verifiedUsersSnap.data().count,
+          activeUsers: activeUsersSnap.data().count,
           timestamp: new Date()
         };
       });
