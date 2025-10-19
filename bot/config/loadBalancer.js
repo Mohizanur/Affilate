@@ -494,11 +494,11 @@ class LoadBalancer {
     process.env.WORKER_ID = process.pid;
     process.env.WORKER_INDEX = cluster.worker.id;
     
-    // Optimize memory usage
-    if (global.gc) {
-      setInterval(() => {
-        global.gc();
-      }, 30000); // GC every 30 seconds
+    // EMERGENCY: Disable GC to stop quota leak
+    // if (global.gc) {
+    //   setInterval(() => {
+    //     global.gc();
+    //   }, 30000); // GC every 30 seconds
     }
     
     // Set up worker statistics collection
@@ -517,9 +517,9 @@ class LoadBalancer {
       startTime: Date.now()
     };
     
-    // Send stats to master every 10 seconds
-    setInterval(() => {
-      if (process.send) {
+    // EMERGENCY: Disable stats sending to stop quota leak
+    // setInterval(() => {
+    //   if (process.send) {
         process.send({
           type: 'stats',
           workerId: process.pid,

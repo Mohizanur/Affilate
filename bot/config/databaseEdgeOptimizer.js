@@ -189,10 +189,10 @@ class DatabaseEdgeOptimizer {
    * Setup query optimization
    */
   setupQueryOptimization() {
-    // Setup query cache cleanup
-    setInterval(() => {
-      this.cleanupQueryCache();
-    }, this.config.cacheTimeout);
+    // EMERGENCY: Disable query cache cleanup to stop quota leak
+    // setInterval(() => {
+    //   this.cleanupQueryCache();
+    // }, this.config.cacheTimeout);
     
     console.log('⚡ Query optimization configured');
   }

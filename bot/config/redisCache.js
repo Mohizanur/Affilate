@@ -126,10 +126,10 @@ class RedisCache {
     this.fallbackCache = new Map();
     this.fallbackTTL = new Map();
     
-    // Cleanup expired entries every minute
-    setInterval(() => {
-      this.cleanupFallbackCache();
-    }, 60000);
+    // EMERGENCY: Disable cache cleanup to stop quota leak
+    // setInterval(() => {
+    //   this.cleanupFallbackCache();
+    // }, 60000);
   }
 
   /**

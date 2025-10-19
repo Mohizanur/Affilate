@@ -149,10 +149,10 @@ class AIOptimizer {
     //   this.collectUserBehaviorData();
     // }, 30000);
     
-    // Clean up old data every hour
-    setInterval(() => {
-      this.cleanupOldData();
-    }, 3600000);
+    // EMERGENCY: Disable data cleanup to stop quota leak
+    // setInterval(() => {
+    //   this.cleanupOldData();
+    // }, 3600000);
   }
 
   /**

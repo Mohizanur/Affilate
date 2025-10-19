@@ -198,10 +198,10 @@ class ProductionOptimizer {
   initializeProductionCache() {
     console.log('💾 Initializing production cache system...');
     
-    // Setup cache cleanup
-    setInterval(() => {
-      this.cleanupCache();
-    }, 60000); // Every minute
+    // EMERGENCY: Disable cache cleanup to stop quota leak
+    // setInterval(() => {
+    //   this.cleanupCache();
+    // }, 60000); // Every minute
     
     // Pre-warm cache with common data
     this.prewarmCache();
@@ -331,19 +331,19 @@ class ProductionOptimizer {
       }
     }
     
-    // Setup garbage collection monitoring
-    if (global.gc) {
-      setInterval(() => {
-        const memUsage = process.memoryUsage();
-        const memoryUsage = memUsage.heapUsed / memUsage.heapTotal;
-        
-        if (memoryUsage > this.config.memoryThreshold) {
-          global.gc();
-          this.metrics.lastGC = Date.now();
-          console.log(`🗑️ Forced GC: ${Math.round(memoryUsage * 100)}% memory usage`);
-        }
-      }, this.config.gcInterval);
-    }
+    // EMERGENCY: Disable GC monitoring to stop quota leak
+    // if (global.gc) {
+    //   setInterval(() => {
+    //     const memUsage = process.memoryUsage();
+    //     const memoryUsage = memUsage.heapUsed / memUsage.heapTotal;
+    //     
+    //     if (memoryUsage > this.config.memoryThreshold) {
+    //       global.gc();
+    //       this.metrics.lastGC = Date.now();
+    //       console.log(`🗑️ Forced GC: ${Math.round(memoryUsage * 100)}% memory usage`);
+    //     }
+    //   }, this.config.gcInterval);
+    // }
     
     console.log('✅ Production memory management initialized');
   }
@@ -407,10 +407,10 @@ class ProductionOptimizer {
     //   this.checkProductionAlerts();
     // }, 30000); // Every 30 seconds
     
-    // Daily summary
-    setInterval(() => {
-      this.generateDailySummary();
-    }, 86400000); // Every 24 hours
+    // EMERGENCY: Disable daily summary to stop quota leak
+    // setInterval(() => {
+    //   this.generateDailySummary();
+    // }, 86400000); // Every 24 hours
     
     console.log('✅ Production monitoring initialized');
   }

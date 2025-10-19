@@ -153,10 +153,10 @@ class UltraFastResponse {
     }
     
     // All processes can do these lightweight tasks
-    // Clean up old cache entries every minute
-    setInterval(() => {
-      this.cleanupCache();
-    }, 60000);
+    // EMERGENCY: Disable cache cleanup to stop quota leak
+    // setInterval(() => {
+    //   this.cleanupCache();
+    // }, 60000);
     
     // EMERGENCY: Disable batch processing and metrics to stop quota leak
     // setInterval(() => {

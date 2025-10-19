@@ -189,10 +189,10 @@ class AdvancedMonitor {
     //   this.checkAlerts();
     // }, 15000);
     
-    // Data cleanup every hour
-    setInterval(() => {
-      this.cleanupOldData();
-    }, 3600000);
+    // EMERGENCY: Disable data cleanup to stop quota leak
+    // setInterval(() => {
+    //   this.cleanupOldData();
+    // }, 3600000);
   }
 
   /**

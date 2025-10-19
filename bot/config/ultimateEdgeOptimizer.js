@@ -473,12 +473,12 @@ class UltimateEdgeOptimizer {
     //   this.checkPerformanceAlerts();
     // }, 5000);
     
-    // Metrics buffer cleanup
-    setInterval(() => {
-      if (this.config.metricsBuffer.length > 1000) {
-        this.config.metricsBuffer = this.config.metricsBuffer.slice(-500);
-      }
-    }, 60000);
+    // EMERGENCY: Disable metrics buffer cleanup to stop quota leak
+    // setInterval(() => {
+    //   if (this.config.metricsBuffer.length > 1000) {
+    //     this.config.metricsBuffer = this.config.metricsBuffer.slice(-500);
+    //   }
+    // }, 60000);
     
     console.log('📊 Advanced monitoring initialized');
   }
@@ -547,26 +547,26 @@ class UltimateEdgeOptimizer {
    * Optimize garbage collection
    */
   optimizeGarbageCollection() {
-    // Force GC when memory usage is high
-    if (global.gc) {
-      setInterval(() => {
-        const memUsage = process.memoryUsage();
-        const memoryUsage = (memUsage.heapUsed / memUsage.heapTotal) * 100;
-        
-        if (memoryUsage > 85) {
-          global.gc();
-          console.log('🗑️ Forced garbage collection due to high memory usage');
-        }
-      }, 30000);
-    }
+    // EMERGENCY: Disable GC to stop quota leak
+    // if (global.gc) {
+    //   setInterval(() => {
+    //     const memUsage = process.memoryUsage();
+    //     const memoryUsage = (memUsage.heapUsed / memUsage.heapTotal) * 100;
+    //     
+    //     if (memoryUsage > 85) {
+    //       global.gc();
+    //       console.log('🗑️ Forced garbage collection due to high memory usage');
+    //     }
+    //   }, 30000);
+    // }
     
-    // Optimize string deduplication cleanup
-    setInterval(() => {
-      if (this.config.stringDeduplication.size > 50000) {
-        this.config.stringDeduplication.clear();
-        console.log('🧹 String deduplication cache cleared');
-      }
-    }, 300000); // Every 5 minutes
+    // EMERGENCY: Disable string deduplication cleanup to stop quota leak
+    // setInterval(() => {
+    //   if (this.config.stringDeduplication.size > 50000) {
+    //     this.config.stringDeduplication.clear();
+    //     console.log('🧹 String deduplication cache cleared');
+    //   }
+    // }, 300000); // Every 5 minutes
     
     console.log('🗑️ Garbage collection optimized');
   }

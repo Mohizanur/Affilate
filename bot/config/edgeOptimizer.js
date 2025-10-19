@@ -191,10 +191,10 @@ class EdgeOptimizer {
     // L2 Cache: Hot data (< 5ms access)
     this.l2Cache = new Map();
     
-    // Cache cleanup intervals
-    setInterval(() => {
-      this.cleanupCache();
-    }, 60000); // Every minute
+    // EMERGENCY: Disable cache cleanup to stop quota leak
+    // setInterval(() => {
+    //   this.cleanupCache();
+    // }, 60000); // Every minute
     
     console.log('💾 Advanced caching initialized');
   }
@@ -381,18 +381,18 @@ class EdgeOptimizer {
    * Optimize garbage collection
    */
   optimizeGarbageCollection() {
-    // Force garbage collection periodically
-    if (global.gc) {
-      setInterval(() => {
-        const memUsage = process.memoryUsage();
-        const memUsagePercent = memUsage.heapUsed / memUsage.heapTotal;
-        
-        if (memUsagePercent > this.config.memoryThreshold) {
-          global.gc();
-          console.log('🗑️ Forced garbage collection');
-        }
-      }, this.config.gcInterval);
-    }
+    // EMERGENCY: Disable GC to stop quota leak
+    // if (global.gc) {
+    //   setInterval(() => {
+    //     const memUsage = process.memoryUsage();
+    //     const memUsagePercent = memUsage.heapUsed / memUsage.heapTotal;
+    //     
+    //     if (memUsagePercent > this.config.memoryThreshold) {
+    //       global.gc();
+    //       console.log('🗑️ Forced garbage collection');
+    //     }
+    //   }, this.config.gcInterval);
+    // }
     
     console.log('🗑️ Garbage collection optimized');
   }
