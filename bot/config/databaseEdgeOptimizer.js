@@ -97,10 +97,10 @@ class DatabaseEdgeOptimizer {
       this.connectionPool.push(connection);
     }
     
-    // Setup connection health monitoring
-    setInterval(() => {
-      this.monitorConnectionHealth();
-    }, this.config.connectionHealthCheck);
+    // EMERGENCY: Disable connection health monitoring to stop quota leak
+    // setInterval(() => {
+    //   this.monitorConnectionHealth();
+    // }, this.config.connectionHealthCheck);
     
     console.log(`🏊 Connection pool initialized with ${this.config.minConnections} connections`);
   }
@@ -404,9 +404,10 @@ class DatabaseEdgeOptimizer {
    * Setup performance monitoring
    */
   setupPerformanceMonitoring() {
-    setInterval(() => {
-      this.logPerformanceStats();
-    }, 60000); // Every minute
+    // EMERGENCY: Disable performance monitoring to stop quota leak
+    // setInterval(() => {
+    //   this.logPerformanceStats();
+    // }, 60000); // Every minute
     
     console.log('📊 Database performance monitoring active');
   }

@@ -197,9 +197,9 @@ class PerformanceMonitor {
 // Export singleton instance
 const performanceMonitor = new PerformanceMonitor();
 
-// Log performance every 5 minutes
-setInterval(() => {
-  performanceMonitor.logPerformanceReport();
-}, 5 * 60 * 1000);
+// EMERGENCY: Disable performance logging to stop quota leak
+// setInterval(() => {
+//   performanceMonitor.logPerformanceReport();
+// }, 5 * 60 * 1000);
 
 module.exports = performanceMonitor;

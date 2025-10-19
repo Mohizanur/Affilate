@@ -50,18 +50,17 @@ class SmartQuotaManager {
    * Start intelligent quota monitoring
    */
   startQuotaMonitoring() {
-    // Reset minute counter every minute
-    setInterval(() => {
-      this.quotaUsedThisMinute = 0;
-      this.currentMinute = new Date().getMinutes();
-      this.adjustQuotaStrategy();
-    }, 60000);
+    // EMERGENCY: Disable quota monitoring intervals to stop quota leak
+    // setInterval(() => {
+    //   this.quotaUsedThisMinute = 0;
+    //   this.currentMinute = new Date().getMinutes();
+    //   this.adjustQuotaStrategy();
+    // }, 60000);
     
-    // Reset daily counter at midnight
-    setInterval(() => {
-      const today = new Date().toDateString();
-      if (today !== this.usage.lastReset) {
-        this.resetDailyUsage();
+    // setInterval(() => {
+    //   const today = new Date().toDateString();
+    //   if (today !== this.usage.lastReset) {
+    //     this.resetDailyUsage();
       }
     }, 3600000); // Check every hour
     

@@ -499,15 +499,14 @@ class WebSocketServer {
    * Start performance monitoring
    */
   startPerformanceMonitoring() {
-    // Monitor every 30 seconds
-    setInterval(() => {
-      this.performHealthCheck();
-    }, 30000);
+    // EMERGENCY: Disable websocket monitoring to stop quota leak
+    // setInterval(() => {
+    //   this.performHealthCheck();
+    // }, 30000);
 
-    // Clean up inactive connections every 5 minutes
-    setInterval(() => {
-      this.cleanupInactiveConnections();
-    }, 300000);
+    // setInterval(() => {
+    //   this.cleanupInactiveConnections();
+    // }, 300000);
   }
 
   /**

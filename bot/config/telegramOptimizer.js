@@ -14,13 +14,13 @@ class TelegramOptimizer {
     this.MAX_CALLS_PER_MINUTE = 1400; // Stay under 1500 to be safe
     this.MIN_INTERVAL_BETWEEN_CALLS = 40; // 40ms between calls (25 calls/second)
 
-    // Reset counters
-    setInterval(() => {
-      this.callsThisSecond = 0;
-    }, 1000);
+    // EMERGENCY: Disable telegram optimizer counters to stop quota leak
+    // setInterval(() => {
+    //   this.callsThisSecond = 0;
+    // }, 1000);
 
-    setInterval(() => {
-      this.callsThisMinute = 0;
+    // setInterval(() => {
+    //   this.callsThisMinute = 0;
     }, 60000);
   }
 

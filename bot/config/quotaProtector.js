@@ -66,23 +66,21 @@ class QuotaProtector {
    * Start quota monitoring
    */
   startMonitoring() {
-    // Check every minute
-    setInterval(() => {
-      this.checkQuotaStatus();
-    }, 60000);
+    // EMERGENCY: Disable quota protector monitoring to stop quota leak
+    // setInterval(() => {
+    //   this.checkQuotaStatus();
+    // }, 60000);
 
-    // Reset daily at midnight
-    setInterval(() => {
-      const now = new Date();
-      if (now.getHours() === 0 && now.getMinutes() === 0) {
-        this.resetDailyQuota();
-      }
-    }, 60000);
+    // setInterval(() => {
+    //   const now = new Date();
+    //   if (now.getHours() === 0 && now.getMinutes() === 0) {
+    //     this.resetDailyQuota();
+    //   }
+    // }, 60000);
 
-    // Log status every 30 minutes
-    setInterval(() => {
-      this.logQuotaStatus();
-    }, 30 * 60 * 1000);
+    // setInterval(() => {
+    //   this.logQuotaStatus();
+    // }, 30 * 60 * 1000);
   }
 
   /**

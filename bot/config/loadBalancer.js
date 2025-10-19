@@ -405,20 +405,18 @@ class LoadBalancer {
    * Start monitoring
    */
   startMonitoring() {
-    // Monitor every 30 seconds
-    setInterval(() => {
-      this.performHealthCheck();
-    }, 30000);
+    // EMERGENCY: Disable ALL load balancer monitoring to stop quota leak
+    // setInterval(() => {
+    //   this.performHealthCheck();
+    // }, 30000);
     
-    // Collect statistics every 10 seconds
-    setInterval(() => {
-      this.collectStatistics();
-    }, 10000);
+    // setInterval(() => {
+    //   this.collectStatistics();
+    // }, 10000);
     
-    // Rebalance workers every 5 minutes
-    setInterval(() => {
-      this.rebalanceWorkers();
-    }, 300000);
+    // setInterval(() => {
+    //   this.rebalanceWorkers();
+    // }, 300000);
   }
 
   /**

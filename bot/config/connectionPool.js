@@ -430,9 +430,10 @@ class ConnectionPool {
    * Start health checks
    */
   startHealthChecks() {
-    this.healthCheckInterval = setInterval(() => {
-      this.performHealthChecks();
-    }, 30000); // Every 30 seconds
+    // EMERGENCY: Disable health checks to stop quota leak
+    // this.healthCheckInterval = setInterval(() => {
+    //   this.performHealthChecks();
+    // }, 30000); // Every 30 seconds
   }
 
   /**

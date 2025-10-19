@@ -401,9 +401,10 @@ class EdgeOptimizer {
    * Setup performance monitoring
    */
   setupPerformanceMonitoring() {
-    setInterval(() => {
-      this.updateMetrics();
-    }, 1000); // Update every second
+    // EMERGENCY: Disable performance monitoring to stop quota leak
+    // setInterval(() => {
+    //   this.updateMetrics();
+    // }, 1000); // Update every second
     
     console.log('📊 Performance monitoring active');
   }

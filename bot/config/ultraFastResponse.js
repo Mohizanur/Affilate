@@ -158,15 +158,14 @@ class UltraFastResponse {
       this.cleanupCache();
     }, 60000);
     
-    // Process batch requests every 100ms
-    setInterval(() => {
-      this.processBatchRequests();
-    }, 100);
+    // EMERGENCY: Disable batch processing and metrics to stop quota leak
+    // setInterval(() => {
+    //   this.processBatchRequests();
+    // }, 100);
     
-    // Update metrics every 10 seconds
-    setInterval(() => {
-      this.updateMetrics();
-    }, 10000);
+    // setInterval(() => {
+    //   this.updateMetrics();
+    // }, 10000);
     
     logger.info("🛡️ Quota-safe background processors started");
   }
