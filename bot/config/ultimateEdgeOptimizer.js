@@ -189,10 +189,10 @@ class UltimateEdgeOptimizer {
       });
     });
     
-    // Monitor worker health
-    setInterval(() => {
-      this.monitorWorkerHealth();
-    }, 30000);
+    // EMERGENCY: Disable worker health monitoring to stop quota leak
+    // setInterval(() => {
+    //   this.monitorWorkerHealth();
+    // }, 30000);
     
     console.log('✅ Cluster setup complete');
   }
@@ -463,15 +463,15 @@ class UltimateEdgeOptimizer {
    * Setup advanced monitoring
    */
   setupAdvancedMonitoring() {
-    // Real-time metrics collection
-    setInterval(() => {
-      this.collectMetrics();
-    }, 1000);
+    // EMERGENCY: Disable real-time metrics to stop quota leak
+    // setInterval(() => {
+    //   this.collectMetrics();
+    // }, 1000);
     
-    // Performance alerts
-    setInterval(() => {
-      this.checkPerformanceAlerts();
-    }, 5000);
+    // EMERGENCY: Disable performance alerts to stop quota leak
+    // setInterval(() => {
+    //   this.checkPerformanceAlerts();
+    // }, 5000);
     
     // Metrics buffer cleanup
     setInterval(() => {

@@ -88,10 +88,10 @@ class RealTimeMonitor {
     
     this.isMonitoring = true;
     
-    // Monitor every 30 seconds for real-time data (reduced from 100ms to save quota)
-    this.monitoringInterval = setInterval(() => {
-      this.collectMetrics();
-    }, 30000);
+    // EMERGENCY: Disable monitoring to stop quota leak
+    // this.monitoringInterval = setInterval(() => {
+    //   this.collectMetrics();
+    // }, 30000);
     
     logger.info("📊 Real-time monitoring started");
   }
@@ -116,10 +116,10 @@ class RealTimeMonitor {
    * Start alerting system
    */
   startAlerting() {
-    // Check for alerts every 60 seconds (reduced from 5s to save quota)
-    this.alertInterval = setInterval(() => {
-      this.checkAlerts();
-    }, 60000);
+    // EMERGENCY: Disable alerting to stop quota leak
+    // this.alertInterval = setInterval(() => {
+    //   this.checkAlerts();
+    // }, 60000);
   }
 
   /**

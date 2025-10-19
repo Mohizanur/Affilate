@@ -163,10 +163,10 @@ class ProductionOptimizer {
       }
     });
     
-    // Monitor worker health
-    setInterval(() => {
-      this.monitorWorkerHealth();
-    }, 30000);
+    // EMERGENCY: Disable worker health monitoring to stop quota leak
+    // setInterval(() => {
+    //   this.monitorWorkerHealth();
+    // }, 30000);
     
     console.log('✅ Production cluster setup complete');
   }
@@ -397,15 +397,15 @@ class ProductionOptimizer {
   setupProductionMonitoring() {
     console.log('📊 Setting up production monitoring...');
     
-    // Real-time metrics collection
-    setInterval(() => {
-      this.collectProductionMetrics();
-    }, 5000); // Every 5 seconds
+    // EMERGENCY: Disable real-time metrics to stop quota leak
+    // setInterval(() => {
+    //   this.collectProductionMetrics();
+    // }, 5000); // Every 5 seconds
     
-    // Performance alerts
-    setInterval(() => {
-      this.checkProductionAlerts();
-    }, 30000); // Every 30 seconds
+    // EMERGENCY: Disable performance alerts to stop quota leak
+    // setInterval(() => {
+    //   this.checkProductionAlerts();
+    // }, 30000); // Every 30 seconds
     
     // Daily summary
     setInterval(() => {

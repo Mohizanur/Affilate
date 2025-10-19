@@ -140,15 +140,14 @@ class AIOptimizer {
    * Start data collection
    */
   startDataCollection() {
-    // Collect performance data every 10 seconds
-    setInterval(() => {
-      this.collectPerformanceData();
-    }, 10000);
+    // EMERGENCY: Disable data collection to stop quota leak
+    // setInterval(() => {
+    //   this.collectPerformanceData();
+    // }, 10000);
     
-    // Collect user behavior data every 30 seconds
-    setInterval(() => {
-      this.collectUserBehaviorData();
-    }, 30000);
+    // setInterval(() => {
+    //   this.collectUserBehaviorData();
+    // }, 30000);
     
     // Clean up old data every hour
     setInterval(() => {
@@ -300,20 +299,20 @@ class AIOptimizer {
    * Start optimization engine
    */
   startOptimizationEngine() {
-    // Run optimization every minute
-    setInterval(() => {
-      this.runOptimization();
-    }, this.optimizationParams.optimizationInterval);
+    // EMERGENCY: Disable optimization engine to stop quota leak
+    // setInterval(() => {
+    //   this.runOptimization();
+    // }, this.optimizationParams.optimizationInterval);
   }
 
   /**
    * Start prediction engine
    */
   startPredictionEngine() {
-    // Make predictions every 5 minutes
-    setInterval(() => {
-      this.makePredictions();
-    }, this.optimizationParams.predictionWindow);
+    // EMERGENCY: Disable prediction engine to stop quota leak
+    // setInterval(() => {
+    //   this.makePredictions();
+    // }, this.optimizationParams.predictionWindow);
   }
 
   /**

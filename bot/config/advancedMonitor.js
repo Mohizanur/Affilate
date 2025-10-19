@@ -168,30 +168,26 @@ class AdvancedMonitor {
    * Start monitoring loops
    */
   startMonitoringLoops() {
-    // Trace processing every 5 seconds
-    setInterval(() => {
-      this.processTraces();
-    }, 5000);
+    // EMERGENCY: Disable ALL monitoring loops to stop quota leak
+    // setInterval(() => {
+    //   this.processTraces();
+    // }, 5000);
     
-    // Metrics aggregation every 10 seconds
-    setInterval(() => {
-      this.aggregateMetrics();
-    }, 10000);
+    // setInterval(() => {
+    //   this.aggregateMetrics();
+    // }, 10000);
     
-    // Error analysis every 30 seconds
-    setInterval(() => {
-      this.analyzeErrors();
-    }, 30000);
+    // setInterval(() => {
+    //   this.analyzeErrors();
+    // }, 30000);
     
-    // Performance analysis every minute
-    setInterval(() => {
-      this.analyzePerformance();
-    }, 60000);
+    // setInterval(() => {
+    //   this.analyzePerformance();
+    // }, 60000);
     
-    // Alert checking every 15 seconds
-    setInterval(() => {
-      this.checkAlerts();
-    }, 15000);
+    // setInterval(() => {
+    //   this.checkAlerts();
+    // }, 15000);
     
     // Data cleanup every hour
     setInterval(() => {
