@@ -327,6 +327,77 @@ function registerHandlers(bot) {
     }
   });
 
+  // Register auto-efficiency command
+  bot.command("auto", async (ctx) => {
+    try {
+      const autoEfficiencySystem = require("./config/autoEfficiencySystem");
+      const status = autoEfficiencySystem.getSystemStatus();
+      const performance = autoEfficiencySystem.getPerformanceStats();
+      
+      const message = `🚀 *Auto-Efficiency System*\n\n` +
+        `📊 *Performance Stats:*\n` +
+        `• Cache Hit Rate: ${performance.cacheHitRate}\n` +
+        `• Cache Size: ${performance.cacheSize} items\n` +
+        `• Memory Usage: ${performance.memoryUsage}\n` +
+        `• Total Requests: ${performance.totalRequests}\n` +
+        `• Avg Response Time: ${performance.avgResponseTime}\n\n` +
+        `⚙️ *System Status:*\n` +
+        `• Initialized: ${status.initialized ? '✅ Yes' : '❌ No'}\n` +
+        `• Auto-Cleanup: ${performance.autoCleanupEnabled ? '✅ Active' : '❌ Inactive'}\n` +
+        `• Optimization: ${performance.optimizationEnabled ? '✅ Active' : '❌ Inactive'}\n` +
+        `• Uptime: ${Math.floor(status.uptime / 3600)}h ${Math.floor((status.uptime % 3600) / 60)}m\n\n` +
+        `🧠 *Features:*\n` +
+        `• Zero Manual Work Required\n` +
+        `• Automatic Optimization\n` +
+        `• Intelligent Caching\n` +
+        `• Memory Management\n` +
+        `• Performance Monitoring`;
+      
+      await ctx.reply(message, { parse_mode: "Markdown" });
+    } catch (error) {
+      console.error("Error in auto command:", error);
+      await ctx.reply("❌ Error retrieving auto-efficiency statistics");
+    }
+  });
+
+  // Register smart cache command
+  bot.command("smartcache", async (ctx) => {
+    try {
+      const smartCacheSystem = require("./config/smartCacheSystem");
+      const status = smartCacheSystem.getSystemStatus();
+      const insights = smartCacheSystem.getPerformanceInsights();
+      
+      const message = `🧠 *Smart Cache System*\n\n` +
+        `📊 *Cache Statistics:*\n` +
+        `• Total Caches: ${status.totalCaches}\n` +
+        `• Total Entries: ${status.stats.totalEntries}\n` +
+        `• Hit Rate: ${status.stats.hitRate}\n` +
+        `• Total Hits: ${status.stats.totalHits}\n` +
+        `• Total Misses: ${status.stats.totalMisses}\n` +
+        `• Optimization Runs: ${status.stats.optimizationRuns}\n\n` +
+        `🔥 *Data Temperature:*\n` +
+        `• Hot Data: ${insights.hotData} items\n` +
+        `• Warm Data: ${insights.warmData} items\n` +
+        `• Cold Data: ${insights.coldData} items\n` +
+        `• Cache Efficiency: ${insights.cacheEfficiency}%\n` +
+        `• Memory Usage: ${insights.memoryUsage} items\n\n` +
+        `⚙️ *System Status:*\n` +
+        `• Auto-Optimization: ${status.autoOptimization ? '✅ Active' : '❌ Inactive'}\n` +
+        `• Access Patterns: ${status.stats.accessPatterns} tracked\n` +
+        `• Optimization Rules: ${status.stats.optimizationRules} active\n\n` +
+        `🧠 *Features:*\n` +
+        `• Intelligent TTL Management\n` +
+        `• Access Pattern Analysis\n` +
+        `• Automatic Optimization\n` +
+        `• Temperature-Based Caching`;
+      
+      await ctx.reply(message, { parse_mode: "Markdown" });
+    } catch (error) {
+      console.error("Error in smartcache command:", error);
+      await ctx.reply("❌ Error retrieving smart cache statistics");
+    }
+  });
+
   bot.command("quotadetailed", async (ctx) => {
     try {
       const quotaProtector = require("./config/quotaProtector");
@@ -512,6 +583,14 @@ async function startBot(app) {
     
     console.log("✅ Ultra-fast session storage and middleware initialized successfully");
 
+    // 🚀 Initialize Auto-Efficiency System (Zero manual work, zero DB calls)
+    const autoEfficiencySystem = require("./config/autoEfficiencySystem");
+    await autoEfficiencySystem.initialize();
+    
+    // 🧠 Initialize Smart Cache System (Intelligent caching, zero DB calls)
+    const smartCacheSystem = require("./config/smartCacheSystem");
+    console.log("🧠 Smart Cache System ready - Intelligent caching enabled");
+
     // Add maintenance mode middleware with aggressive caching
     bot.use(async (ctx, next) => {
       try {
@@ -624,6 +703,8 @@ async function startBot(app) {
         { command: "cache", description: "Cache status and info" },
         { command: "memory", description: "Memory usage and health" },
         { command: "ultrafast", description: "Ultra-fast response statistics" },
+        { command: "auto", description: "Auto-efficiency system status" },
+        { command: "smartcache", description: "Smart cache system status" },
       ];
 
       try {
