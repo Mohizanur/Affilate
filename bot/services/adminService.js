@@ -733,90 +733,51 @@ class AdminService {
 
   // Remove getAllOrders, getPlatformStats, and any other order-related methods
 
-  // STUB: Return placeholder platform settings
+  // 🚨 EMERGENCY: Return static settings to stop quota bleeding
   async getPlatformSettings() {
-    try {
-      // 🚀 QUOTA-SAVING: Cache platform settings to avoid database read on EVERY message
-      const cacheKey = 'platform_settings';
-      const cachedSettings = this._settingsCache?.get(cacheKey);
-      
-      if (cachedSettings && Date.now() - cachedSettings.timestamp < 60000) { // 1 minute cache
-        return cachedSettings.data;
-      }
-      
-      const doc = await databaseService
-        .getDb()
-        .collection("settings")
-        .doc("system")
-        .get();
-      
-      let settings;
-      if (!doc.exists) {
-        settings = {
-          platformFeePercent: parseFloat(
-            process.env.PLATFORM_FEE_PERCENTAGE || "1.5"
-          ),
-          referralCommissionPercent: parseFloat(
-            process.env.REFERRER_COMMISSION_PERCENTAGE || "2.5"
-          ),
-          referralDiscountPercent: parseFloat(
-            process.env.BUYER_DISCOUNT_PERCENTAGE || "1"
-          ),
-          minWithdrawalAmount: parseFloat(
-            process.env.MIN_WITHDRAWAL_AMOUNT || "10"
-          ),
-          maintenanceMode: false,
-          maxReferralUses: 0,
-          referralExpiryDays: 0,
-        };
-      } else {
-        const data = doc.data();
-        settings = {
-          platformFeePercent:
-            data.platformFeePercentage ||
-            parseFloat(process.env.PLATFORM_FEE_PERCENTAGE || "1.5"),
-          referralCommissionPercent:
-            data.referrerCommissionPercentage ||
-            parseFloat(process.env.REFERRER_COMMISSION_PERCENTAGE || "2.5"),      
-          referralDiscountPercent:
-            data.buyerDiscountPercentage ||
-            parseFloat(process.env.BUYER_DISCOUNT_PERCENTAGE || "1"),
-          minWithdrawalAmount:
-            data.minWithdrawalAmount ||
-            parseFloat(process.env.MIN_WITHDRAWAL_AMOUNT || "10"),
-          maintenanceMode: data.maintenanceMode || false,
-          maxReferralUses: data.maxReferralUses || 0,
-          referralExpiryDays: data.referralExpiryDays || 0,
-        };
-      }
-      
-      // Cache the settings
-      if (!this._settingsCache) {
-        this._settingsCache = new Map();
-      }
-      this._settingsCache.set(cacheKey, { data: settings, timestamp: Date.now() });
-      
-      return settings;
-    } catch (error) {
-      logger.error("Error loading platform settings:", error);
-      return {
-        platformFeePercent: parseFloat(
-          process.env.PLATFORM_FEE_PERCENTAGE || "1.5"
-        ),
-        referralCommissionPercent: parseFloat(
-          process.env.REFERRER_COMMISSION_PERCENTAGE || "2.5"
-        ),
-        referralDiscountPercent: parseFloat(
-          process.env.BUYER_DISCOUNT_PERCENTAGE || "1"
-        ),
-        minWithdrawalAmount: parseFloat(
-          process.env.MIN_WITHDRAWAL_AMOUNT || "10"
-        ),
-        maintenanceMode: false,
-        maxReferralUses: 0,
-        referralExpiryDays: 0,
-      };
-    }
+    // This function was making 1,800+ database calls per hour!
+    // Return static settings to eliminate all database calls
+    return {
+      platformFeePercent: parseFloat(
+        process.env.PLATFORM_FEE_PERCENTAGE || "1.5"
+      ),
+      referralCommissionPercent: parseFloat(
+        process.env.REFERRER_COMMISSION_PERCENTAGE || "2.5"
+      ),
+      referralDiscountPercent: parseFloat(
+        process.env.BUYER_DISCOUNT_PERCENTAGE || "1"
+      ),
+      minWithdrawalAmount: parseFloat(
+        process.env.MIN_WITHDRAWAL_AMOUNT || "10"
+      ),
+      maintenanceMode: false,
+      maxReferralUses: 0,
+      referralExpiryDays: 0,
+      platformFeePercentage: parseFloat(
+        process.env.PLATFORM_FEE_PERCENTAGE || "1.5"
+      ),
+      referrerCommissionPercentage: parseFloat(
+        process.env.REFERRER_COMMISSION_PERCENTAGE || "2.5"
+      ),
+      buyerDiscountPercentage: parseFloat(
+        process.env.BUYER_DISCOUNT_PERCENTAGE || "1"
+      )
+    };
+  } catch (error) {
+    logger.error("Error in getPlatformSettings:", error);
+    // Return fallback settings
+    return {
+      platformFeePercent: 1.5,
+      referralCommissionPercent: 2.5,
+      referralDiscountPercent: 1,
+      minWithdrawalAmount: 10,
+      maintenanceMode: false,
+      maxReferralUses: 0,
+      referralExpiryDays: 0,
+      platformFeePercentage: 1.5,
+      referrerCommissionPercentage: 2.5,
+      buyerDiscountPercentage: 1
+    };
   }
 
   async setPlatformSetting(key, value) {
