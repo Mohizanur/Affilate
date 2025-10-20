@@ -591,67 +591,12 @@ async function startBot(app) {
     const smartCacheSystem = require("./config/smartCacheSystem");
     console.log("🧠 Smart Cache System ready - Intelligent caching enabled");
 
-    // Add maintenance mode middleware with aggressive caching
-    bot.use(async (ctx, next) => {
-      try {
-        // Skip maintenance check for admin commands
-        if (ctx.message?.text?.startsWith("/admin")) {
-          return next();
-        }
-
-        // 🚀 QUOTA-SAVING: Cache maintenance check to avoid DB calls on EVERY message
-        const maintenanceCacheKey = 'maintenance_mode';
-        const userCacheKey = `user_${ctx.from.id}`;
-        
-        // Check cached maintenance mode (5 minute cache)
-        let maintenanceMode = false;
-        if (global.maintenanceCache && Date.now() - global.maintenanceCache.timestamp < 300000) {
-          maintenanceMode = global.maintenanceCache.data;
-        } else {
-          const adminService = require("./services/adminService");
-          const settings = await adminService.getPlatformSettings();
-          maintenanceMode = settings.maintenanceMode;
-          
-          // Cache the result
-          if (!global.maintenanceCache) global.maintenanceCache = {};
-          global.maintenanceCache.data = maintenanceMode;
-          global.maintenanceCache.timestamp = Date.now();
-        }
-
-        if (maintenanceMode) {
-          // Check cached user admin status (1 minute cache)
-          let isAdmin = false;
-          if (global.userCache && global.userCache[userCacheKey] && Date.now() - global.userCache[userCacheKey].timestamp < 60000) {
-            isAdmin = global.userCache[userCacheKey].data;
-          } else {
-            const userService = require("./services/userService");
-            const user = await userService.userService.getUserByTelegramId(ctx.from.id);
-            isAdmin = user && (user.role === "admin" || user.isAdmin);
-            
-            // Cache the result
-            if (!global.userCache) global.userCache = {};
-            global.userCache[userCacheKey] = { data: isAdmin, timestamp: Date.now() };
-          }
-          
-          if (!isAdmin) {
-            // Block non-admin users during maintenance
-            return ctx.reply(
-              `🔧 *System Maintenance*\n\n` +
-                `We're currently performing system maintenance.\n` +
-                `Please try again later.\n\n` +
-                `Thank you for your patience!`,
-              { parse_mode: "Markdown" }
-            );
-          }
-        }
-
-        return next();
-      } catch (error) {
-        console.error("Error in maintenance middleware:", error);
-        // Continue to next middleware on error
-        return next();
-      }
-    });
+    // 🚨 EMERGENCY: Disable maintenance middleware to stop quota bleeding
+    // This middleware was making database calls on EVERY message!
+    // bot.use(async (ctx, next) => {
+    //   // Maintenance mode disabled to stop quota bleeding
+    //   return next();
+    // });
     
     try {
       registerHandlers(bot);
