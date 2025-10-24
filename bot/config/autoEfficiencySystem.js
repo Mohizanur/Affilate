@@ -65,11 +65,12 @@ class AutoEfficiencySystem extends EventEmitter {
   startAutoCleanup() {
     if (!this.autoCleanup.enabled) return;
     
-    setInterval(() => {
-      this.performAutoCleanup();
-    }, this.autoCleanup.interval);
+    // EMERGENCY: Disable auto-cleanup to stop quota bleeding
+    // setInterval(() => {
+    //   this.performAutoCleanup();
+    // }, this.autoCleanup.interval);
     
-    console.log('🧹 Auto-cleanup started (5-minute intervals)');
+    console.log('🧹 Auto-cleanup DISABLED to stop quota bleeding');
   }
 
   /**
@@ -151,11 +152,12 @@ class AutoEfficiencySystem extends EventEmitter {
    * Performance monitoring without database calls
    */
   startPerformanceMonitoring() {
-    setInterval(() => {
-      this.updatePerformanceMetrics();
-    }, 60000); // Every minute
+    // EMERGENCY: Disable performance monitoring to stop quota bleeding
+    // setInterval(() => {
+    //   this.updatePerformanceMetrics();
+    // }, 60000); // Every minute
     
-    console.log('📊 Performance monitoring started (1-minute intervals)');
+    console.log('📊 Performance monitoring DISABLED to stop quota bleeding');
   }
 
   /**
@@ -177,11 +179,12 @@ class AutoEfficiencySystem extends EventEmitter {
    * Intelligent optimization without database calls
    */
   startIntelligentOptimization() {
-    setInterval(() => {
-      this.performIntelligentOptimization();
-    }, 300000); // Every 5 minutes
+    // EMERGENCY: Disable intelligent optimization to stop quota bleeding
+    // setInterval(() => {
+    //   this.performIntelligentOptimization();
+    // }, 300000); // Every 5 minutes
     
-    console.log('🧠 Intelligent optimization started (5-minute intervals)');
+    console.log('🧠 Intelligent optimization DISABLED to stop quota bleeding');
   }
 
   /**

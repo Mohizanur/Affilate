@@ -39,11 +39,12 @@ class SmartCacheSystem {
   initializeAutoOptimization() {
     if (!this.settings.autoOptimize) return;
     
-    setInterval(() => {
-      this.performAutoOptimization();
-    }, this.settings.optimizeInterval);
+    // EMERGENCY: Disable auto-optimization to stop quota bleeding
+    // setInterval(() => {
+    //   this.performAutoOptimization();
+    // }, this.settings.optimizeInterval);
     
-    console.log('⚡ Auto-optimization started (5-minute intervals)');
+    console.log('⚡ Auto-optimization DISABLED to stop quota bleeding');
   }
 
   /**
