@@ -30,10 +30,10 @@ class SmartProductionIntegration {
             // Warm up cache on startup
             await this.optimizer.warmupCache();
             
-            // Start maintenance cycle
-            setInterval(() => {
-                this.optimizer.performMaintenance();
-            }, 300000); // Every 5 minutes
+            // EMERGENCY: Disabled maintenance cycle to stop quota bleeding
+            // setInterval(() => {
+            //     this.optimizer.performMaintenance();
+            // }, 300000); // Every 5 minutes
             
             console.log('✅ Optimizer initialization complete');
         } catch (error) {
@@ -479,25 +479,25 @@ class SmartProductionIntegration {
 // Export the integration service
 module.exports = SmartProductionIntegration;
 
-// Auto-start if run directly
-if (require.main === module) {
-    const integration = new SmartProductionIntegration();
-    
-    console.log('🚀 Smart Production Integration Service Started');
-    console.log('📊 Performance monitoring active');
-    console.log('💾 Smart caching enabled');
-    console.log('🔄 Auto-maintenance every 5 minutes');
-    
-    // Graceful shutdown
-    process.on('SIGINT', async () => {
-        console.log('\n🔄 Shutting down gracefully...');
-        await integration.shutdown();
-        process.exit(0);
-    });
-    
-    process.on('SIGTERM', async () => {
-        console.log('\n🔄 Shutting down gracefully...');
-        await integration.shutdown();
-        process.exit(0);
-    });
-}
+// EMERGENCY: Disabled auto-start to stop quota bleeding
+// if (require.main === module) {
+//     const integration = new SmartProductionIntegration();
+//     
+//     console.log('🚀 Smart Production Integration Service Started');
+//     console.log('📊 Performance monitoring active');
+//     console.log('💾 Smart caching enabled');
+//     console.log('🔄 Auto-maintenance every 5 minutes');
+//     
+//     // Graceful shutdown
+//     process.on('SIGINT', async () => {
+//         console.log('\n🔄 Shutting down gracefully...');
+//         await integration.shutdown();
+//         process.exit(0);
+//     });
+//     
+//     process.on('SIGTERM', async () => {
+//         console.log('\n🔄 Shutting down gracefully...');
+//         await integration.shutdown();
+//         process.exit(0);
+//     });
+// }

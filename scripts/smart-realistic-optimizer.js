@@ -53,17 +53,18 @@ class SmartRealisticOptimizer {
      * Tracks usage and automatically adjusts strategies
      */
     setupQuotaMonitoring() {
-        setInterval(() => {
-            this.analyzeQuotaUsage();
-        }, 60000); // Check every minute
+        // EMERGENCY: Disabled to stop quota bleeding
+        // setInterval(() => {
+        //     this.analyzeQuotaUsage();
+        // }, 60000); // Check every minute
         
         // Reset daily at midnight
-        setInterval(() => {
-            const now = new Date();
-            if (now.getHours() === 0 && now.getMinutes() === 0) {
-                this.resetDailyQuota();
-            }
-        }, 60000);
+        // setInterval(() => {
+        //     const now = new Date();
+        //     if (now.getHours() === 0 && now.getMinutes() === 0) {
+        //         this.resetDailyQuota();
+        //     }
+        // }, 60000);
     }
 
     analyzeQuotaUsage() {
@@ -398,29 +399,29 @@ class SmartRealisticOptimizer {
 // Export the optimizer
 module.exports = SmartRealisticOptimizer;
 
-// Auto-start maintenance if run directly
-if (require.main === module) {
-    const optimizer = new SmartRealisticOptimizer();
-    
-    // Start maintenance cycle
-    setInterval(() => {
-        optimizer.performMaintenance();
-    }, 300000); // Every 5 minutes
-    
-    // Graceful shutdown
-    process.on('SIGINT', async () => {
-        await optimizer.shutdown();
-        process.exit(0);
-    });
-    
-    process.on('SIGTERM', async () => {
-        await optimizer.shutdown();
-        process.exit(0);
-    });
-    
-    console.log('🚀 Smart Realistic Optimizer started');
-    console.log('📊 Maintenance cycle: Every 5 minutes');
-    console.log('🔄 Auto-sync: Every 5 minutes');
-    console.log('💾 Cache size: 10,000 keys');
-    console.log('⚡ Default TTL: 5 minutes');
-}
+// EMERGENCY: Disabled auto-start to stop quota bleeding
+// if (require.main === module) {
+//     const optimizer = new SmartRealisticOptimizer();
+//     
+//     // Start maintenance cycle
+//     setInterval(() => {
+//         optimizer.performMaintenance();
+//     }, 300000); // Every 5 minutes
+//     
+//     // Graceful shutdown
+//     process.on('SIGINT', async () => {
+//         await optimizer.shutdown();
+//         process.exit(0);
+//     });
+//     
+//     process.on('SIGTERM', async () => {
+//         await optimizer.shutdown();
+//         process.exit(0);
+//     });
+//     
+//     console.log('🚀 Smart Realistic Optimizer started');
+//     console.log('📊 Maintenance cycle: Every 5 minutes');
+//     console.log('🔄 Auto-sync: Every 5 minutes');
+//     console.log('💾 Cache size: 10,000 keys');
+//     console.log('⚡ Default TTL: 5 minutes');
+// }

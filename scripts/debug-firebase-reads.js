@@ -8,13 +8,27 @@ const admin = require('firebase-admin');
 
 // Initialize Firebase Admin
 try {
-  const serviceAccount = require('../credentials/firebase-service-account.json');
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
+  // Try different possible paths
+  let serviceAccount;
+  try {
+    serviceAccount = require('../credentials/firebase-service-account.json');
+  } catch (e1) {
+    try {
+      serviceAccount = require('./credentials/firebase-service-account.json');
+    } catch (e2) {
+      // Use environment variables as fallback
+      admin.initializeApp();
+    }
+  }
+  
+  if (serviceAccount) {
+    admin.initializeApp({
+      credential: admin.credential.cert(serviceAccount)
+    });
+  }
 } catch (error) {
   console.error('❌ Failed to initialize Firebase:', error.message);
-  process.exit(1);
+  // Don't exit, try to continue with default credentials
 }
 
 const db = admin.firestore();
