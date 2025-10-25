@@ -583,13 +583,13 @@ async function startBot(app) {
     
     console.log("✅ Ultra-fast session storage and middleware initialized successfully");
 
-    // 🚀 Initialize Auto-Efficiency System (Zero manual work, zero DB calls)
-    const autoEfficiencySystem = require("./config/autoEfficiencySystem");
-    await autoEfficiencySystem.initialize();
+    // 🚨 EMERGENCY: Disable all auto systems to stop quota bleeding
+    // const autoEfficiencySystem = require("./config/autoEfficiencySystem");
+    // await autoEfficiencySystem.initialize();
+    console.log("🚨 Auto-Efficiency System DISABLED to stop quota bleeding");
     
-    // 🧠 Initialize Smart Cache System (Intelligent caching, zero DB calls)
-    const smartCacheSystem = require("./config/smartCacheSystem");
-    console.log("🧠 Smart Cache System ready - Intelligent caching enabled");
+    // const smartCacheSystem = require("./config/smartCacheSystem");
+    console.log("🚨 Smart Cache System DISABLED to stop quota bleeding");
 
     // 🚨 EMERGENCY: Disable maintenance middleware to stop quota bleeding
     // This middleware was making database calls on EVERY message!
