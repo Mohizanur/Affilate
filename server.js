@@ -327,29 +327,31 @@ process.on("SIGINT", () => {
   process.exit(0);
 });
 
-// Scheduled reminders: every day at 9am
-cron.schedule("0 9 * * *", async () => {
-  // Companies: remind to approve pending purchases
-  const companies = await companyService.getAllCompanies();
-  for (const company of companies) {
-    if (company.telegramId) {
-      await notificationService.sendNotification(
-        company.telegramId,
-        `⏰ Reminder: You have ${company.pendingPurchases.length} pending purchase(s) to approve in your dashboard.`
-      );
-    }
-  }
-  // Users: remind to claim rewards (if any logic for unclaimed rewards)
-  const users = await userService.getAllUsers();
-  for (const user of users) {
-    if (user.coinBalance > 0 && user.telegramId) {
-      await notificationService.sendNotification(
-        user.telegramId,
-        `⏰ Reminder: You have rewards to claim! Use /balance to withdraw your earnings.`
-      );
-    }
-  }
-});
+// EMERGENCY: Disabled scheduled reminders to stop quota bleeding
+// These were making FULL collection scans every day at 9am!
+// cron.schedule("0 9 * * *", async () => {
+//   // Companies: remind to approve pending purchases
+//   const companies = await companyService.getAllCompanies();
+//   for (const company of companies) {
+//     if (company.telegramId) {
+//       await notificationService.sendNotification(
+//         company.telegramId,
+//         `⏰ Reminder: You have ${company.pendingPurchases.length} pending purchase(s) to approve in your dashboard.`
+//       );
+//     }
+//   }
+//   // Users: remind to claim rewards (if any logic for unclaimed rewards)
+//   const users = await userService.getAllUsers();
+//   for (const user of users) {
+//     if (user.coinBalance > 0 && user.telegramId) {
+//       await notificationService.sendNotification(
+//         user.telegramId,
+//         `⏰ Reminder: You have rewards to claim! Use /balance to withdraw your earnings.`
+//       );
+//     }
+//   }
+// });
+console.log("🚨 Scheduled reminders DISABLED to stop quota bleeding");
 
 // Schedule cleanup of expired referral codes daily at 2am
 const { exec } = require("child_process");

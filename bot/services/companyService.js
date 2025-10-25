@@ -163,9 +163,11 @@ class CompanyService {
 
   async getAllCompanies() {
     try {
+      // EMERGENCY: Limit to 1000 to prevent quota bleeding
       const snap = await databaseService
         .companies()
         .orderBy("createdAt", "desc")
+        .limit(1000)
         .get();
       return snap.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
     } catch (error) {
