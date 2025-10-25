@@ -1,0 +1,1721 @@
+{
+  "scanDate": "2025-10-25T06:34:28.222Z",
+  "totalOperations": 708,
+  "files": {
+    "bot\\config\\connectionPool.js": [
+      {
+        "file": "bot\\config\\connectionPool.js",
+        "pattern": "/databaseService\\./g",
+        "matches": 20,
+        "lines": [
+          {
+            "lineNumber": 178,
+            "line": "if (!databaseService.isInitialized || !databaseService.isInitialized()) {"
+          },
+          {
+            "lineNumber": 183,
+            "line": "collection: databaseService.users(),"
+          },
+          {
+            "lineNumber": 185,
+            "line": "batch: () => databaseService.batch()"
+          },
+          {
+            "lineNumber": 196,
+            "line": "if (!databaseService.isInitialized || !databaseService.isInitialized()) {"
+          },
+          {
+            "lineNumber": 201,
+            "line": "collection: databaseService.companies(),"
+          }
+        ]
+      }
+    ],
+    "bot\\config\\database.js": [
+      {
+        "file": "bot\\config\\database.js",
+        "pattern": "/\\.collection\\(['\"]([^'\"]+)['\"]\\)/g",
+        "matches": 7,
+        "lines": [
+          {
+            "lineNumber": 87,
+            "line": "return this.getDb().collection(\"users\");"
+          },
+          {
+            "lineNumber": 91,
+            "line": "return this.getDb().collection(\"companies\");"
+          },
+          {
+            "lineNumber": 95,
+            "line": "return this.getDb().collection(\"referrals\");"
+          },
+          {
+            "lineNumber": 99,
+            "line": "return this.getDb().collection(\"withdrawals\");"
+          },
+          {
+            "lineNumber": 103,
+            "line": "return this.getDb().collection(\"analytics\");"
+          }
+        ]
+      },
+      {
+        "file": "bot\\config\\database.js",
+        "pattern": "/\\.get\\(\\)/g",
+        "matches": 3,
+        "lines": [
+          {
+            "lineNumber": 142,
+            "line": "const userDoc = await this.users().doc(telegramId.toString()).get();"
+          },
+          {
+            "lineNumber": 193,
+            "line": "const companyDoc = await this.companies().doc(companyId).get();"
+          },
+          {
+            "lineNumber": 247,
+            "line": ".get();"
+          }
+        ]
+      },
+      {
+        "file": "bot\\config\\database.js",
+        "pattern": "/\\.orderBy\\([^)]+\\)/g",
+        "matches": 1,
+        "lines": [
+          {
+            "lineNumber": 244,
+            "line": ".orderBy(\"createdAt\", \"desc\")"
+          }
+        ]
+      },
+      {
+        "file": "bot\\config\\database.js",
+        "pattern": "/\\.limit\\([^)]+\\)/g",
+        "matches": 1,
+        "lines": [
+          {
+            "lineNumber": 245,
+            "line": ".limit(limit)"
+          }
+        ]
+      },
+      {
+        "file": "bot\\config\\database.js",
+        "pattern": "/admin\\.firestore\\(\\)/g",
+        "matches": 3,
+        "lines": [
+          {
+            "lineNumber": 57,
+            "line": "this.db = admin.firestore();"
+          },
+          {
+            "lineNumber": 81,
+            "line": "// Ensure we return the admin.firestore() instance for session storage"
+          }
+        ]
+      }
+    ],
+    "bot\\config\\databaseEdgeOptimizer.js": [
+      {
+        "file": "bot\\config\\databaseEdgeOptimizer.js",
+        "pattern": "/\\.get\\(\\)/g",
+        "matches": 2,
+        "lines": [
+          {
+            "lineNumber": 261,
+            "line": "const doc = await collectionRef.doc(options.id).get();"
+          },
+          {
+            "lineNumber": 286,
+            "line": "const snapshot = await query.get();"
+          }
+        ]
+      },
+      {
+        "file": "bot\\config\\databaseEdgeOptimizer.js",
+        "pattern": "/\\.where\\([^)]+\\)/g",
+        "matches": 1,
+        "lines": [
+          {
+            "lineNumber": 270,
+            "line": "query = query.where(field, operator, value);"
+          }
+        ]
+      },
+      {
+        "file": "bot\\config\\databaseEdgeOptimizer.js",
+        "pattern": "/\\.orderBy\\([^)]+\\)/g",
+        "matches": 1,
+        "lines": [
+          {
+            "lineNumber": 277,
+            "line": "query = query.orderBy(field, direction);"
+          }
+        ]
+      },
+      {
+        "file": "bot\\config\\databaseEdgeOptimizer.js",
+        "pattern": "/\\.limit\\([^)]+\\)/g",
+        "matches": 1,
+        "lines": [
+          {
+            "lineNumber": 283,
+            "line": "query = query.limit(options.limit);"
+          }
+        ]
+      },
+      {
+        "file": "bot\\config\\databaseEdgeOptimizer.js",
+        "pattern": "/admin\\.firestore\\(\\)/g",
+        "matches": 1,
+        "lines": [
+          {
+            "lineNumber": 57,
+            "line": "this.db = admin.firestore();"
+          }
+        ]
+      }
+    ],
+    "bot\\config\\firebase.js": [
+      {
+        "file": "bot\\config\\firebase.js",
+        "pattern": "/admin\\.firestore\\(\\)/g",
+        "matches": 1,
+        "lines": [
+          {
+            "lineNumber": 31,
+            "line": "db = admin.firestore();"
+          }
+        ]
+      }
+    ],
+    "bot\\config\\quotaAwareInitializer.js": [
+      {
+        "file": "bot\\config\\quotaAwareInitializer.js",
+        "pattern": "/databaseService\\./g",
+        "matches": 2,
+        "lines": [
+          {
+            "lineNumber": 48,
+            "line": "if (!databaseService.isInitialized || !databaseService.isInitialized()) {"
+          }
+        ]
+      }
+    ],
+    "bot\\config\\ultraFastResponse.js": [
+      {
+        "file": "bot\\config\\ultraFastResponse.js",
+        "pattern": "/\\.get\\(\\)/g",
+        "matches": 5,
+        "lines": [
+          {
+            "lineNumber": 277,
+            "line": "const userDoc = await databaseService.users().doc(telegramId.toString()).get();"
+          },
+          {
+            "lineNumber": 523,
+            "line": ".get();"
+          },
+          {
+            "lineNumber": 540,
+            "line": "databaseService.users().count().get(),"
+          },
+          {
+            "lineNumber": 563,
+            "line": ".get();"
+          }
+        ]
+      },
+      {
+        "file": "bot\\config\\ultraFastResponse.js",
+        "pattern": "/\\.where\\([^)]+\\)/g",
+        "matches": 1,
+        "lines": [
+          {
+            "lineNumber": 561,
+            "line": ".where(\"last_active\", \">=\", oneDayAgo)"
+          }
+        ]
+      },
+      {
+        "file": "bot\\config\\ultraFastResponse.js",
+        "pattern": "/\\.orderBy\\([^)]+\\)/g",
+        "matches": 1,
+        "lines": [
+          {
+            "lineNumber": 521,
+            "line": ".orderBy(\"verifiedReferralCount\", \"desc\")"
+          }
+        ]
+      },
+      {
+        "file": "bot\\config\\ultraFastResponse.js",
+        "pattern": "/\\.limit\\([^)]+\\)/g",
+        "matches": 2,
+        "lines": [
+          {
+            "lineNumber": 522,
+            "line": ".limit(20)"
+          },
+          {
+            "lineNumber": 562,
+            "line": ".limit(100)"
+          }
+        ]
+      },
+      {
+        "file": "bot\\config\\ultraFastResponse.js",
+        "pattern": "/\\.count\\(\\)\\.get\\(\\)/g",
+        "matches": 2,
+        "lines": [
+          {
+            "lineNumber": 540,
+            "line": "databaseService.users().count().get(),"
+          }
+        ]
+      },
+      {
+        "file": "bot\\config\\ultraFastResponse.js",
+        "pattern": "/databaseService\\./g",
+        "matches": 5,
+        "lines": [
+          {
+            "lineNumber": 277,
+            "line": "const userDoc = await databaseService.users().doc(telegramId.toString()).get();"
+          },
+          {
+            "lineNumber": 520,
+            "line": "const usersSnap = await databaseService.users()"
+          },
+          {
+            "lineNumber": 540,
+            "line": "databaseService.users().count().get(),"
+          },
+          {
+            "lineNumber": 560,
+            "line": "const usersSnap = await databaseService.users()"
+          }
+        ]
+      }
+    ],
+    "bot\\handlers\\adminHandlers.js": [
+      {
+        "file": "bot\\handlers\\adminHandlers.js",
+        "pattern": "/\\.collection\\(['\"]([^'\"]+)['\"]\\)/g",
+        "matches": 1,
+        "lines": [
+          {
+            "lineNumber": 5406,
+            "line": ".collection(\"company_withdrawal_requests\")"
+          }
+        ]
+      },
+      {
+        "file": "bot\\handlers\\adminHandlers.js",
+        "pattern": "/\\.get\\(\\)/g",
+        "matches": 6,
+        "lines": [
+          {
+            "lineNumber": 160,
+            "line": ".get();"
+          },
+          {
+            "lineNumber": 698,
+            "line": ".get();"
+          },
+          {
+            "lineNumber": 1902,
+            "line": ".get();"
+          },
+          {
+            "lineNumber": 2593,
+            "line": ".get();"
+          },
+          {
+            "lineNumber": 3391,
+            "line": ".get();"
+          }
+        ]
+      },
+      {
+        "file": "bot\\handlers\\adminHandlers.js",
+        "pattern": "/\\.where\\([^)]+\\)/g",
+        "matches": 2,
+        "lines": [
+          {
+            "lineNumber": 158,
+            "line": ".where('banned', '==', true)"
+          },
+          {
+            "lineNumber": 696,
+            "line": ".where('referralBalance', '>', 0)"
+          }
+        ]
+      },
+      {
+        "file": "bot\\handlers\\adminHandlers.js",
+        "pattern": "/\\.limit\\([^)]+\\)/g",
+        "matches": 5,
+        "lines": [
+          {
+            "lineNumber": 159,
+            "line": ".limit(100)"
+          },
+          {
+            "lineNumber": 1901,
+            "line": ".limit(500)"
+          },
+          {
+            "lineNumber": 2592,
+            "line": ".limit(1000)"
+          },
+          {
+            "lineNumber": 3390,
+            "line": ".limit(500)"
+          },
+          {
+            "lineNumber": 4081,
+            "line": ".limit(1000)"
+          }
+        ]
+      },
+      {
+        "file": "bot\\handlers\\adminHandlers.js",
+        "pattern": "/databaseService\\./g",
+        "matches": 4,
+        "lines": [
+          {
+            "lineNumber": 157,
+            "line": "const usersSnap = await databaseService.users()"
+          },
+          {
+            "lineNumber": 695,
+            "line": "const usersWithBalanceSnap = await databaseService.users()"
+          },
+          {
+            "lineNumber": 1900,
+            "line": "const usersSnap = await databaseService.users()"
+          },
+          {
+            "lineNumber": 3389,
+            "line": "const usersSnap = await databaseService.users()"
+          }
+        ]
+      }
+    ],
+    "bot\\handlers\\userHandlers.js": [
+      {
+        "file": "bot\\handlers\\userHandlers.js",
+        "pattern": "/\\.collection\\(['\"]([^'\"]+)['\"]\\)/g",
+        "matches": 1,
+        "lines": [
+          {
+            "lineNumber": 3834,
+            "line": "await databaseService.getDb().collection(\"sales\").add({"
+          }
+        ]
+      },
+      {
+        "file": "bot\\handlers\\userHandlers.js",
+        "pattern": "/\\.get\\(\\)/g",
+        "matches": 6,
+        "lines": [
+          {
+            "lineNumber": 3663,
+            "line": ".get();"
+          },
+          {
+            "lineNumber": 3670,
+            "line": ".get();"
+          },
+          {
+            "lineNumber": 3738,
+            "line": "const buyerDoc = await buyerRef.get();"
+          },
+          {
+            "lineNumber": 3751,
+            "line": ".get();"
+          },
+          {
+            "lineNumber": 4427,
+            "line": "const withdrawalDoc = await withdrawalRef.get();"
+          }
+        ]
+      },
+      {
+        "file": "bot\\handlers\\userHandlers.js",
+        "pattern": "/databaseService\\./g",
+        "matches": 2,
+        "lines": [
+          {
+            "lineNumber": 3737,
+            "line": "const buyerRef = databaseService.users().doc(buyerId.toString());"
+          },
+          {
+            "lineNumber": 3834,
+            "line": "await databaseService.getDb().collection(\"sales\").add({"
+          }
+        ]
+      }
+    ],
+    "bot\\index.js": [
+      {
+        "file": "bot\\index.js",
+        "pattern": "/databaseService\\./g",
+        "matches": 1,
+        "lines": [
+          {
+            "lineNumber": 459,
+            "line": "const dbInitPromise = databaseService.initialize();"
+          }
+        ]
+      }
+    ],
+    "bot\\services\\adminService.js": [
+      {
+        "file": "bot\\services\\adminService.js",
+        "pattern": "/\\.collection\\(['\"]([^'\"]+)['\"]\\)/g",
+        "matches": 41,
+        "lines": [
+          {
+            "lineNumber": 120,
+            "line": ".collection(\"referral_codes\")"
+          },
+          {
+            "lineNumber": 147,
+            "line": "databaseService.getDb().collection(\"products\").count().get(),"
+          },
+          {
+            "lineNumber": 149,
+            "line": "databaseService.getDb().collection(\"sales\").count().get(),"
+          },
+          {
+            "lineNumber": 191,
+            "line": "databaseService.getDb().collection(\"payouts\").limit(500).get(),"
+          },
+          {
+            "lineNumber": 194,
+            "line": ".collection(\"payouts\")"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\adminService.js",
+        "pattern": "/\\.doc\\(['\"]([^'\"]+)['\"]\\)/g",
+        "matches": 3,
+        "lines": [
+          {
+            "lineNumber": 799,
+            "line": ".doc(\"system\")"
+          },
+          {
+            "lineNumber": 1709,
+            "line": ".doc(\"system\")"
+          },
+          {
+            "lineNumber": 1729,
+            "line": "await databaseService.getDb().collection(\"settings\").doc(\"system\").set("
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\adminService.js",
+        "pattern": "/\\.get\\(\\)/g",
+        "matches": 91,
+        "lines": [
+          {
+            "lineNumber": 58,
+            "line": ".get();"
+          },
+          {
+            "lineNumber": 64,
+            "line": "const companyDoc = await databaseService.companies().doc(companyId).get();"
+          },
+          {
+            "lineNumber": 106,
+            "line": "databaseService.users().count().get(),"
+          },
+          {
+            "lineNumber": 107,
+            "line": "databaseService.users().where('phone_verified', '==', true).count().get(),"
+          },
+          {
+            "lineNumber": 122,
+            "line": ".get();"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\adminService.js",
+        "pattern": "/\\.where\\([^)]+\\)/g",
+        "matches": 41,
+        "lines": [
+          {
+            "lineNumber": 107,
+            "line": "databaseService.users().where('phone_verified', '==', true).count().get(),"
+          },
+          {
+            "lineNumber": 195,
+            "line": ".where(\"status\", \"==\", \"pending\")"
+          },
+          {
+            "lineNumber": 200,
+            "line": ".where(\"status\", \"==\", \"approved\")"
+          },
+          {
+            "lineNumber": 205,
+            "line": ".where(\"status\", \"==\", \"rejected\")"
+          },
+          {
+            "lineNumber": 285,
+            "line": ".where(dateField, '>=', startOfThisMonth)"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\adminService.js",
+        "pattern": "/\\.orderBy\\([^)]+\\)/g",
+        "matches": 5,
+        "lines": [
+          {
+            "lineNumber": 419,
+            "line": ".orderBy('verifiedReferralCount', 'desc')"
+          },
+          {
+            "lineNumber": 443,
+            "line": ".orderBy('name')"
+          },
+          {
+            "lineNumber": 999,
+            "line": ".orderBy(\"createdAt\", \"desc\")"
+          },
+          {
+            "lineNumber": 1024,
+            "line": ".orderBy(\"createdAt\", \"desc\")"
+          },
+          {
+            "lineNumber": 2528,
+            "line": ".orderBy(\"createdAt\", \"desc\")"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\adminService.js",
+        "pattern": "/\\.limit\\([^)]+\\)/g",
+        "matches": 21,
+        "lines": [
+          {
+            "lineNumber": 191,
+            "line": "databaseService.getDb().collection(\"payouts\").limit(500).get(),"
+          },
+          {
+            "lineNumber": 420,
+            "line": ".limit(limit)"
+          },
+          {
+            "lineNumber": 444,
+            "line": ".limit(limit)"
+          },
+          {
+            "lineNumber": 511,
+            "line": "await databaseService.users().limit(1).get();"
+          },
+          {
+            "lineNumber": 818,
+            "line": "const usersSnap = await require(\"../config/database\").users().limit(1000).get();"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\adminService.js",
+        "pattern": "/\\.count\\(\\)\\.get\\(\\)/g",
+        "matches": 17,
+        "lines": [
+          {
+            "lineNumber": 106,
+            "line": "databaseService.users().count().get(),"
+          },
+          {
+            "lineNumber": 107,
+            "line": "databaseService.users().where('phone_verified', '==', true).count().get(),"
+          },
+          {
+            "lineNumber": 146,
+            "line": "databaseService.companies().count().get(),"
+          },
+          {
+            "lineNumber": 147,
+            "line": "databaseService.getDb().collection(\"products\").count().get(),"
+          },
+          {
+            "lineNumber": 149,
+            "line": "databaseService.getDb().collection(\"sales\").count().get(),"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\adminService.js",
+        "pattern": "/databaseService\\./g",
+        "matches": 51,
+        "lines": [
+          {
+            "lineNumber": 64,
+            "line": "const companyDoc = await databaseService.companies().doc(companyId).get();"
+          },
+          {
+            "lineNumber": 106,
+            "line": "databaseService.users().count().get(),"
+          },
+          {
+            "lineNumber": 108,
+            "line": "databaseService.users().where('last_active', '>=', sevenDaysAgo).count().get()"
+          },
+          {
+            "lineNumber": 146,
+            "line": "databaseService.companies().count().get(),"
+          },
+          {
+            "lineNumber": 148,
+            "line": "databaseService.referrals().count().get(),"
+          }
+        ]
+      }
+    ],
+    "bot\\services\\batchService.js": [
+      {
+        "file": "bot\\services\\batchService.js",
+        "pattern": "/\\.get\\(\\)/g",
+        "matches": 2,
+        "lines": [
+          {
+            "lineNumber": 137,
+            "line": "const doc = await databaseService.users().doc(id.toString()).get();"
+          },
+          {
+            "lineNumber": 170,
+            "line": "const doc = await databaseService.companies().doc(id).get();"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\batchService.js",
+        "pattern": "/databaseService\\./g",
+        "matches": 8,
+        "lines": [
+          {
+            "lineNumber": 73,
+            "line": "const batch = databaseService.batch();"
+          },
+          {
+            "lineNumber": 77,
+            "line": "const userRef = databaseService.users().doc(telegramId.toString());"
+          },
+          {
+            "lineNumber": 80,
+            "line": "updatedAt: databaseService.serverTimestamp(),"
+          },
+          {
+            "lineNumber": 102,
+            "line": "const batch = databaseService.batch();"
+          },
+          {
+            "lineNumber": 106,
+            "line": "const companyRef = databaseService.companies().doc(companyId);"
+          }
+        ]
+      }
+    ],
+    "bot\\services\\companyService.js": [
+      {
+        "file": "bot\\services\\companyService.js",
+        "pattern": "/\\.collection\\(['\"]([^'\"]+)['\"]\\)/g",
+        "matches": 5,
+        "lines": [
+          {
+            "lineNumber": 281,
+            "line": ".collection(\"products\")"
+          },
+          {
+            "lineNumber": 297,
+            "line": ".collection(\"products\")"
+          },
+          {
+            "lineNumber": 415,
+            "line": ".collection(\"products\")"
+          },
+          {
+            "lineNumber": 437,
+            "line": ".collection(\"products\")"
+          },
+          {
+            "lineNumber": 507,
+            "line": ".collection(\"company_withdrawals\")"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\companyService.js",
+        "pattern": "/\\.get\\(\\)/g",
+        "matches": 19,
+        "lines": [
+          {
+            "lineNumber": 23,
+            "line": "const companyDoc = await databaseService.companies().doc(companyId).get();"
+          },
+          {
+            "lineNumber": 52,
+            "line": ".get();"
+          },
+          {
+            "lineNumber": 134,
+            "line": ".get();"
+          },
+          {
+            "lineNumber": 151,
+            "line": "const doc = await databaseService.companies().doc(companyId).get();"
+          },
+          {
+            "lineNumber": 171,
+            "line": ".get();"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\companyService.js",
+        "pattern": "/\\.where\\([^)]+\\)/g",
+        "matches": 8,
+        "lines": [
+          {
+            "lineNumber": 51,
+            "line": ".where(\"codePrefix\", \"==\", codePrefix)"
+          },
+          {
+            "lineNumber": 132,
+            "line": ".where(\"telegramId\", \"==\", telegramId)"
+          },
+          {
+            "lineNumber": 203,
+            "line": ".where(\"category\", \"==\", category)"
+          },
+          {
+            "lineNumber": 282,
+            "line": ".where(\"companyId\", \"==\", companyId)"
+          },
+          {
+            "lineNumber": 298,
+            "line": ".where(\"companyId\", \"==\", companyId)"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\companyService.js",
+        "pattern": "/\\.orderBy\\([^)]+\\)/g",
+        "matches": 4,
+        "lines": [
+          {
+            "lineNumber": 169,
+            "line": ".orderBy(\"createdAt\", \"desc\")"
+          },
+          {
+            "lineNumber": 183,
+            "line": ".orderBy(\"createdAt\", \"desc\")"
+          },
+          {
+            "lineNumber": 204,
+            "line": ".orderBy(\"createdAt\", \"desc\")"
+          },
+          {
+            "lineNumber": 283,
+            "line": ".orderBy(\"createdAt\", \"desc\")"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\companyService.js",
+        "pattern": "/\\.limit\\([^)]+\\)/g",
+        "matches": 3,
+        "lines": [
+          {
+            "lineNumber": 133,
+            "line": ".limit(1)"
+          },
+          {
+            "lineNumber": 170,
+            "line": ".limit(1000)"
+          },
+          {
+            "lineNumber": 319,
+            "line": "const snap = await databaseService.companies().limit(100).get();"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\companyService.js",
+        "pattern": "/databaseService\\./g",
+        "matches": 10,
+        "lines": [
+          {
+            "lineNumber": 23,
+            "line": "const companyDoc = await databaseService.companies().doc(companyId).get();"
+          },
+          {
+            "lineNumber": 73,
+            "line": "await databaseService.companies().doc(companyId).set(companyData);"
+          },
+          {
+            "lineNumber": 114,
+            "line": "await databaseService.companies().doc(companyId).set(doc);"
+          },
+          {
+            "lineNumber": 151,
+            "line": "const doc = await databaseService.companies().doc(companyId).get();"
+          },
+          {
+            "lineNumber": 222,
+            "line": "const ref = databaseService.companies().doc(companyId);"
+          }
+        ]
+      }
+    ],
+    "bot\\services\\productService.js": [
+      {
+        "file": "bot\\services\\productService.js",
+        "pattern": "/\\.collection\\(['\"]([^'\"]+)['\"]\\)/g",
+        "matches": 10,
+        "lines": [
+          {
+            "lineNumber": 40,
+            "line": ".collection(\"products\")"
+          },
+          {
+            "lineNumber": 55,
+            "line": ".collection(\"products\")"
+          },
+          {
+            "lineNumber": 87,
+            "line": ".collection(\"products\")"
+          },
+          {
+            "lineNumber": 99,
+            "line": ".collection(\"companies\")"
+          },
+          {
+            "lineNumber": 120,
+            "line": ".collection(\"products\")"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\productService.js",
+        "pattern": "/\\.get\\(\\)/g",
+        "matches": 9,
+        "lines": [
+          {
+            "lineNumber": 10,
+            "line": "const companyDoc = await databaseService.companies().doc(companyId).get();"
+          },
+          {
+            "lineNumber": 44,
+            "line": ".get();"
+          },
+          {
+            "lineNumber": 89,
+            "line": ".get();"
+          },
+          {
+            "lineNumber": 101,
+            "line": ".get();"
+          },
+          {
+            "lineNumber": 122,
+            "line": ".get();"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\productService.js",
+        "pattern": "/\\.where\\([^)]+\\)/g",
+        "matches": 3,
+        "lines": [
+          {
+            "lineNumber": 41,
+            "line": ".where(\"companyId\", \"==\", companyId)"
+          },
+          {
+            "lineNumber": 184,
+            "line": ".where(\"companyId\", \"==\", companyId)"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\productService.js",
+        "pattern": "/\\.orderBy\\([^)]+\\)/g",
+        "matches": 1,
+        "lines": [
+          {
+            "lineNumber": 431,
+            "line": ".orderBy(\"createdAt\", \"desc\")"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\productService.js",
+        "pattern": "/\\.limit\\([^)]+\\)/g",
+        "matches": 3,
+        "lines": [
+          {
+            "lineNumber": 43,
+            "line": ".limit(1)"
+          },
+          {
+            "lineNumber": 121,
+            "line": ".limit(limit)"
+          },
+          {
+            "lineNumber": 432,
+            "line": ".limit(500)"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\productService.js",
+        "pattern": "/databaseService\\./g",
+        "matches": 14,
+        "lines": [
+          {
+            "lineNumber": 10,
+            "line": "const companyDoc = await databaseService.companies().doc(companyId).get();"
+          },
+          {
+            "lineNumber": 163,
+            "line": "const result = await databaseService.query("
+          },
+          {
+            "lineNumber": 214,
+            "line": "const dup = await databaseService.query("
+          },
+          {
+            "lineNumber": 222,
+            "line": "const result = await databaseService.query("
+          },
+          {
+            "lineNumber": 263,
+            "line": "const result = await databaseService.query("
+          }
+        ]
+      }
+    ],
+    "bot\\services\\realTimeService.js": [
+      {
+        "file": "bot\\services\\realTimeService.js",
+        "pattern": "/\\.get\\(\\)/g",
+        "matches": 13,
+        "lines": [
+          {
+            "lineNumber": 39,
+            "line": "const userDoc = await databaseService.users().doc(telegramId).get();"
+          },
+          {
+            "lineNumber": 56,
+            "line": "const companyDoc = await databaseService.companies().doc(companyId).get();"
+          },
+          {
+            "lineNumber": 76,
+            "line": ".get();"
+          },
+          {
+            "lineNumber": 100,
+            "line": ".get();"
+          },
+          {
+            "lineNumber": 124,
+            "line": "totalUsers: () => databaseService.users().count().get(),"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\realTimeService.js",
+        "pattern": "/\\.where\\([^)]+\\)/g",
+        "matches": 1,
+        "lines": [
+          {
+            "lineNumber": 98,
+            "line": ".where(\"status\", \"==\", \"active\")"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\realTimeService.js",
+        "pattern": "/\\.orderBy\\([^)]+\\)/g",
+        "matches": 3,
+        "lines": [
+          {
+            "lineNumber": 74,
+            "line": ".orderBy(\"last_active\", \"desc\")"
+          },
+          {
+            "lineNumber": 153,
+            "line": ".orderBy(\"referral_count\", \"desc\")"
+          },
+          {
+            "lineNumber": 210,
+            "line": ".orderBy(\"referral_count\", \"desc\")"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\realTimeService.js",
+        "pattern": "/\\.limit\\([^)]+\\)/g",
+        "matches": 4,
+        "lines": [
+          {
+            "lineNumber": 75,
+            "line": ".limit(limit)"
+          },
+          {
+            "lineNumber": 99,
+            "line": ".limit(limit)"
+          },
+          {
+            "lineNumber": 154,
+            "line": ".limit(limit)"
+          },
+          {
+            "lineNumber": 211,
+            "line": ".limit(10)"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\realTimeService.js",
+        "pattern": "/\\.count\\(\\)\\.get\\(\\)/g",
+        "matches": 6,
+        "lines": [
+          {
+            "lineNumber": 124,
+            "line": "totalUsers: () => databaseService.users().count().get(),"
+          },
+          {
+            "lineNumber": 126,
+            "line": "totalReferrals: () => databaseService.referrals().count().get()"
+          },
+          {
+            "lineNumber": 192,
+            "line": "databaseService.users().count().get(),"
+          },
+          {
+            "lineNumber": 194,
+            "line": "databaseService.referrals().count().get()"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\realTimeService.js",
+        "pattern": "/databaseService\\./g",
+        "matches": 13,
+        "lines": [
+          {
+            "lineNumber": 39,
+            "line": "const userDoc = await databaseService.users().doc(telegramId).get();"
+          },
+          {
+            "lineNumber": 56,
+            "line": "const companyDoc = await databaseService.companies().doc(companyId).get();"
+          },
+          {
+            "lineNumber": 73,
+            "line": "const snapshot = await databaseService.users()"
+          },
+          {
+            "lineNumber": 97,
+            "line": "const snapshot = await databaseService.companies()"
+          },
+          {
+            "lineNumber": 124,
+            "line": "totalUsers: () => databaseService.users().count().get(),"
+          }
+        ]
+      }
+    ],
+    "bot\\services\\referralService.js": [
+      {
+        "file": "bot\\services\\referralService.js",
+        "pattern": "/\\.collection\\(['\"]([^'\"]+)['\"]\\)/g",
+        "matches": 3,
+        "lines": [
+          {
+            "lineNumber": 88,
+            "line": ".collection(\"products\")"
+          },
+          {
+            "lineNumber": 125,
+            "line": ".collection(\"products\")"
+          },
+          {
+            "lineNumber": 553,
+            "line": ".collection(\"earnings_deductions\")"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\referralService.js",
+        "pattern": "/\\.get\\(\\)/g",
+        "matches": 25,
+        "lines": [
+          {
+            "lineNumber": 13,
+            "line": ".get();"
+          },
+          {
+            "lineNumber": 19,
+            "line": "const companyDoc = await databaseService.companies().doc(companyId).get();"
+          },
+          {
+            "lineNumber": 81,
+            "line": ".get();"
+          },
+          {
+            "lineNumber": 90,
+            "line": ".get(),"
+          },
+          {
+            "lineNumber": 91,
+            "line": "databaseService.companies().doc(refCode.companyId).get(),"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\referralService.js",
+        "pattern": "/\\.where\\([^)]+\\)/g",
+        "matches": 14,
+        "lines": [
+          {
+            "lineNumber": 80,
+            "line": ".where(\"code\", \"==\", code)"
+          },
+          {
+            "lineNumber": 115,
+            "line": ".where(\"userId\", \"==\", userId)"
+          },
+          {
+            "lineNumber": 186,
+            "line": ".where(\"referrerTelegramId\", \"==\", userId)"
+          },
+          {
+            "lineNumber": 218,
+            "line": ".where(\"referrerTelegramId\", \"==\", userId)"
+          },
+          {
+            "lineNumber": 298,
+            "line": ".where(\"code\", \"==\", code)"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\referralService.js",
+        "pattern": "/\\.orderBy\\([^)]+\\)/g",
+        "matches": 2,
+        "lines": [
+          {
+            "lineNumber": 187,
+            "line": ".orderBy(\"createdAt\", \"desc\")"
+          },
+          {
+            "lineNumber": 261,
+            "line": ".orderBy('verifiedReferralCount', 'desc')"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\referralService.js",
+        "pattern": "/\\.limit\\([^)]+\\)/g",
+        "matches": 2,
+        "lines": [
+          {
+            "lineNumber": 262,
+            "line": ".limit(100)"
+          },
+          {
+            "lineNumber": 269,
+            "line": "const referralsSnap = await databaseService.referrals().limit(500).get();"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\referralService.js",
+        "pattern": "/databaseService\\./g",
+        "matches": 14,
+        "lines": [
+          {
+            "lineNumber": 19,
+            "line": "const companyDoc = await databaseService.companies().doc(companyId).get();"
+          },
+          {
+            "lineNumber": 36,
+            "line": "const refCodeDoc = await databaseService.referralCodes().add({"
+          },
+          {
+            "lineNumber": 91,
+            "line": "databaseService.companies().doc(refCode.companyId).get(),"
+          },
+          {
+            "lineNumber": 168,
+            "line": "await databaseService.referrals().doc(referralId).set(cleanData);"
+          },
+          {
+            "lineNumber": 193,
+            "line": "databaseService.referralCodes().doc(ref.referralCodeId).get(),"
+          }
+        ]
+      }
+    ],
+    "bot\\services\\smartAnalyticsService.js": [
+      {
+        "file": "bot\\services\\smartAnalyticsService.js",
+        "pattern": "/\\.get\\(\\)/g",
+        "matches": 4,
+        "lines": [
+          {
+            "lineNumber": 76,
+            "line": "const snapshot = await databaseService.users().count().get();"
+          },
+          {
+            "lineNumber": 105,
+            "line": "const snapshot = await databaseService.companies().count().get();"
+          },
+          {
+            "lineNumber": 134,
+            "line": "const snapshot = await databaseService.referrals().count().get();"
+          },
+          {
+            "lineNumber": 168,
+            "line": ".get();"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\smartAnalyticsService.js",
+        "pattern": "/\\.orderBy\\([^)]+\\)/g",
+        "matches": 1,
+        "lines": [
+          {
+            "lineNumber": 166,
+            "line": ".orderBy(\"referral_count\", \"desc\")"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\smartAnalyticsService.js",
+        "pattern": "/\\.limit\\([^)]+\\)/g",
+        "matches": 1,
+        "lines": [
+          {
+            "lineNumber": 167,
+            "line": ".limit(limit)"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\smartAnalyticsService.js",
+        "pattern": "/\\.count\\(\\)\\.get\\(\\)/g",
+        "matches": 3,
+        "lines": [
+          {
+            "lineNumber": 76,
+            "line": "const snapshot = await databaseService.users().count().get();"
+          },
+          {
+            "lineNumber": 105,
+            "line": "const snapshot = await databaseService.companies().count().get();"
+          },
+          {
+            "lineNumber": 134,
+            "line": "const snapshot = await databaseService.referrals().count().get();"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\smartAnalyticsService.js",
+        "pattern": "/databaseService\\./g",
+        "matches": 4,
+        "lines": [
+          {
+            "lineNumber": 76,
+            "line": "const snapshot = await databaseService.users().count().get();"
+          },
+          {
+            "lineNumber": 105,
+            "line": "const snapshot = await databaseService.companies().count().get();"
+          },
+          {
+            "lineNumber": 134,
+            "line": "const snapshot = await databaseService.referrals().count().get();"
+          },
+          {
+            "lineNumber": 165,
+            "line": "const snapshot = await databaseService.users()"
+          }
+        ]
+      }
+    ],
+    "bot\\services\\smartSearchService.js": [
+      {
+        "file": "bot\\services\\smartSearchService.js",
+        "pattern": "/\\.get\\(\\)/g",
+        "matches": 4,
+        "lines": [
+          {
+            "lineNumber": 68,
+            "line": ".get()"
+          },
+          {
+            "lineNumber": 78,
+            "line": ".get()"
+          },
+          {
+            "lineNumber": 88,
+            "line": ".get()"
+          },
+          {
+            "lineNumber": 142,
+            "line": "const snapshot = await query.get();"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\smartSearchService.js",
+        "pattern": "/\\.where\\([^)]+\\)/g",
+        "matches": 7,
+        "lines": [
+          {
+            "lineNumber": 65,
+            "line": ".where('username', '>=', q)"
+          },
+          {
+            "lineNumber": 76,
+            "line": ".where('phone_number', '==', q)"
+          },
+          {
+            "lineNumber": 86,
+            "line": ".where('telegramId', '==', parseInt(q))"
+          },
+          {
+            "lineNumber": 130,
+            "line": "query = query.where('role', '==', criteria.role);"
+          },
+          {
+            "lineNumber": 133,
+            "line": "query = query.where('isAdmin', '==', criteria.isAdmin);"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\smartSearchService.js",
+        "pattern": "/\\.limit\\([^)]+\\)/g",
+        "matches": 4,
+        "lines": [
+          {
+            "lineNumber": 67,
+            "line": ".limit(limit)"
+          },
+          {
+            "lineNumber": 77,
+            "line": ".limit(limit)"
+          },
+          {
+            "lineNumber": 87,
+            "line": ".limit(limit)"
+          },
+          {
+            "lineNumber": 139,
+            "line": "query = query.limit(criteria.limit);"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\smartSearchService.js",
+        "pattern": "/databaseService\\./g",
+        "matches": 4,
+        "lines": [
+          {
+            "lineNumber": 64,
+            "line": "databaseService.users()"
+          },
+          {
+            "lineNumber": 75,
+            "line": "databaseService.users()"
+          },
+          {
+            "lineNumber": 85,
+            "line": "databaseService.users()"
+          },
+          {
+            "lineNumber": 126,
+            "line": "let query = databaseService.users();"
+          }
+        ]
+      }
+    ],
+    "bot\\services\\ultraFastUserService.js": [
+      {
+        "file": "bot\\services\\ultraFastUserService.js",
+        "pattern": "/\\.get\\(\\)/g",
+        "matches": 8,
+        "lines": [
+          {
+            "lineNumber": 66,
+            "line": ".get();"
+          },
+          {
+            "lineNumber": 203,
+            "line": ".get();"
+          },
+          {
+            "lineNumber": 224,
+            "line": "const userDoc = await connection.db.query(telegramId.toString()).get();"
+          },
+          {
+            "lineNumber": 267,
+            "line": ".get();"
+          },
+          {
+            "lineNumber": 308,
+            "line": ".get();"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\ultraFastUserService.js",
+        "pattern": "/\\.where\\([^)]+\\)/g",
+        "matches": 5,
+        "lines": [
+          {
+            "lineNumber": 202,
+            "line": ".where(\"phone_number\", \"==\", phoneNumber)"
+          },
+          {
+            "lineNumber": 305,
+            "line": ".where('username', '>=', query.toLowerCase())"
+          },
+          {
+            "lineNumber": 354,
+            "line": "connection.db.collection.where('phone_verified', '==', true).count().get(),"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\ultraFastUserService.js",
+        "pattern": "/\\.orderBy\\([^)]+\\)/g",
+        "matches": 2,
+        "lines": [
+          {
+            "lineNumber": 64,
+            "line": ".orderBy(\"last_active\", \"desc\")"
+          },
+          {
+            "lineNumber": 265,
+            "line": ".orderBy(\"verifiedReferralCount\", \"desc\")"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\ultraFastUserService.js",
+        "pattern": "/\\.limit\\([^)]+\\)/g",
+        "matches": 3,
+        "lines": [
+          {
+            "lineNumber": 65,
+            "line": ".limit(limit)"
+          },
+          {
+            "lineNumber": 266,
+            "line": ".limit(limit)"
+          },
+          {
+            "lineNumber": 307,
+            "line": ".limit(20)"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\ultraFastUserService.js",
+        "pattern": "/\\.count\\(\\)\\.get\\(\\)/g",
+        "matches": 3,
+        "lines": [
+          {
+            "lineNumber": 353,
+            "line": "connection.db.collection.count().get(),"
+          },
+          {
+            "lineNumber": 354,
+            "line": "connection.db.collection.where('phone_verified', '==', true).count().get(),"
+          },
+          {
+            "lineNumber": 355,
+            "line": "connection.db.collection.where('last_active', '>', new Date(Date.now() - 24 * 60 * 60 * 1000)).count"
+          }
+        ]
+      }
+    ],
+    "bot\\services\\userService.js": [
+      {
+        "file": "bot\\services\\userService.js",
+        "pattern": "/\\.collection\\(['\"]([^'\"]+)['\"]\\)/g",
+        "matches": 1,
+        "lines": [
+          {
+            "lineNumber": 896,
+            "line": ".collection(\"earnings_deductions\")"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\userService.js",
+        "pattern": "/\\.get\\(\\)/g",
+        "matches": 39,
+        "lines": [
+          {
+            "lineNumber": 14,
+            "line": ".get();"
+          },
+          {
+            "lineNumber": 148,
+            "line": ".get();"
+          },
+          {
+            "lineNumber": 161,
+            "line": "const userData = (await userDoc.get()).data();"
+          },
+          {
+            "lineNumber": 190,
+            "line": "const userDoc = await userRef.get();"
+          },
+          {
+            "lineNumber": 241,
+            "line": ".get();"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\userService.js",
+        "pattern": "/\\.where\\([^)]+\\)/g",
+        "matches": 23,
+        "lines": [
+          {
+            "lineNumber": 147,
+            "line": ".where(\"phone_number\", \"==\", phoneNumber)"
+          },
+          {
+            "lineNumber": 240,
+            "line": ".where(\"phone_verified\", \"==\", true)"
+          },
+          {
+            "lineNumber": 310,
+            "line": ".where(\"last_active\", \">=\", startOfMonth)"
+          },
+          {
+            "lineNumber": 346,
+            "line": ".where(\"verifiedReferralCount\", \">\", userReferralCount)"
+          },
+          {
+            "lineNumber": 359,
+            "line": ".where(\"last_active\", \">=\", startOfMonth)"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\userService.js",
+        "pattern": "/\\.orderBy\\([^)]+\\)/g",
+        "matches": 5,
+        "lines": [
+          {
+            "lineNumber": 264,
+            "line": ".orderBy(\"last_active\", \"desc\")"
+          },
+          {
+            "lineNumber": 285,
+            "line": ".orderBy(\"verifiedReferralCount\", \"desc\")"
+          },
+          {
+            "lineNumber": 311,
+            "line": ".orderBy(\"verifiedReferralCount\", \"desc\")"
+          },
+          {
+            "lineNumber": 929,
+            "line": ".orderBy(\"createdAt\", \"desc\")"
+          },
+          {
+            "lineNumber": 982,
+            "line": "query = query.orderBy('createdAt', 'desc').limit(limit);"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\userService.js",
+        "pattern": "/\\.limit\\([^)]+\\)/g",
+        "matches": 7,
+        "lines": [
+          {
+            "lineNumber": 286,
+            "line": ".limit(limit)"
+          },
+          {
+            "lineNumber": 312,
+            "line": ".limit(limit)"
+          },
+          {
+            "lineNumber": 742,
+            "line": ".limit(20)"
+          },
+          {
+            "lineNumber": 759,
+            "line": ".limit(10)"
+          },
+          {
+            "lineNumber": 853,
+            "line": ".limit(100) // Reasonable limit"
+          }
+        ]
+      },
+      {
+        "file": "bot\\services\\userService.js",
+        "pattern": "/databaseService\\./g",
+        "matches": 23,
+        "lines": [
+          {
+            "lineNumber": 87,
+            "line": "const userRef = databaseService.users().doc(telegramId.toString());"
+          },
+          {
+            "lineNumber": 160,
+            "line": "const userDoc = databaseService.users().doc(telegramId.toString());"
+          },
+          {
+            "lineNumber": 189,
+            "line": "const userRef = databaseService.users().doc(telegramId.toString());"
+          },
+          {
+            "lineNumber": 337,
+            "line": "const userDoc = await databaseService.users().doc(telegramId.toString()).get();"
+          },
+          {
+            "lineNumber": 411,
+            "line": "const userRef = databaseService.users().doc(telegramId.toString());"
+          }
+        ]
+      }
+    ]
+  },
+  "summary": {
+    "/databaseService\\./g": 175,
+    "/\\.collection\\": 69,
+    "/\\.get\\": 236,
+    "/\\.orderBy\\": 26,
+    "/\\.limit\\": 57,
+    "/admin\\.firestore\\": 5,
+    "/\\.where\\": 106,
+    "/\\.count\\": 31,
+    "/\\.doc\\": 3
+  }
+}
