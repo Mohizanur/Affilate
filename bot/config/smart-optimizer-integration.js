@@ -30,30 +30,31 @@ const getSmartService = () => {
     return smartService;
 };
 
+// EMERGENCY: Disabled all convenience methods to prevent automatic initialization
 // Export the service and initialization function
 module.exports = {
     initializeSmartOptimizer,
     getSmartService,
-    // Convenience methods for quick access
-    getUser: (telegramId) => getSmartService().getUser(telegramId),
-    createOrUpdateUser: (userData) => getSmartService().createOrUpdateUser(userData),
-    updateUser: (telegramId, updateData) => getSmartService().updateUser(telegramId, updateData),
-    getAllUsers: () => getSmartService().getAllUsers(),
-    getUserCount: () => getSmartService().getUserCount(),
-    getCompany: (companyId) => getSmartService().getCompany(companyId),
-    createCompany: (companyData) => getSmartService().createCompany(companyData),
-    getTopReferrers: (limit) => getSmartService().getTopReferrers(limit),
-    createReferral: (referralData) => getSmartService().createReferral(referralData),
-    getProduct: (productId) => getSmartService().getProduct(productId),
-    getAllProducts: () => getSmartService().getAllProducts(),
-    createOrder: (orderData) => getSmartService().createOrder(orderData),
-    getOrder: (orderId) => getSmartService().getOrder(orderId),
-    batchUpdateUsers: (updates) => getSmartService().batchUpdateUsers(updates),
-    // Performance monitoring
-    getPerformanceStats: () => getSmartService().getPerformanceStats(),
-    getQuotaStatus: () => getSmartService().getQuotaStatus(),
-    getCacheStats: () => getSmartService().getCacheStats(),
+    // Convenience methods disabled to prevent Firebase queries
+    getUser: (telegramId) => { throw new Error('Smart Optimizer disabled'); },
+    createOrUpdateUser: (userData) => { throw new Error('Smart Optimizer disabled'); },
+    updateUser: (telegramId, updateData) => { throw new Error('Smart Optimizer disabled'); },
+    getAllUsers: () => { throw new Error('Smart Optimizer disabled'); },
+    getUserCount: () => { throw new Error('Smart Optimizer disabled'); },
+    getCompany: (companyId) => { throw new Error('Smart Optimizer disabled'); },
+    createCompany: (companyData) => { throw new Error('Smart Optimizer disabled'); },
+    getTopReferrers: (limit) => { throw new Error('Smart Optimizer disabled'); },
+    createReferral: (referralData) => { throw new Error('Smart Optimizer disabled'); },
+    getProduct: (productId) => { throw new Error('Smart Optimizer disabled'); },
+    getAllProducts: () => { throw new Error('Smart Optimizer disabled'); },
+    createOrder: (orderData) => { throw new Error('Smart Optimizer disabled'); },
+    getOrder: (orderId) => { throw new Error('Smart Optimizer disabled'); },
+    batchUpdateUsers: (updates) => { throw new Error('Smart Optimizer disabled'); },
+    // Performance monitoring - return dummy data
+    getPerformanceStats: () => ({ cacheHitRate: 0, avgResponseTime: 0, cacheStats: { keys: 0 } }),
+    getQuotaStatus: () => ({ reads: 0, writes: 0, cacheHitRate: 0, avgResponseTime: 0, uptime: 0 }),
+    getCacheStats: () => ({ totalKeys: 0, maxKeys: 0, ttl: 0, memoryUsage: {} }),
     // Maintenance
-    performMaintenance: () => getSmartService().performMaintenance(),
-    clearCache: () => getSmartService().clearCache()
+    performMaintenance: () => Promise.resolve(),
+    clearCache: () => console.log('⚠️ Smart Optimizer disabled, cache clear ignored')
 };
