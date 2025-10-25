@@ -492,11 +492,10 @@ async function startBot(app) {
     console.log("✅ Quota-Aware System initialized - quota protected!");
     performanceLogger.system("✅ Quota-Aware System initialized");
 
-    // 🚀 Initialize Smart Realistic Optimizer
-    console.log("🚀 Initializing Smart Realistic Optimizer...");
-    await smartOptimizer.initializeSmartOptimizer();
-    console.log("✅ Smart Realistic Optimizer initialized successfully!");
-    performanceLogger.system("✅ Smart Realistic Optimizer initialized");
+    // 🚨 EMERGENCY: Disable Smart Realistic Optimizer to stop quota bleeding
+    // console.log("🚀 Initializing Smart Realistic Optimizer...");
+    // await smartOptimizer.initializeSmartOptimizer();
+    console.log("🚨 Smart Realistic Optimizer DISABLED to stop quota bleeding");
 
     // 🚀 Initialize Production Optimizer (Final Edge System)
     console.log("🚀 Initializing Production Optimizer - Final Edge System...");
